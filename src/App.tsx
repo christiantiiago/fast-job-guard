@@ -23,14 +23,12 @@ import AllJobs from "./pages/AllJobs";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
-import ProviderJobs from "./pages/provider/Jobs";
 import ProviderFinance from "./pages/provider/Finance";
 import ProviderOnboarding from "./pages/provider/Onboarding";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
-import AdminJobs from "./pages/admin/Jobs";
 import AdminPayments from "./pages/admin/Payments";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
@@ -150,14 +148,6 @@ const App = () => (
               }
             />
             <Route
-              path="/provider/jobs"
-              element={
-                <ProtectedRoute>
-                  <ProviderJobs />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/provider/finance"
               element={
                 <ProtectedRoute>
@@ -180,14 +170,6 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminUsers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/jobs"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminJobs />
                 </ProtectedRoute>
               }
             />

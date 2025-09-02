@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import Map from '@/components/ui/map';
+import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
 
 const AllJobs = () => {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const AllJobs = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
   const [showMap, setShowMap] = useState(false);
+  const { position: userPosition, error: locationError } = useGeolocation();
 
   useEffect(() => {
     fetchAllOpenJobs();
@@ -87,6 +89,17 @@ const AllJobs = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setPriceRange('all');
+  };
+
+  const getJobDistance = (job: any) => {
+    if (!userPosition || !job.latitude || !job.longitude) return null;
+    
+    return calculateDistance(
+      userPosition.latitude,
+      userPosition.longitude,
+      job.latitude,
+      job.longitude
+    );
   };
 
   const hasActiveFilters = useMemo(() => 
@@ -294,6 +307,14 @@ const AllJobs = () => {
                                     <div className="flex items-center gap-1">
                                       <MapPin className="h-3 w-3" />
                                       <span>{job.addresses.city}, {job.addresses.state}</span>
+                                      {(() => {
+                                        const distance = getJobDistance(job);
+                                        return distance ? (
+                                          <span className="text-primary font-medium">
+                                            • {formatDistance(distance)}
+                                          </span>
+                                        ) : null;
+                                      })()}
                                     </div>
                                   )}
                                   
@@ -361,14 +382,22 @@ const AllJobs = () => {
                         </div>
                       )}
 
-                      {job.addresses && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          <span className="truncate">
-                            {job.addresses.city}, {job.addresses.state}
-                          </span>
-                        </div>
-                      )}
+                        {job.addresses && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">
+                              {job.addresses.city}, {job.addresses.state}
+                              {(() => {
+                                const distance = getJobDistance(job);
+                                return distance ? (
+                                  <span className="text-primary font-medium ml-2">
+                                    • {formatDistance(distance)}
+                                  </span>
+                                ) : null;
+                              })()}
+                            </span>
+                          </div>
+                        )}
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3" />

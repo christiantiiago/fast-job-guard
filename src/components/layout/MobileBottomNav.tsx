@@ -20,7 +20,7 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
   const providerTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
     { id: "all-jobs", label: "Todos Jobs", icon: Search, href: "/all-jobs" },
-    { id: "my-jobs", label: "Meus Jobs", icon: Briefcase, href: "/provider/jobs" },
+    { id: "my-jobs", label: "Meus Jobs", icon: Briefcase, href: "/jobs" },
     { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
