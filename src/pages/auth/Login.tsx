@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, Link, useLocation } from 'react-router-dom';
+import { Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 export default function Login() {
   const { user, signIn, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,9 +21,7 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || '/dashboard';
 
-  if (user && !loading) {
-    return <Navigate to={from} replace />;
-  }
+  // Remove auto redirect - user must enter credentials
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +38,7 @@ export default function Login() {
         });
       } else {
         toast.success('Login realizado com sucesso!');
+        navigate(from);
       }
     } catch (err) {
       setError('Erro interno. Tente novamente.');

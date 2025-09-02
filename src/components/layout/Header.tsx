@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Menu, X, User, Briefcase } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,12 +40,14 @@ const Header = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="hover:bg-primary/5 hover:text-primary">
-              <User className="h-4 w-4 mr-2" />
-              Entrar
+            <Button variant="ghost" size="sm" className="hover:bg-primary/5 hover:text-primary" asChild>
+              <Link to="/auth/login">
+                <User className="h-4 w-4 mr-2" />
+                Entrar
+              </Link>
             </Button>
-            <Button variant="shipfy" size="sm">
-              Publicar Trabalho
+            <Button variant="shipfy" size="sm" asChild>
+              <Link to="/auth/register">Publicar Trabalho</Link>
             </Button>
           </div>
 
@@ -76,12 +79,14 @@ const Header = () => {
                 Suporte
               </a>
               <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                <Button variant="ghost" className="justify-start hover:bg-primary/5 hover:text-primary">
-                  <User className="h-4 w-4 mr-2" />
-                  Entrar
+                <Button variant="ghost" className="justify-start hover:bg-primary/5 hover:text-primary" asChild>
+                  <Link to="/auth/login">
+                    <User className="h-4 w-4 mr-2" />
+                    Entrar
+                  </Link>
                 </Button>
-                <Button variant="shipfy">
-                  Publicar Trabalho
+                <Button variant="shipfy" asChild>
+                  <Link to="/auth/register">Publicar Trabalho</Link>
                 </Button>
               </div>
             </nav>

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Shield, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-image.jpg";
 
 const Hero = () => {
@@ -43,8 +44,8 @@ const Hero = () => {
                     className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/70 h-12"
                   />
                 </div>
-                <Button variant="shipfy" size="lg" className="h-12 px-8">
-                  Buscar
+                <Button variant="shipfy" size="lg" className="h-12 px-8" asChild>
+                  <Link to="/auth/register">Buscar</Link>
                 </Button>
               </div>
             </div>
@@ -63,12 +64,12 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="accent" size="xl" className="flex-1 sm:flex-none">
-                Publicar Trabalho
-              </Button>
-              <Button variant="outline" size="xl" className="flex-1 sm:flex-none bg-white/10 border-white/30 text-white hover:bg-white/20">
-                Quero Trabalhar
-              </Button>
+            <Button variant="accent" size="xl" className="flex-1 sm:flex-none" asChild>
+              <Link to="/auth/login">Entrar</Link>
+            </Button>
+            <Button variant="outline" size="xl" className="flex-1 sm:flex-none bg-white/10 border-white/30 text-white hover:bg-white/20" asChild>
+              <Link to="/auth/register">Criar Conta</Link>
+            </Button>
             </div>
           </div>
 

@@ -64,15 +64,13 @@ export const useJobs = () => {
         .select(`
           *,
           service_categories(name, icon_name),
-          profiles!jobs_client_id_fkey(full_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
             price,
             message,
             status,
-            provider_id,
-            profiles!proposals_provider_id_fkey(full_name)
+            provider_id
           )
         `)
         .order('created_at', { ascending: false });
@@ -112,15 +110,13 @@ export const useJobs = () => {
         .select(`
           *,
           service_categories(name, icon_name),
-          profiles!jobs_client_id_fkey(full_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
             price,
             message,
             status,
-            provider_id,
-            profiles!proposals_provider_id_fkey(full_name)
+            provider_id
           )
         `)
         .eq('status', 'open')
@@ -148,7 +144,6 @@ export const useJobs = () => {
         .select(`
           *,
           service_categories(name, icon_name),
-          profiles!jobs_client_id_fkey(full_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
@@ -158,8 +153,7 @@ export const useJobs = () => {
             delivery_date,
             estimated_hours,
             notes,
-            provider_id,
-            profiles!proposals_provider_id_fkey(full_name)
+            provider_id
           )
         `)
         .eq('id', id)
