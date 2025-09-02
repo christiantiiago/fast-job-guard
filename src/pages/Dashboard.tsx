@@ -65,35 +65,55 @@ export default function Dashboard() {
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              Olá, {user?.email?.split('@')[0]}! 👋
+              {userRole === 'client' 
+                ? `Olá, ${user?.email?.split('@')[0]}! 👋 Vamos criar seu próximo projeto?`
+                : userRole === 'provider'
+                ? `Olá, ${user?.email?.split('@')[0]}! 👋 Pronto para novos trabalhos?`
+                : `Painel Administrativo - ${user?.email?.split('@')[0]}`
+              }
             </h1>
             <p className="text-muted-foreground">
               {userRole === 'client' 
-                ? 'Gerencie seus trabalhos e encontre os melhores profissionais'
+                ? 'Publique trabalhos, encontre profissionais qualificados e gerencie seus projetos com facilidade'
                 : userRole === 'provider'
-                ? 'Encontre novos trabalhos e gerencie seus serviços'
-                : 'Painel administrativo do Job Fast'
+                ? 'Descubra oportunidades próximas a você, envie propostas e construa sua reputação'
+                : 'Gerencie usuários, monitore atividades e mantenha a plataforma funcionando perfeitamente'
               }
             </p>
           </div>
 
-          {/* Quick Actions */}
           <div className="flex gap-2">
             {userRole === 'client' && (
-              <Button asChild>
-                <Link to="/jobs/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar Job
-                </Link>
-              </Button>
+              <>
+                <Button asChild>
+                  <Link to="/jobs/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar Job
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/jobs">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Meus Jobs
+                  </Link>
+                </Button>
+              </>
             )}
             {userRole === 'provider' && (
-              <Button asChild variant="outline">
-                <Link to="/discover">
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Procurar Jobs
-                </Link>
-              </Button>
+              <>
+                <Button asChild>
+                  <Link to="/discover">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Descobrir Jobs
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/jobs">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Meus Trabalhos
+                  </Link>
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -259,12 +279,12 @@ export default function Dashboard() {
                       Descobrir trabalhos
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
-                    <Link to="/provider/jobs">
-                      <Clock className="mr-2 h-4 w-4" />
-                      Meus trabalhos
-                    </Link>
-                  </Button>
+                   <Button asChild variant="outline" className="w-full justify-start">
+                     <Link to="/jobs">
+                       <Clock className="mr-2 h-4 w-4" />
+                       Meus trabalhos
+                     </Link>
+                   </Button>
                   <Button asChild variant="outline" className="w-full justify-start">
                     <Link to="/provider/finance">
                       <TrendingUp className="mr-2 h-4 w-4" />
