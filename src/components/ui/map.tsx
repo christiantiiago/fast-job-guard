@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -29,6 +29,11 @@ const Map: React.FC<MapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+
+  // Memoize markers to prevent unnecessary re-renders
+  const memoizedMarkers = useMemo(() => markers, [
+    JSON.stringify(markers.map(m => ({ lat: m.latitude, lng: m.longitude, title: m.title })))
+  ]);
 
   const getMapStyle = (styleType: string) => {
     const styles = {
@@ -62,7 +67,7 @@ const Map: React.FC<MapProps> = ({
     );
 
     // Add markers
-    markers.forEach((marker) => {
+    memoizedMarkers.forEach((marker) => {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<div class="p-2">
           <h3 class="font-semibold text-sm">${marker.title || 'Localização'}</h3>
@@ -89,7 +94,7 @@ const Map: React.FC<MapProps> = ({
       // Remove map
       map.current?.remove();
     };
-  }, [latitude, longitude, zoom, markers, style]);
+  }, [latitude, longitude, zoom, memoizedMarkers, style]);
 
   return (
     <div 

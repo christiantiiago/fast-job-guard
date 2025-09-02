@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,7 +35,7 @@ const AllJobs = () => {
 
   useEffect(() => {
     fetchAllOpenJobs();
-  }, [fetchAllOpenJobs]);
+  }, []); // Remove a dependência para evitar loop infinito
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
@@ -60,26 +60,28 @@ const AllJobs = () => {
     return `R$ ${min || max}`;
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch = !searchQuery || 
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.service_categories?.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'all' || job.category_id === selectedCategory;
-    
-    const matchesPrice = priceRange === 'all' || (() => {
-      const maxPrice = job.budget_max || job.budget_min || 0;
-      switch (priceRange) {
-        case 'low': return maxPrice <= 100;
-        case 'medium': return maxPrice > 100 && maxPrice <= 500;
-        case 'high': return maxPrice > 500;
-        default: return true;
-      }
-    })();
-    
-    return matchesSearch && matchesCategory && matchesPrice;
-  });
+  const filteredJobs = useMemo(() => {
+    return jobs.filter((job) => {
+      const matchesSearch = !searchQuery || 
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.service_categories?.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'all' || job.category_id === selectedCategory;
+      
+      const matchesPrice = priceRange === 'all' || (() => {
+        const maxPrice = job.budget_max || job.budget_min || 0;
+        switch (priceRange) {
+          case 'low': return maxPrice <= 100;
+          case 'medium': return maxPrice > 100 && maxPrice <= 500;
+          case 'high': return maxPrice > 500;
+          default: return true;
+        }
+      })();
+      
+      return matchesSearch && matchesCategory && matchesPrice;
+    });
+  }, [jobs, searchQuery, selectedCategory, priceRange]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -87,7 +89,10 @@ const AllJobs = () => {
     setPriceRange('all');
   };
 
-  const hasActiveFilters = searchQuery || selectedCategory !== 'all' || priceRange !== 'all';
+  const hasActiveFilters = useMemo(() => 
+    searchQuery || selectedCategory !== 'all' || priceRange !== 'all',
+    [searchQuery, selectedCategory, priceRange]
+  );
 
   if (loading) {
     return (
