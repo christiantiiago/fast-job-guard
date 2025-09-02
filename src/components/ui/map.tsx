@@ -147,13 +147,21 @@ const Map: React.FC<MapProps> = ({
         // Add popup
         const popup = new mapboxgl.Popup({ offset: 25 })
           .setHTML(`
-            <div class="p-2">
+            <div class="p-2 cursor-pointer">
               <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
-              ${markerData.description ? `<p class="text-xs text-gray-600">${markerData.description}</p>` : ''}
+              ${markerData.description ? `<p class="text-xs text-gray-600 mb-2">${markerData.description}</p>` : ''}
+              <p class="text-xs text-blue-600 font-medium">Clique para ver detalhes →</p>
             </div>
           `);
         
         markerEl.setPopup(popup);
+
+        // Add click handler for navigation
+        markerEl.getElement().addEventListener('click', () => {
+          if (onLocationSelect) {
+            onLocationSelect([markerData.longitude, markerData.latitude]);
+          }
+        });
         return markerEl;
       });
 
@@ -236,13 +244,21 @@ const Map: React.FC<MapProps> = ({
         // Add popup
         const popup = new mapboxgl.Popup({ offset: 25 })
           .setHTML(`
-            <div class="p-2">
+            <div class="p-2 cursor-pointer">
               <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
-              ${markerData.description ? `<p class="text-xs text-gray-600">${markerData.description}</p>` : ''}
+              ${markerData.description ? `<p class="text-xs text-gray-600 mb-2">${markerData.description}</p>` : ''}
+              <p class="text-xs text-blue-600 font-medium">Clique para ver detalhes →</p>
             </div>
           `);
         
         markerEl.setPopup(popup);
+
+        // Add click handler for navigation  
+        markerEl.getElement().addEventListener('click', () => {
+          if (onLocationSelect) {
+            onLocationSelect([markerData.longitude, markerData.latitude]);
+          }
+        });
         return markerEl;
       });
 

@@ -263,19 +263,45 @@ const AllJobs = () => {
                     <MapIcon className="h-5 w-5 text-primary" />
                     Localização dos Trabalhos
                   </h3>
-                   <Map
-                     center={[filteredJobs.length > 0 && filteredJobs[0].longitude ? filteredJobs[0].longitude : -51.9253, filteredJobs.length > 0 && filteredJobs[0].latitude ? filteredJobs[0].latitude : -14.2350]}
-                     zoom={6}
-                     markers={filteredJobs
-                       .filter(job => job.latitude && job.longitude)
-                       .map(job => ({
-                         latitude: job.latitude!,
-                         longitude: job.longitude!,
-                         title: job.title,
-                         description: `${formatPrice(job.budget_min, job.budget_max)} - ${job.service_categories?.name || ''}`
-                       }))}
-                     className="h-[500px]"
-                   />
+                  {filteredJobs.filter(job => job.latitude && job.longitude).length === 0 ? (
+                    <div className="h-[500px] flex items-center justify-center bg-muted rounded-lg">
+                      <div className="text-center">
+                        <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-medium mb-2">Nenhum trabalho com localização</h3>
+                        <p className="text-muted-foreground">
+                          Os trabalhos filtrados não possuem endereço definido para exibição no mapa.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Map
+                      center={[-46.6333, -23.5505]} // São Paulo center
+                      zoom={10}
+                      markers={filteredJobs
+                        .filter(job => job.latitude && job.longitude)
+                        .map(job => ({
+                          latitude: Number(job.latitude),
+                          longitude: Number(job.longitude),
+                          title: job.title,
+                          description: `${formatPrice(job.budget_min, job.budget_max)} • ${job.service_categories?.name}`
+                        }))
+                      }
+                      height="h-[500px]"
+                      className="rounded-lg"
+                      onLocationSelect={(coords, address) => {
+                        // Find job closest to clicked coordinates
+                        const clickedJobs = filteredJobs.filter(job => 
+                          job.latitude && job.longitude &&
+                          Math.abs(Number(job.latitude) - coords[1]) < 0.001 &&
+                          Math.abs(Number(job.longitude) - coords[0]) < 0.001
+                        );
+                        
+                        if (clickedJobs.length > 0) {
+                          navigate(`/job/${clickedJobs[0].id}`);
+                        }
+                      }}
+                    />
+                  )}
                 </div>
                 
                 {/* Jobs List Below Map */}
@@ -458,8 +484,8 @@ const AllJobs = () => {
             )}
           </div>
         </div>
-    </AppLayout>
-  );
-};
+      </AppLayout>
+    );
+  };
 
 export default AllJobs;

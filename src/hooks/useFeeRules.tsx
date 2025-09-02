@@ -21,9 +21,36 @@ interface FeeCalculation {
 }
 
 export const useFeeRules = () => {
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const [feeRules, setFeeRules] = useState<FeeRule | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+
+  // Check if user has premium subscription
+  const checkPremiumStatus = async () => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status, plan_name')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking premium status:', error);
+        return false;
+      }
+
+      const isPremium = data?.plan_name?.toLowerCase().includes('premium') || false;
+      setIsPremiumUser(isPremium);
+      return isPremium;
+    } catch (error) {
+      console.error('Error in checkPremiumStatus:', error);
+      return false;
+    }
+  };
 
   // Fetch active fee rules
   const fetchFeeRules = async () => {
@@ -34,14 +61,18 @@ export const useFeeRules = () => {
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching fee rules:', error);
         return;
       }
 
-      setFeeRules(data);
+      if (data) {
+        setFeeRules(data);
+      }
+      
+      await checkPremiumStatus();
     } catch (error) {
       console.error('Error in fetchFeeRules:', error);
     } finally {
@@ -50,7 +81,7 @@ export const useFeeRules = () => {
   };
 
   // Calculate fees based on amount
-  const calculateFees = (amount: number, isPremium: boolean = false): FeeCalculation => {
+  const calculateFees = (amount: number, forceStandard: boolean = false): FeeCalculation => {
     if (!feeRules || !amount) {
       return {
         subtotal: amount,
@@ -61,6 +92,7 @@ export const useFeeRules = () => {
       };
     }
 
+    const isPremium = !forceStandard && isPremiumUser;
     let feePercentage = 0;
     
     if (userRole === 'client') {
@@ -83,9 +115,9 @@ export const useFeeRules = () => {
   };
 
   // Calculate fee range for budget display
-  const calculateFeeRange = (minAmount: number, maxAmount: number, isPremium: boolean = false) => {
-    const minFees = calculateFees(minAmount, isPremium);
-    const maxFees = calculateFees(maxAmount, isPremium);
+  const calculateFeeRange = (minAmount: number, maxAmount: number, forceStandard: boolean = false) => {
+    const minFees = calculateFees(minAmount, forceStandard);
+    const maxFees = calculateFees(maxAmount, forceStandard);
 
     return {
       min: minFees,
@@ -102,9 +134,10 @@ export const useFeeRules = () => {
   };
 
   // Get fee description
-  const getFeeDescription = (isPremium: boolean = false) => {
+  const getFeeDescription = (forceStandard: boolean = false) => {
     if (!feeRules) return '';
     
+    const isPremium = !forceStandard && isPremiumUser;
     let feePercentage = 0;
     if (userRole === 'client') {
       feePercentage = isPremium ? feeRules.client_fee_premium : feeRules.client_fee_standard;
@@ -112,17 +145,18 @@ export const useFeeRules = () => {
       feePercentage = isPremium ? feeRules.provider_fee_premium : feeRules.provider_fee_standard;
     }
 
-    const planType = isPremium ? 'Premium' : 'Padrão';
+    const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
     return `Taxa da plataforma ${planType}: ${feePercentage}%`;
   };
 
   useEffect(() => {
     fetchFeeRules();
-  }, []);
+  }, [user]);
 
   return {
     feeRules,
     loading,
+    isPremiumUser,
     calculateFees,
     calculateFeeRange,
     formatCurrency,

@@ -94,10 +94,15 @@ export function AddressAutocomplete({
   };
 
   const handleSuggestionClick = (suggestion: AddressSuggestion) => {
-    setInputValue(suggestion.place_name);
-    onChange(suggestion.place_name, suggestion.center);
+    const addressText = suggestion.place_name;
+    const coordinates: [number, number] = suggestion.center;
+    
+    setInputValue(addressText);
+    onChange(addressText, coordinates);
     setShowSuggestions(false);
     setSuggestions([]);
+    
+    console.log('Address selected:', { address: addressText, coordinates });
   };
 
   const formatSuggestion = (suggestion: AddressSuggestion) => {
