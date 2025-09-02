@@ -26,7 +26,7 @@ export default function Discover() {
   const { jobs, loading, error, fetchAllOpenJobs } = useJobs();
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
     fetchAllOpenJobs();
@@ -62,7 +62,7 @@ export default function Discover() {
       job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.service_categories?.name.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesCategory = selectedCategory === '' || job.category_id === selectedCategory;
+    const matchesCategory = selectedCategory === '' || selectedCategory === 'all' || job.category_id === selectedCategory;
     
     return matchesSearch && matchesCategory;
   });
@@ -153,7 +153,10 @@ export default function Discover() {
               <SelectValue placeholder="Todas as categorias" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((category) => (
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {categories
+                .filter(category => category.id && category.id.trim() !== '') // Filter out empty IDs
+                .map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
                 </SelectItem>
@@ -241,18 +244,18 @@ export default function Discover() {
               Nenhum trabalho encontrado
             </h3>
             <p className="text-muted-foreground">
-              {searchQuery || selectedCategory 
+              {searchQuery || selectedCategory !== 'all'
                 ? 'Tente ajustar os filtros para encontrar mais trabalhos.'
                 : 'Não há trabalhos disponíveis no momento.'
               }
             </p>
-            {(searchQuery || selectedCategory) && (
+            {(searchQuery || selectedCategory !== 'all') && (
               <Button 
                 variant="outline" 
                 className="mt-4"
                 onClick={() => {
                   setSearchQuery('');
-                  setSelectedCategory('');
+                  setSelectedCategory('all');
                 }}
               >
                 Limpar Filtros
