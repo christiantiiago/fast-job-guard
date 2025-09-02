@@ -139,7 +139,7 @@ export default function Register() {
                       <User className="mb-2 h-6 w-6" />
                       <span className="text-sm font-medium">Cliente</span>
                       <span className="text-xs text-muted-foreground text-center">
-                        Publico trabalhos
+                        Preciso de serviços
                       </span>
                     </Label>
                   </div>
@@ -154,11 +154,20 @@ export default function Register() {
                       <Wrench className="mb-2 h-6 w-6" />
                       <span className="text-sm font-medium">Prestador</span>
                       <span className="text-xs text-muted-foreground text-center">
-                        Realizo serviços
+                        Ofereço serviços
                       </span>
                     </Label>
                   </div>
                 </RadioGroup>
+                
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {formData.role === 'client' 
+                      ? '📝 Como cliente você pode publicar trabalhos e contratar prestadores verificados'
+                      : '🔧 Como prestador você pode se candidatar a trabalhos e construir sua reputação'
+                    }
+                  </p>
+                </div>
               </div>
 
               {/* Personal Data */}
@@ -283,10 +292,29 @@ export default function Register() {
               </div>
 
               {formData.role === 'provider' && (
-                <Alert>
-                  <AlertDescription>
-                    Prestadores precisam completar o processo de verificação (KYC) 
-                    antes de começar a receber trabalhos.
+                <Alert className="border-amber-200 bg-amber-50">
+                  <Wrench className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    <strong>Prestadores precisam:</strong>
+                    <ul className="mt-1 ml-4 list-disc text-xs">
+                      <li>Completar verificação de identidade (KYC)</li>
+                      <li>Definir área de atuação e serviços</li>
+                      <li>Configurar dados bancários para recebimentos</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {formData.role === 'client' && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <User className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    <strong>Como cliente você pode:</strong>
+                    <ul className="mt-1 ml-4 list-disc text-xs">
+                      <li>Publicar trabalhos imediatamente após o cadastro</li>
+                      <li>Receber propostas de prestadores verificados</li>
+                      <li>Gerenciar pagamentos com segurança</li>
+                    </ul>
                   </AlertDescription>
                 </Alert>
               )}
@@ -309,6 +337,11 @@ export default function Register() {
                 >
                   Fazer login
                 </Link>
+              </div>
+
+              <div className="text-center text-xs text-muted-foreground border-t pt-4">
+                <p className="mb-2">Problemas no cadastro? Entre em contato</p>
+                <p>📧 suporte@jobfast.com • 📱 (11) 9999-9999</p>
               </div>
             </CardFooter>
           </form>

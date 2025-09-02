@@ -11,6 +11,7 @@ import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
 import Index from "./pages/Index";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin";
 import NotFound from "./pages/NotFound";
 
 // Protected pages
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
+            <Route path="/auth/admin" element={<AdminLogin />} />
 
             {/* Protected routes */}
             <Route

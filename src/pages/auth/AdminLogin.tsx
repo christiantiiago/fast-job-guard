@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Briefcase, Eye, EyeOff } from 'lucide-react';
+import { Shield, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function Login() {
-  const { user, signIn, loading } = useAuth();
-  const location = useLocation();
+export default function AdminLogin() {
+  const { user, userRole, signIn, loading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,9 +18,15 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const from = location.state?.from?.pathname || '/dashboard';
+  // Redirect if already logged in as admin
+  if (user && !loading && userRole === 'admin') {
+    return <Navigate to="/admin" replace />;
+  }
 
-  // Remove auto redirect - user must enter credentials
+  // Redirect if logged in as non-admin
+  if (user && !loading && userRole !== 'admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,36 +42,54 @@ export default function Login() {
           description: error.message
         });
       } else {
-        toast.success('Login realizado com sucesso!');
-        navigate(from);
+        // Check if user is admin after successful login
+        // The auth hook will automatically update userRole
+        toast.success('Login de administrador realizado com sucesso!');
       }
     } catch (err) {
       setError('Erro interno. Tente novamente.');
+      toast.error('Erro interno. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-destructive/5 p-4">
       <div className="w-full max-w-md space-y-8">
+        {/* Back Button */}
+        <div className="flex justify-start">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar ao início
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 primary-gradient rounded-2xl flex items-center justify-center mb-4 shadow-primary">
-            <Briefcase className="h-8 w-8 text-white" />
+          <div className="w-16 h-16 bg-destructive/10 border-2 border-destructive/20 rounded-2xl flex items-center justify-center mb-4">
+            <Shield className="h-8 w-8 text-destructive" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Bem-vindo de volta</h1>
+          <h1 className="text-2xl font-bold text-foreground">Acesso Administrativo</h1>
           <p className="text-muted-foreground mt-2">
-            Entre na sua conta para continuar
+            Área restrita para administradores do sistema
           </p>
         </div>
 
-        {/* Login Form */}
-        <Card className="card-modern">
+        {/* Admin Login Form */}
+        <Card className="card-modern border-destructive/20">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Entrar</CardTitle>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Shield className="h-5 w-5 text-destructive" />
+              Login de Administrador
+            </CardTitle>
             <CardDescription>
-              Digite suas credenciais para acessar sua conta
+              Credenciais de administrador necessárias
             </CardDescription>
           </CardHeader>
           
@@ -78,30 +101,40 @@ export default function Login() {
                 </Alert>
               )}
 
+              <Alert className="border-amber-200 bg-amber-50">
+                <Shield className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Atenção:</strong> Esta área é exclusiva para administradores. 
+                  Acesso não autorizado é proibido.
+                </AlertDescription>
+              </Alert>
+
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
+                <Label htmlFor="admin-email">E-mail do Administrador</Label>
                 <Input
-                  id="email"
+                  id="admin-email"
                   type="email"
-                  placeholder="seu@email.com"
+                  placeholder="admin@jobfast.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="admin-password">Senha</Label>
                 <div className="relative">
                   <Input
-                    id="password"
+                    id="admin-password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Digite sua senha"
+                    placeholder="Digite sua senha de administrador"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoComplete="current-password"
                   />
                   <Button
                     type="button"
@@ -124,46 +157,31 @@ export default function Login() {
             <CardFooter className="flex flex-col space-y-4">
               <Button 
                 type="submit" 
-                className="w-full" 
+                className="w-full bg-destructive hover:bg-destructive/90" 
                 disabled={isLoading}
               >
-                {isLoading ? 'Entrando...' : 'Entrar'}
+                {isLoading ? 'Verificando credenciais...' : 'Acessar Painel Admin'}
               </Button>
 
-              <div className="text-center text-sm text-muted-foreground">
-                Não tem uma conta?{' '}
+              <div className="text-center text-xs text-muted-foreground">
+                Problemas de acesso?{' '}
                 <Link 
-                  to="/auth/register" 
+                  to="/contact" 
                   className="text-primary hover:underline font-medium"
                 >
-                  Criar conta
-                </Link>
-              </div>
-
-              <div className="text-center text-xs text-muted-foreground border-t pt-4">
-                Administrador?{' '}
-                <Link 
-                  to="/auth/admin" 
-                  className="text-destructive hover:underline font-medium"
-                >
-                  Acesso Admin
+                  Contate o suporte técnico
                 </Link>
               </div>
             </CardFooter>
           </form>
         </Card>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground">
-          Ao entrar, você concorda com nossos{' '}
-          <Link to="/terms" className="underline hover:text-foreground">
-            Termos de Serviço
-          </Link>{' '}
-          e{' '}
-          <Link to="/privacy" className="underline hover:text-foreground">
-            Política de Privacidade
-          </Link>
-        </p>
+        {/* Security Notice */}
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground">
+            🔒 Todas as ações administrativas são registradas e monitoradas
+          </p>
+        </div>
       </div>
     </div>
   );
