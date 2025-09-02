@@ -226,23 +226,6 @@
     @apply status-badge bg-secondary/10 text-secondary border border-secondary/20;
   }
 
-  /* Shadow utilities */
-  .shadow-primary {
-    box-shadow: var(--shadow-primary);
-  }
-  
-  .shadow-accent {
-    box-shadow: var(--shadow-accent);
-  }
-  
-  .shadow-card {
-    box-shadow: var(--shadow-card);
-  }
-  
-  .shadow-elevated {
-    box-shadow: var(--shadow-elevated);
-  }
-
   /* Utility classes */
   .section-padding {
     @apply py-8 px-4 sm:py-12 sm:px-6 lg:py-16 lg:px-8;
