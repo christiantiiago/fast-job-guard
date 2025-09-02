@@ -202,11 +202,11 @@
 
   /* Modern cards */
   .card-modern {
-    @apply bg-card border border-border/50 rounded-2xl shadow-card backdrop-blur-sm;
+    @apply bg-card border border-border/50 rounded-2xl shadow-sm backdrop-blur-sm;
   }
 
   .card-elevated {
-    @apply card-modern shadow-elevated hover:shadow-primary/10 transition-all duration-300;
+    @apply card-modern shadow-lg hover:shadow-xl transition-all duration-300;
   }
 
   /* Status badges */
