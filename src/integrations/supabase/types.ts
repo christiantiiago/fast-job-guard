@@ -1411,6 +1411,10 @@ export type Database = {
         Args: { "": number }
         Returns: string
       }
+      get_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       gettransactionid: {
         Args: Record<PropertyKey, never>
         Returns: unknown
@@ -1422,6 +1426,14 @@ export type Database = {
       gidx_out: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_provider: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       json: {
         Args: { "": unknown }
