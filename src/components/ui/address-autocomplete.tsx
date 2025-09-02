@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MapPin, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AddressSuggestion {
   id: string;
@@ -17,8 +18,6 @@ interface AddressAutocompleteProps {
   placeholder?: string;
   className?: string;
 }
-
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTQwcmdlaGUwN3E0Mmxxb2FuY29jdG16In0.FKBfqIhY5AdAvHEHj5Iffw';
 
 export function AddressAutocomplete({ 
   value, 
@@ -58,22 +57,18 @@ export function AddressAutocomplete({
     setIsLoading(true);
     
     try {
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-        new URLSearchParams({
-          access_token: MAPBOX_ACCESS_TOKEN,
-          country: 'BR',
-          language: 'pt',
-          limit: '5',
-          types: 'address,poi'
-        })
-      );
+      const { data, error } = await supabase.functions.invoke('geocoding', {
+        body: { query }
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setSuggestions(data.features || []);
-        setShowSuggestions(true);
+      if (error) {
+        console.error('Erro ao buscar endereços:', error);
+        setSuggestions([]);
+        return;
       }
+
+      setSuggestions(data.features || []);
+      setShowSuggestions(true);
     } catch (error) {
       console.error('Erro ao buscar endereços:', error);
       setSuggestions([]);

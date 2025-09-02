@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface MapMarker {
@@ -23,7 +24,7 @@ interface MapProps {
   interactive?: boolean;
 }
 
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTQwcmdlaGUwN3E0Mmxxb2FuY29jdG16In0.FKBfqIhY5AdAvHEHj5Iffw';
+
 
 const Map: React.FC<MapProps> = ({ 
   latitude,
@@ -50,7 +51,7 @@ const Map: React.FC<MapProps> = ({
     if (!mapContainer.current) return;
 
     // Set Mapbox access token
-    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+    mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTQwcmdlaGUwN3E0Mmxxb2FuY29jdG16In0.FKBfqIhY5AdAvHEHj5Iffw';
 
     // Initialize map
     map.current = new mapboxgl.Map({
@@ -83,20 +84,12 @@ const Map: React.FC<MapProps> = ({
         
         // Try to get address from reverse geocoding
         try {
-          const response = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates[0]},${coordinates[1]}.json?` +
-            new URLSearchParams({
-              access_token: MAPBOX_ACCESS_TOKEN,
-              country: 'BR',
-              language: 'pt',
-              limit: '1'
-            })
-          );
+          const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
+            body: { longitude: coordinates[0], latitude: coordinates[1] }
+          });
 
-          if (response.ok) {
-            const data = await response.json();
-            const address = data.features?.[0]?.place_name;
-            onLocationSelect(coordinates, address);
+          if (!error && data?.address) {
+            onLocationSelect(coordinates, data.address);
           } else {
             onLocationSelect(coordinates);
           }
@@ -125,20 +118,12 @@ const Map: React.FC<MapProps> = ({
           const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
           
           try {
-            const response = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates.lng},${coordinates.lat}.json?` +
-              new URLSearchParams({
-                access_token: MAPBOX_ACCESS_TOKEN,
-                country: 'BR',
-                language: 'pt',
-                limit: '1'
-              })
-            );
+            const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
+              body: { longitude: coordinates.lng, latitude: coordinates.lat }
+            });
 
-            if (response.ok) {
-              const data = await response.json();
-              const address = data.features?.[0]?.place_name;
-              onLocationSelect(coordsArray, address);
+            if (!error && data?.address) {
+              onLocationSelect(coordsArray, data.address);
             } else {
               onLocationSelect(coordsArray);
             }
@@ -215,20 +200,12 @@ const Map: React.FC<MapProps> = ({
             const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
             
             try {
-              const response = await fetch(
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates.lng},${coordinates.lat}.json?` +
-                new URLSearchParams({
-                  access_token: MAPBOX_ACCESS_TOKEN,
-                  country: 'BR',
-                  language: 'pt',
-                  limit: '1'
-                })
-              );
+              const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
+                body: { longitude: coordinates.lng, latitude: coordinates.lat }
+              });
 
-              if (response.ok) {
-                const data = await response.json();
-                const address = data.features?.[0]?.place_name;
-                onLocationSelect(coordsArray, address);
+              if (!error && data?.address) {
+                onLocationSelect(coordsArray, data.address);
               } else {
                 onLocationSelect(coordsArray);
               }
