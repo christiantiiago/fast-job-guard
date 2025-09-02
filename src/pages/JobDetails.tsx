@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft } from 'lucide-react';
-import { useJobs } from '@/hooks/useJobs';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
@@ -57,7 +56,6 @@ interface JobData {
   client_id: string;
   provider_id?: string;
   service_categories?: JobCategory;
-  profiles?: JobProfile;
   addresses?: JobAddress;
 }
 
@@ -70,12 +68,6 @@ interface Proposal {
   delivery_date?: string;
   status: string;
   created_at: string;
-  profiles?: {
-    full_name?: string;
-    avatar_url?: string;
-    rating_avg?: number;
-    rating_count?: number;
-  };
 }
 
 export default function JobDetails() {
@@ -86,7 +78,9 @@ export default function JobDetails() {
   const { calculateFees, formatCurrency, getFeeDescription, isPremiumUser } = useFeeRules();
   
   const [job, setJob] = useState<JobData | null>(null);
+  const [clientProfile, setClientProfile] = useState<JobProfile | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [proposalProfiles, setProposalProfiles] = useState<{[key: string]: JobProfile}>({});
   const [loading, setLoading] = useState(true);
   const [submittingProposal, setSubmittingProposal] = useState(false);
   
@@ -111,17 +105,12 @@ export default function JobDetails() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      // Fetch job data
+      const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select(`
           *,
           service_categories (name, color, icon_name),
-          profiles (
-            full_name,
-            avatar_url,
-            rating_avg,
-            rating_count
-          ),
           addresses (
             street,
             number,
@@ -133,10 +122,10 @@ export default function JobDetails() {
           )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching job:', error);
+      if (jobError) {
+        console.error('Error fetching job:', jobError);
         toast({
           title: "Erro",
           description: "Não foi possível carregar os detalhes do trabalho.",
@@ -146,7 +135,30 @@ export default function JobDetails() {
         return;
       }
 
-      setJob(data);
+      if (!jobData) {
+        toast({
+          title: "Trabalho não encontrado",
+          description: "O trabalho solicitado não existe ou foi removido.",
+          variant: "destructive",
+        });
+        navigate('/jobs');
+        return;
+      }
+
+      setJob(jobData);
+
+      // Fetch client profile separately
+      if (jobData.client_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, rating_avg, rating_count')
+          .eq('user_id', jobData.client_id)
+          .maybeSingle();
+
+        if (profileData) {
+          setClientProfile(profileData);
+        }
+      }
     } catch (error) {
       console.error('Error in fetchJobDetails:', error);
       toast({
@@ -163,17 +175,10 @@ export default function JobDetails() {
     if (!id) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch proposals
+      const { data: proposalsData, error } = await supabase
         .from('proposals')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            avatar_url,
-            rating_avg,
-            rating_count
-          )
-        `)
+        .select('*')
         .eq('job_id', id)
         .order('created_at', { ascending: false });
 
@@ -182,7 +187,24 @@ export default function JobDetails() {
         return;
       }
 
-      setProposals(data || []);
+      if (proposalsData && proposalsData.length > 0) {
+        setProposals(proposalsData);
+
+        // Fetch profiles for each proposal
+        const providerIds = proposalsData.map(p => p.provider_id);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url, rating_avg, rating_count')
+          .in('user_id', providerIds);
+
+        if (profilesData) {
+          const profilesMap: {[key: string]: JobProfile} = {};
+          profilesData.forEach(profile => {
+            profilesMap[profile.user_id] = profile;
+          });
+          setProposalProfiles(profilesMap);
+        }
+      }
     } catch (error) {
       console.error('Error in fetchProposals:', error);
     }
@@ -535,57 +557,60 @@ export default function JobDetails() {
                   <CardTitle>Propostas Recebidas ({proposals.length})</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {proposals.map((proposal) => (
-                    <div key={proposal.id} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={proposal.profiles?.avatar_url} />
-                            <AvatarFallback>
-                              {proposal.profiles?.full_name?.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <h4 className="font-medium">{proposal.profiles?.full_name}</h4>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                <span>{proposal.profiles?.rating_avg?.toFixed(1) || '0.0'}</span>
-                                <span>({proposal.profiles?.rating_count || 0} avaliações)</span>
+                  {proposals.map((proposal) => {
+                    const providerProfile = proposalProfiles[proposal.provider_id];
+                    return (
+                      <div key={proposal.id} className="p-4 border rounded-lg">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={providerProfile?.avatar_url} />
+                              <AvatarFallback>
+                                {providerProfile?.full_name?.charAt(0) || 'P'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h4 className="font-medium">{providerProfile?.full_name || 'Prestador'}</h4>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                  <span>{providerProfile?.rating_avg?.toFixed(1) || '0.0'}</span>
+                                  <span>({providerProfile?.rating_count || 0} avaliações)</span>
+                                </div>
                               </div>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{formatCurrency(proposal.price)}</div>
+                            {proposal.estimated_hours && (
+                              <div className="text-sm text-muted-foreground">
+                                ~{proposal.estimated_hours}h
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold">{formatCurrency(proposal.price)}</div>
-                          {proposal.estimated_hours && (
-                            <div className="text-sm text-muted-foreground">
-                              ~{proposal.estimated_hours}h
-                            </div>
+
+                        <p className="text-sm mb-3">{proposal.message}</p>
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Proposta enviada em {new Date(proposal.created_at).toLocaleDateString('pt-BR')}</span>
+                          {proposal.delivery_date && (
+                            <span>Entrega: {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}</span>
                           )}
                         </div>
-                      </div>
 
-                      <p className="text-sm mb-3">{proposal.message}</p>
-
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Proposta enviada em {new Date(proposal.created_at).toLocaleDateString('pt-BR')}</span>
-                        {proposal.delivery_date && (
-                          <span>Entrega: {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}</span>
-                        )}
+                        <div className="mt-3 flex gap-2">
+                          <Button variant="default" size="sm">
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Negociar
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            Ver Perfil
+                          </Button>
+                        </div>
                       </div>
-
-                      <div className="mt-3 flex gap-2">
-                        <Button variant="default" size="sm">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Negociar
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          Ver Perfil
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
             )}
@@ -604,17 +629,17 @@ export default function JobDetails() {
               <CardContent>
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={job.profiles?.avatar_url} />
+                    <AvatarImage src={clientProfile?.avatar_url} />
                     <AvatarFallback>
-                      {job.profiles?.full_name?.charAt(0)}
+                      {clientProfile?.full_name?.charAt(0) || 'C'}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <h4 className="font-medium">{job.profiles?.full_name}</h4>
+                    <h4 className="font-medium">{clientProfile?.full_name || 'Cliente'}</h4>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span>{job.profiles?.rating_avg?.toFixed(1) || '0.0'}</span>
-                      <span>({job.profiles?.rating_count || 0})</span>
+                      <span>{clientProfile?.rating_avg?.toFixed(1) || '0.0'}</span>
+                      <span>({clientProfile?.rating_count || 0})</span>
                     </div>
                   </div>
                 </div>
