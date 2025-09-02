@@ -114,10 +114,7 @@ export default function JobNew() {
         requirements: formData.requirements || null,
         deadline_at: selectedDate?.toISOString() || null,
         latitude: coordinates?.[1] || null,
-        longitude: coordinates?.[0] || null,
-        // For now, we'll store the address as a simple string
-        // In a full implementation, you'd create an address record first
-        address_text: formData.address
+        longitude: coordinates?.[0] || null
       };
 
       const result = await createJob(jobData);

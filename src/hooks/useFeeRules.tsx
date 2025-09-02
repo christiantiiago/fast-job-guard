@@ -32,7 +32,9 @@ export const useFeeRules = () => {
         .from('fee_rules')
         .select('*')
         .eq('is_active', true)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
       if (error) {
         console.error('Error fetching fee rules:', error);
