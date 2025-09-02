@@ -1,107 +1,302 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { cn } from '@/lib/utils';
+
+interface MapMarker {
+  latitude: number;
+  longitude: number;
+  title: string;
+  description?: string;
+}
 
 interface MapProps {
   latitude?: number;
   longitude?: number;
+  center?: [number, number]; // [longitude, latitude]
   zoom?: number;
-  markers?: Array<{
-    latitude: number;
-    longitude: number;
-    title?: string;
-    description?: string;
-  }>;
-  style?: 'light' | 'dark' | 'streets' | 'satellite';
   className?: string;
   height?: string;
+  markers?: MapMarker[];
+  onLocationSelect?: (coordinates: [number, number], address?: string) => void;
+  showMarker?: boolean;
+  interactive?: boolean;
 }
 
-const Map: React.FC<MapProps> = ({
-  latitude = -14.2350,  // Centro do Brasil
-  longitude = -51.9253,
-  zoom = 4,
+const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTQwcmdlaGUwN3E0Mmxxb2FuY29jdG16In0.FKBfqIhY5AdAvHEHj5Iffw';
+
+const Map: React.FC<MapProps> = ({ 
+  latitude,
+  longitude,
+  center,
+  zoom = 12,
+  className,
+  height = "h-64",
   markers = [],
-  style = 'light',
-  className = '',
-  height = '400px'
+  onLocationSelect,
+  showMarker = true,
+  interactive = true
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const marker = useRef<mapboxgl.Marker | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Memoize markers to prevent unnecessary re-renders
-  const memoizedMarkers = useMemo(() => markers, [
-    JSON.stringify(markers.map(m => ({ lat: m.latitude, lng: m.longitude, title: m.title })))
-  ]);
-
-  const getMapStyle = (styleType: string) => {
-    const styles = {
-      light: 'mapbox://styles/mapbox/light-v11',
-      dark: 'mapbox://styles/mapbox/dark-v11', 
-      streets: 'mapbox://styles/mapbox/streets-v12',
-      satellite: 'mapbox://styles/mapbox/satellite-streets-v12'
-    };
-    return styles[styleType as keyof typeof styles] || styles.light;
-  };
+  // Determine center coordinates
+  const mapCenter = center || (latitude && longitude ? [longitude, latitude] : [-46.6333, -23.5505]);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Initialize map with your provided token
-    mapboxgl.accessToken = 'pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw';
-    
+    // Set Mapbox access token
+    mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+
+    // Initialize map
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: getMapStyle(style),
-      center: [longitude, latitude],
+      style: 'mapbox://styles/mapbox/light-v11',
+      center: mapCenter,
       zoom: zoom,
+      interactive: interactive,
     });
 
-    // Add navigation controls
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-      }),
-      'top-right'
-    );
-
-    // Add markers
-    memoizedMarkers.forEach((marker) => {
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<div class="p-2">
-          <h3 class="font-semibold text-sm">${marker.title || 'Localização'}</h3>
-          ${marker.description ? `<p class="text-xs text-muted-foreground mt-1">${marker.description}</p>` : ''}
-        </div>`
+    // Add navigation controls if interactive
+    if (interactive) {
+      map.current.addControl(
+        new mapboxgl.NavigationControl({
+          visualizePitch: true,
+        }),
+        'top-right'
       );
+    }
 
-      const markerElement = new mapboxgl.Marker({
-        color: 'hsl(8 84% 60%)', // Primary color from theme
-      })
-        .setLngLat([marker.longitude, marker.latitude])
-        .setPopup(popup)
-        .addTo(map.current!);
-
-      markersRef.current.push(markerElement);
+    // Handle map load
+    map.current.on('load', () => {
+      setIsLoading(false);
     });
+
+    // Add click handler for location selection
+    if (interactive && onLocationSelect) {
+      map.current.on('click', async (e) => {
+        const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+        
+        // Try to get address from reverse geocoding
+        try {
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates[0]},${coordinates[1]}.json?` +
+            new URLSearchParams({
+              access_token: MAPBOX_ACCESS_TOKEN,
+              country: 'BR',
+              language: 'pt',
+              limit: '1'
+            })
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const address = data.features?.[0]?.place_name;
+            onLocationSelect(coordinates, address);
+          } else {
+            onLocationSelect(coordinates);
+          }
+        } catch (error) {
+          console.error('Erro ao buscar endereço:', error);
+          onLocationSelect(coordinates);
+        }
+      });
+    }
+
+    // Create single marker if needed
+    if (showMarker && !markers.length) {
+      marker.current = new mapboxgl.Marker({
+        color: '#3B82F6',
+        draggable: interactive
+      })
+        .setLngLat(mapCenter)
+        .addTo(map.current);
+
+      // Handle marker drag
+      if (interactive && onLocationSelect && marker.current) {
+        marker.current.on('dragend', async () => {
+          if (!marker.current) return;
+          
+          const coordinates = marker.current.getLngLat();
+          const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
+          
+          try {
+            const response = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates.lng},${coordinates.lat}.json?` +
+              new URLSearchParams({
+                access_token: MAPBOX_ACCESS_TOKEN,
+                country: 'BR',
+                language: 'pt',
+                limit: '1'
+              })
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              const address = data.features?.[0]?.place_name;
+              onLocationSelect(coordsArray, address);
+            } else {
+              onLocationSelect(coordsArray);
+            }
+          } catch (error) {
+            console.error('Erro ao buscar endereço:', error);
+            onLocationSelect(coordsArray);
+          }
+        });
+      }
+    }
+
+    // Create multiple markers if provided
+    if (markers.length > 0) {
+      markersRef.current = markers.map(markerData => {
+        const markerEl = new mapboxgl.Marker({
+          color: '#EF4444'
+        })
+          .setLngLat([markerData.longitude, markerData.latitude])
+          .addTo(map.current!);
+
+        // Add popup
+        const popup = new mapboxgl.Popup({ offset: 25 })
+          .setHTML(`
+            <div class="p-2">
+              <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
+              ${markerData.description ? `<p class="text-xs text-gray-600">${markerData.description}</p>` : ''}
+            </div>
+          `);
+        
+        markerEl.setPopup(popup);
+        return markerEl;
+      });
+
+      // Fit map to markers
+      if (markersRef.current.length > 1) {
+        const bounds = new mapboxgl.LngLatBounds();
+        markers.forEach(marker => {
+          bounds.extend([marker.longitude, marker.latitude]);
+        });
+        map.current.fitBounds(bounds, { padding: 50 });
+      }
+    }
 
     // Cleanup
     return () => {
-      // Remove markers
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-      
-      // Remove map
-      map.current?.remove();
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
-  }, [latitude, longitude, zoom, memoizedMarkers, style]);
+  }, []);
+
+  // Update map center and marker when center prop changes
+  useEffect(() => {
+    if (map.current && mapCenter) {
+      map.current.setCenter(mapCenter);
+      
+      if (marker.current && !markers.length) {
+        marker.current.setLngLat(mapCenter);
+      } else if (showMarker && !markers.length && !marker.current) {
+        marker.current = new mapboxgl.Marker({
+          color: '#3B82F6',
+          draggable: interactive
+        })
+          .setLngLat(mapCenter)
+          .addTo(map.current);
+
+        // Re-add drag handler
+        if (interactive && onLocationSelect && marker.current) {
+          marker.current.on('dragend', async () => {
+            if (!marker.current) return;
+            
+            const coordinates = marker.current.getLngLat();
+            const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
+            
+            try {
+              const response = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${coordinates.lng},${coordinates.lat}.json?` +
+                new URLSearchParams({
+                  access_token: MAPBOX_ACCESS_TOKEN,
+                  country: 'BR',
+                  language: 'pt',
+                  limit: '1'
+                })
+              );
+
+              if (response.ok) {
+                const data = await response.json();
+                const address = data.features?.[0]?.place_name;
+                onLocationSelect(coordsArray, address);
+              } else {
+                onLocationSelect(coordsArray);
+              }
+            } catch (error) {
+              console.error('Erro ao buscar endereço:', error);
+              onLocationSelect(coordsArray);
+            }
+          });
+        }
+      }
+    }
+  }, [mapCenter, showMarker, interactive, onLocationSelect, markers]);
+
+  // Update markers when markers prop changes
+  useEffect(() => {
+    if (map.current && markers.length > 0) {
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.remove());
+      
+      // Create new markers
+      markersRef.current = markers.map(markerData => {
+        const markerEl = new mapboxgl.Marker({
+          color: '#EF4444'
+        })
+          .setLngLat([markerData.longitude, markerData.latitude])
+          .addTo(map.current!);
+
+        // Add popup
+        const popup = new mapboxgl.Popup({ offset: 25 })
+          .setHTML(`
+            <div class="p-2">
+              <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
+              ${markerData.description ? `<p class="text-xs text-gray-600">${markerData.description}</p>` : ''}
+            </div>
+          `);
+        
+        markerEl.setPopup(popup);
+        return markerEl;
+      });
+
+      // Fit map to markers if multiple markers
+      if (markersRef.current.length > 1) {
+        const bounds = new mapboxgl.LngLatBounds();
+        markers.forEach(marker => {
+          bounds.extend([marker.longitude, marker.latitude]);
+        });
+        map.current.fitBounds(bounds, { padding: 50 });
+      }
+    }
+  }, [markers]);
 
   return (
-    <div 
-      ref={mapContainer} 
-      className={`w-full rounded-lg shadow-sm ${className}`}
-      style={{ height }}
-    />
+    <div className={cn("relative w-full rounded-lg overflow-hidden border", height, className)}>
+      <div ref={mapContainer} className="w-full h-full" />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+            <span>Carregando mapa...</span>
+          </div>
+        </div>
+      )}
+      {interactive && onLocationSelect && (
+        <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-muted-foreground">
+          Clique ou arraste o marcador para selecionar a localização
+        </div>
+      )}
+    </div>
   );
 };
 

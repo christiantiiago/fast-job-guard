@@ -263,20 +263,19 @@ const AllJobs = () => {
                     <MapIcon className="h-5 w-5 text-primary" />
                     Localização dos Trabalhos
                   </h3>
-                  <Map
-                    latitude={filteredJobs.length > 0 && filteredJobs[0].latitude ? filteredJobs[0].latitude : -14.2350}
-                    longitude={filteredJobs.length > 0 && filteredJobs[0].longitude ? filteredJobs[0].longitude : -51.9253}
-                    zoom={6}
-                    markers={filteredJobs
-                      .filter(job => job.latitude && job.longitude)
-                      .map(job => ({
-                        latitude: job.latitude!,
-                        longitude: job.longitude!,
-                        title: job.title,
-                        description: `${formatPrice(job.budget_min, job.budget_max)} - ${job.service_categories?.name || ''}`
-                      }))}
-                    height="500px"
-                  />
+                   <Map
+                     center={[filteredJobs.length > 0 && filteredJobs[0].longitude ? filteredJobs[0].longitude : -51.9253, filteredJobs.length > 0 && filteredJobs[0].latitude ? filteredJobs[0].latitude : -14.2350]}
+                     zoom={6}
+                     markers={filteredJobs
+                       .filter(job => job.latitude && job.longitude)
+                       .map(job => ({
+                         latitude: job.latitude!,
+                         longitude: job.longitude!,
+                         title: job.title,
+                         description: `${formatPrice(job.budget_min, job.budget_max)} - ${job.service_categories?.name || ''}`
+                       }))}
+                     className="h-[500px]"
+                   />
                 </div>
                 
                 {/* Jobs List Below Map */}

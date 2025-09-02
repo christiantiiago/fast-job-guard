@@ -9,6 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
+import Map from '@/components/ui/map';
+import { useFeeRules } from '@/hooks/useFeeRules';
+import { useCategories } from '@/hooks/useCategories';
+import { useJobs } from '@/hooks/useJobs';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -19,7 +25,10 @@ import {
   Calendar as CalendarIcon,
   Clock,
   FileImage,
-  ArrowLeft
+  ArrowLeft,
+  Info,
+  CreditCard,
+  Calculator
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -27,13 +36,19 @@ import { ptBR } from 'date-fns/locale';
 
 export default function JobNew() {
   const navigate = useNavigate();
+  const { categories } = useCategories();
+  const { createJob } = useJobs();
+  const { calculateFeeRange, formatCurrency, getFeeDescription, loading: feeLoading } = useFeeRules();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: '',
+    categoryId: '',
     budgetMin: '',
     budgetMax: '',
     address: '',
@@ -41,18 +56,25 @@ export default function JobNew() {
     urgency: 'normal'
   });
 
-  const categories = [
-    'Limpeza',
-    'Elétrica', 
-    'Hidráulica',
-    'Pintura',
-    'Marcenaria',
-    'Jardinagem',
-    'Montagem de Móveis',
-    'Reforma',
-    'Mudança',
-    'Outros'
-  ];
+  // Calculate fees when budget changes
+  const minAmount = parseFloat(formData.budgetMin) || 0;
+  const maxAmount = parseFloat(formData.budgetMax) || 0;
+  const feeCalculation = minAmount && maxAmount ? calculateFeeRange(minAmount, maxAmount) : null;
+
+  const handleAddressSelect = (address: string, coords?: [number, number]) => {
+    setFormData(prev => ({ ...prev, address }));
+    if (coords) {
+      setCoordinates(coords);
+      setShowMap(true);
+    }
+  };
+
+  const handleMapLocationSelect = (coords: [number, number], address?: string) => {
+    setCoordinates(coords);
+    if (address) {
+      setFormData(prev => ({ ...prev, address }));
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -72,14 +94,43 @@ export default function JobNew() {
     setIsLoading(true);
 
     try {
-      // Here would be the API call to create the job
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.categoryId || !formData.budgetMin || !formData.budgetMax || !formData.address) {
+        toast.error('Preencha todos os campos obrigatórios');
+        return;
+      }
+
+      if (parseFloat(formData.budgetMin) > parseFloat(formData.budgetMax)) {
+        toast.error('O orçamento mínimo não pode ser maior que o máximo');
+        return;
+      }
+
+      const jobData = {
+        title: formData.title,
+        description: formData.description,
+        category_id: formData.categoryId,
+        budget_min: parseFloat(formData.budgetMin),
+        budget_max: parseFloat(formData.budgetMax),
+        requirements: formData.requirements || null,
+        deadline_at: selectedDate?.toISOString() || null,
+        latitude: coordinates?.[1] || null,
+        longitude: coordinates?.[0] || null,
+        // For now, we'll store the address as a simple string
+        // In a full implementation, you'd create an address record first
+        address_text: formData.address
+      };
+
+      const result = await createJob(jobData);
       
-      toast.success('Trabalho criado com sucesso!', {
-        description: 'Seu trabalho foi publicado e prestadores poderão enviar propostas.'
-      });
-      
-      navigate('/jobs');
+      if (result) {
+        toast.success('Trabalho criado com sucesso!', {
+          description: 'Seu trabalho foi publicado e prestadores poderão enviar propostas.'
+        });
+        
+        navigate('/jobs');
+      } else {
+        throw new Error('Falha ao criar trabalho');
+      }
     } catch (error) {
       toast.error('Erro ao criar trabalho', {
         description: 'Tente novamente em alguns instantes.'
@@ -135,10 +186,10 @@ export default function JobNew() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="category">Categoria *</Label>
+                      <Label htmlFor="categoryId">Categoria *</Label>
                       <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                        value={formData.categoryId}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
                         required
                       >
                         <SelectTrigger>
@@ -146,8 +197,8 @@ export default function JobNew() {
                         </SelectTrigger>
                         <SelectContent>
                           {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -245,18 +296,34 @@ export default function JobNew() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Endereço completo *</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Textarea
-                        id="address"
-                        placeholder="Rua das Flores, 123 - Vila Madalena, São Paulo - SP, 01234-567"
-                        className="pl-10 min-h-[80px]"
-                        value={formData.address}
-                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                        required
-                      />
-                    </div>
+                    <AddressAutocomplete
+                      value={formData.address}
+                      onChange={handleAddressSelect}
+                      placeholder="Digite o endereço (ex: Rua das Flores, 123 - Vila Madalena, São Paulo)"
+                      className="min-h-[40px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Digite o endereço e selecione uma das opções para localização precisa
+                    </p>
                   </div>
+
+                  {/* Map */}
+                  {coordinates && (
+                    <div className="space-y-2">
+                      <Label>Localização no mapa</Label>
+                      <Map
+                        center={coordinates}
+                        zoom={15}
+                        className="h-64"
+                        onLocationSelect={handleMapLocationSelect}
+                        showMarker={true}
+                        interactive={true}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Você pode ajustar a localização arrastando o marcador
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Data preferencial (opcional)</Label>
@@ -340,18 +407,78 @@ export default function JobNew() {
               </Card>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Preview */}
-              <Card>
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Fee Calculation */}
+                {feeCalculation && !feeLoading && (
+                  <Card className="border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calculator className="h-5 w-5 text-primary" />
+                        Resumo Financeiro
+                      </CardTitle>
+                      <CardDescription>
+                        Valores que você irá pagar (totais)
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Faixa do trabalho:</span>
+                          <span className="font-medium">
+                            {formatCurrency(minAmount)} - {formatCurrency(maxAmount)}
+                          </span>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Taxa da plataforma:</span>
+                            <span>{formatCurrency(feeCalculation.min.platformFee)} - {formatCurrency(feeCalculation.max.platformFee)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Taxa de processamento:</span>
+                            <span>{formatCurrency(feeCalculation.min.processingFee)} - {formatCurrency(feeCalculation.max.processingFee)}</span>
+                          </div>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="flex justify-between font-bold">
+                          <span>Total a pagar:</span>
+                          <span className="text-primary">
+                            {formatCurrency(feeCalculation.min.total)} - {formatCurrency(feeCalculation.max.total)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-muted rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <div className="text-xs space-y-1">
+                            <p><strong>Taxa transparente:</strong> {getFeeDescription()}</p>
+                            <p>Você só paga quando o trabalho for concluído com sucesso.</p>
+                            <p className="text-muted-foreground">Taxa de processamento: 2.9% + R$0,39 (Stripe)</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Preview */}
+                <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Pré-visualização</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <h4 className="font-medium">{formData.title || 'Título do trabalho'}</h4>
-                    {formData.category && (
-                      <Badge variant="outline" className="mt-1">{formData.category}</Badge>
+                    {formData.categoryId && categories.find(c => c.id === formData.categoryId) && (
+                      <Badge variant="outline" className="mt-1">
+                        {categories.find(c => c.id === formData.categoryId)?.name}
+                      </Badge>
                     )}
                   </div>
                   
@@ -411,10 +538,27 @@ export default function JobNew() {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={isLoading}
+                  disabled={isLoading || !formData.title || !formData.categoryId || !formData.budgetMin || !formData.budgetMax || !formData.address}
+                  size="lg"
                 >
-                  {isLoading ? 'Criando trabalho...' : 'Publicar Trabalho'}
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent animate-spin rounded-full mr-2" />
+                      Criando trabalho...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Publicar Trabalho
+                    </>
+                  )}
                 </Button>
+                
+                {feeCalculation && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Ao publicar, você concorda em pagar {formatCurrency(feeCalculation.min.total)} - {formatCurrency(feeCalculation.max.total)} quando o trabalho for concluído
+                  </p>
+                )}
                 
                 <Button 
                   type="button"
