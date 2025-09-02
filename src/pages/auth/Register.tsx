@@ -36,6 +36,8 @@ export default function Register() {
     setIsLoading(true);
     setError('');
 
+    console.log('🔄 Starting registration process...');
+
     if (formData.password !== formData.confirmPassword) {
       setError('As senhas não coincidem');
       setIsLoading(false);
@@ -49,6 +51,13 @@ export default function Register() {
     }
 
     try {
+      console.log('📝 Calling signUp with data:', {
+        email: formData.email,
+        role: formData.role,
+        full_name: formData.fullName,
+        phone: formData.phone
+      });
+
       const { error } = await signUp(formData.email, formData.password, {
         role: formData.role,
         full_name: formData.fullName,
@@ -56,11 +65,13 @@ export default function Register() {
       });
       
       if (error) {
+        console.log('❌ SignUp error:', error);
         setError(error.message);
         toast.error('Erro ao criar conta', {
           description: error.message
         });
       } else {
+        console.log('✅ SignUp successful!');
         toast.success('Conta criada com sucesso!', {
           description: formData.role === 'provider' 
             ? 'Complete seu perfil para começar a receber trabalhos'
@@ -68,6 +79,7 @@ export default function Register() {
         });
       }
     } catch (err) {
+      console.log('💥 SignUp exception:', err);
       setError('Erro interno. Tente novamente.');
     } finally {
       setIsLoading(false);
