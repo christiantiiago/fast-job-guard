@@ -15,11 +15,14 @@ import {
   Clock,
   DollarSign,
   Eye,
-  Filter
+  Filter,
+  Map as MapIcon,
+  Grid
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import Map from '@/components/ui/map';
 
 const AllJobs = () => {
   const navigate = useNavigate();
@@ -28,6 +31,7 @@ const AllJobs = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [priceRange, setPriceRange] = useState('all');
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     fetchAllOpenJobs();
@@ -140,14 +144,40 @@ const AllJobs = () => {
   return (
     <AppLayout>
       <div className="section-padding">
-        <div className="container-center">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Todos os Trabalhos</h1>
-            <p className="text-muted-foreground">
-              Encontre oportunidades de trabalho em sua área
-            </p>
-          </div>
+          <div className="container-center">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground mb-2">Todos os Trabalhos</h1>
+                  <p className="text-muted-foreground">
+                    Encontre oportunidades de trabalho em sua área
+                  </p>
+                </div>
+                
+                {/* View Toggle */}
+                <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+                  <Button
+                    variant={!showMap ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setShowMap(false)}
+                    className="flex items-center gap-2"
+                  >
+                    <Grid className="h-4 w-4" />
+                    Lista
+                  </Button>
+                  <Button
+                    variant={showMap ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setShowMap(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <MapIcon className="h-4 w-4" />
+                    Mapa
+                  </Button>
+                </div>
+              </div>
+            </div>
 
           {/* Filters */}
           <div className="bg-card rounded-2xl border border-border/50 p-6 mb-8 space-y-4">
@@ -206,10 +236,87 @@ const AllJobs = () => {
             </div>
           </div>
 
-          {/* Jobs Grid */}
-          {filteredJobs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredJobs.map((job) => (
+            {/* Jobs Grid */}
+            {showMap ? (
+              <div className="space-y-6">
+                {/* Map View */}
+                <div className="bg-card rounded-2xl border border-border/50 p-6">
+                  <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <MapIcon className="h-5 w-5 text-primary" />
+                    Localização dos Trabalhos
+                  </h3>
+                  <Map
+                    latitude={filteredJobs.length > 0 && filteredJobs[0].latitude ? filteredJobs[0].latitude : -14.2350}
+                    longitude={filteredJobs.length > 0 && filteredJobs[0].longitude ? filteredJobs[0].longitude : -51.9253}
+                    zoom={6}
+                    markers={filteredJobs
+                      .filter(job => job.latitude && job.longitude)
+                      .map(job => ({
+                        latitude: job.latitude!,
+                        longitude: job.longitude!,
+                        title: job.title,
+                        description: `${formatPrice(job.budget_min, job.budget_max)} - ${job.service_categories?.name || ''}`
+                      }))}
+                    height="500px"
+                  />
+                </div>
+                
+                {/* Jobs List Below Map */}
+                {filteredJobs.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-4">
+                      {filteredJobs.length} trabalho{filteredJobs.length !== 1 ? 's' : ''} encontrado{filteredJobs.length !== 1 ? 's' : ''}
+                    </h3>
+                    <div className="space-y-4">
+                      {filteredJobs.map((job) => (
+                        <Card 
+                          key={job.id} 
+                          className="card-elevated hover:scale-[1.01] transition-all duration-300 cursor-pointer"
+                          onClick={() => navigate(`/jobs/${job.id}`)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-foreground mb-1">{job.title}</h4>
+                                <p className="text-sm text-muted-foreground mb-2 line-clamp-1">{job.description}</p>
+                                
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <span className="font-semibold text-primary text-sm">
+                                    {formatPrice(job.budget_min, job.budget_max)}
+                                  </span>
+                                  
+                                  {job.addresses && (
+                                    <div className="flex items-center gap-1">
+                                      <MapPin className="h-3 w-3" />
+                                      <span>{job.addresses.city}, {job.addresses.state}</span>
+                                    </div>
+                                  )}
+                                  
+                                  {job.service_categories && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {job.service_categories.name}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(job.status)}
+                                <Button size="sm" variant="outline">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : filteredJobs.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredJobs.map((job) => (
                 <Card 
                   key={job.id} 
                   className="card-elevated hover:scale-[1.02] transition-all duration-300 cursor-pointer"
@@ -291,33 +398,33 @@ const AllJobs = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground">
-                  Nenhum trabalho encontrado
-                </h3>
-                <p className="text-muted-foreground">
-                  {hasActiveFilters 
-                    ? 'Tente ajustar os filtros para encontrar mais trabalhos.'
-                    : 'Não há trabalhos disponíveis no momento.'
-                  }
-                </p>
-                {hasActiveFilters && (
-                  <Button variant="outline" onClick={clearFilters}>
-                    Limpar Filtros
-                  </Button>
-                )}
+                ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="text-center py-12">
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Search className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground">
+                    Nenhum trabalho encontrado
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {hasActiveFilters 
+                      ? 'Tente ajustar os filtros para encontrar mais trabalhos.'
+                      : 'Não há trabalhos disponíveis no momento.'
+                    }
+                  </p>
+                  {hasActiveFilters && (
+                    <Button variant="outline" onClick={clearFilters}>
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
     </AppLayout>
   );
 };
