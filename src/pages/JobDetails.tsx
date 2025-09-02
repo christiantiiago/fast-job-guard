@@ -438,12 +438,15 @@ export default function JobDetails() {
                       {formatAddress(job.addresses)}
                     </p>
                     <Map
-                      latitude={Number(job.latitude)}
-                      longitude={Number(job.longitude)}
+                      center={[job.longitude, job.latitude]}
                       zoom={15}
-                      height="h-64"
-                      showMarker={true}
-                      interactive={false}
+                      className="h-64 rounded-lg"
+                      markers={[{
+                        latitude: job.latitude,
+                        longitude: job.longitude,
+                        title: job.title,
+                        description: job.addresses?.street || 'Local do trabalho'
+                      }]}
                     />
                   </div>
                 </CardContent>
@@ -657,16 +660,17 @@ export default function JobDetails() {
               <CardContent className="space-y-4">
                 <div>
                   <div className="text-2xl font-bold">
-                    {job.budget_min && job.budget_max ? (
-                      `${formatCurrency(job.budget_min)} - ${formatCurrency(job.budget_max)}`
-                    ) : job.budget_min ? (
-                      `A partir de ${formatCurrency(job.budget_min)}`
-                    ) : job.budget_max ? (
-                      `Até ${formatCurrency(job.budget_max)}`
-                    ) : (
-                      'Orçamento a negociar'
+                    {job.budget_min === job.budget_max 
+                      ? formatCurrency(job.budget_min)
+                      : `${formatCurrency(job.budget_min)} - ${formatCurrency(job.budget_max)}`
+                    }
+                    {job.budget_min === job.budget_max && (
+                      <Badge variant="secondary" className="ml-2 text-xs">Preço fixo</Badge>
                     )}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    💡 Prestadores podem negociar valores através de propostas
+                  </p>
                 </div>
 
                 {budgetFees && (

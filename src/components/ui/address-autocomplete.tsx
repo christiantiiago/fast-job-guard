@@ -51,6 +51,7 @@ export function AddressAutocomplete({
   const searchAddresses = async (query: string) => {
     if (!query || query.length < 3) {
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
@@ -63,15 +64,23 @@ export function AddressAutocomplete({
 
       if (error) {
         console.error('Erro ao buscar endereços:', error);
+        // Show a fallback message but don't break the UI
         setSuggestions([]);
+        setShowSuggestions(false);
         return;
       }
 
-      setSuggestions(data.features || []);
-      setShowSuggestions(true);
+      const features = data?.features || [];
+      setSuggestions(features);
+      setShowSuggestions(features.length > 0);
+      
+      if (features.length === 0 && query.length > 5) {
+        console.log('Nenhum endereço encontrado para:', query);
+      }
     } catch (error) {
-      console.error('Erro ao buscar endereços:', error);
+      console.error('Erro de conexão ao buscar endereços:', error);
       setSuggestions([]);
+      setShowSuggestions(false);
     } finally {
       setIsLoading(false);
     }

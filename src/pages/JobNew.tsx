@@ -49,17 +49,17 @@ export default function JobNew() {
     title: '',
     description: '',
     categoryId: '',
-    budgetMin: '',
-    budgetMax: '',
+    budget: '',
+    negotiable: false,
     address: '',
     requirements: '',
     urgency: 'normal'
   });
 
   // Calculate fees when budget changes
-  const minAmount = parseFloat(formData.budgetMin) || 0;
-  const maxAmount = parseFloat(formData.budgetMax) || 0;
-  const feeCalculation = minAmount && maxAmount ? calculateFeeRange(minAmount, maxAmount) : null;
+  const budgetAmount = parseFloat(formData.budget) || 0;
+  const { calculateFees } = useFeeRules();
+  const feeCalculation = budgetAmount > 0 ? calculateFees(budgetAmount) : null;
 
   const handleAddressSelect = (address: string, coords?: [number, number]) => {
     setFormData(prev => ({ ...prev, address }));
@@ -95,22 +95,23 @@ export default function JobNew() {
 
     try {
       // Validate required fields
-      if (!formData.title || !formData.description || !formData.categoryId || !formData.budgetMin || !formData.budgetMax || !formData.address) {
+      if (!formData.title || !formData.description || !formData.categoryId || !formData.budget || !formData.address) {
         toast.error('Preencha todos os campos obrigatórios');
         return;
       }
 
-      if (parseFloat(formData.budgetMin) > parseFloat(formData.budgetMax)) {
-        toast.error('O orçamento mínimo não pode ser maior que o máximo');
+      if (parseFloat(formData.budget) <= 0) {
+        toast.error('O orçamento deve ser maior que zero');
         return;
       }
 
+      const budgetValue = parseFloat(formData.budget);
       const jobData = {
         title: formData.title,
         description: formData.description,
         category_id: formData.categoryId,
-        budget_min: parseFloat(formData.budgetMin),
-        budget_max: parseFloat(formData.budgetMax),
+        budget_min: budgetValue,
+        budget_max: budgetValue,
         requirements: formData.requirements || null,
         deadline_at: selectedDate?.toISOString() || null,
         latitude: coordinates?.[1] || null,
@@ -257,37 +258,37 @@ export default function JobNew() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="budgetMin">Orçamento mínimo (R$) *</Label>
+                      <Label htmlFor="budget">Orçamento (R$) *</Label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                          id="budgetMin"
+                          id="budget"
                           type="number"
-                          placeholder="150"
+                          placeholder="250"
                           className="pl-10"
-                          value={formData.budgetMin}
-                          onChange={(e) => setFormData(prev => ({ ...prev, budgetMin: e.target.value }))}
+                          value={formData.budget}
+                          onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
                           required
                         />
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Valor que você está disposto a pagar pelo serviço
+                      </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="budgetMax">Orçamento máximo (R$) *</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="budgetMax"
-                          type="number"
-                          placeholder="300"
-                          className="pl-10"
-                          value={formData.budgetMax}
-                          onChange={(e) => setFormData(prev => ({ ...prev, budgetMax: e.target.value }))}
-                          required
-                        />
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="negotiable"
+                        checked={formData.negotiable}
+                        onChange={(e) => setFormData(prev => ({ ...prev, negotiable: e.target.checked }))}
+                        className="rounded border border-input bg-background"
+                      />
+                      <Label htmlFor="negotiable" className="text-sm font-normal">
+                        Aceito negociar o preço com prestadores
+                      </Label>
                     </div>
                   </div>
 
@@ -421,33 +422,40 @@ export default function JobNew() {
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span>Faixa do trabalho:</span>
+                          <span>Valor do trabalho:</span>
                           <span className="font-medium">
-                            {formatCurrency(minAmount)} - {formatCurrency(maxAmount)}
+                            {formatCurrency(budgetAmount)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between text-sm">
+                          <span>Taxa da plataforma ({getFeeDescription()}):</span>
+                          <span className="font-medium">
+                            {formatCurrency(feeCalculation.platformFee)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between text-sm">
+                          <span>Taxa de processamento:</span>
+                          <span className="font-medium">
+                            {formatCurrency(feeCalculation.processingFee)}
                           </span>
                         </div>
                         
                         <Separator />
                         
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span>Taxa da plataforma:</span>
-                            <span>{formatCurrency(feeCalculation.min.platformFee)} - {formatCurrency(feeCalculation.max.platformFee)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Taxa de processamento:</span>
-                            <span>{formatCurrency(feeCalculation.min.processingFee)} - {formatCurrency(feeCalculation.max.processingFee)}</span>
-                          </div>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="flex justify-between font-bold">
+                        <div className="flex justify-between font-medium">
                           <span>Total a pagar:</span>
                           <span className="text-primary">
-                            {formatCurrency(feeCalculation.min.total)} - {formatCurrency(feeCalculation.max.total)}
+                            {formatCurrency(feeCalculation.total)}
                           </span>
                         </div>
+
+                        {formData.negotiable && (
+                          <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
+                            💡 Prestadores poderão enviar propostas com valores diferentes para negociação
+                          </div>
+                        )}
                       </div>
 
                       <div className="p-3 bg-muted rounded-lg">
@@ -479,9 +487,10 @@ export default function JobNew() {
                     )}
                   </div>
                   
-                  {(formData.budgetMin || formData.budgetMax) && (
+                  {formData.budget && (
                     <div className="text-lg font-bold text-primary">
-                      R$ {formData.budgetMin || '0'} - R$ {formData.budgetMax || '0'}
+                      R$ {formData.budget}
+                      {formData.negotiable && <Badge variant="outline" className="ml-2">Negociável</Badge>}
                     </div>
                   )}
 
@@ -535,7 +544,7 @@ export default function JobNew() {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={isLoading || !formData.title || !formData.categoryId || !formData.budgetMin || !formData.budgetMax || !formData.address}
+                  disabled={isLoading || !formData.title || !formData.categoryId || !formData.budget || !formData.address}
                   size="lg"
                 >
                   {isLoading ? (
@@ -553,7 +562,7 @@ export default function JobNew() {
                 
                 {feeCalculation && (
                   <p className="text-xs text-center text-muted-foreground">
-                    Ao publicar, você concorda em pagar {formatCurrency(feeCalculation.min.total)} - {formatCurrency(feeCalculation.max.total)} quando o trabalho for concluído
+                    Ao publicar, você concorda em pagar {formatCurrency(feeCalculation.total)} quando o trabalho for concluído
                   </p>
                 )}
                 
