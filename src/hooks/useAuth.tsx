@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Fetch user role separately to avoid async issues in auth state change
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log('🔍 Fetching role for user:', userId);
       const { data: roleData, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -30,13 +31,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
       
       if (error) {
-        console.log('Error fetching user role:', error);
+        console.log('❌ Error fetching user role:', error);
         return 'client';
       }
       
-      return roleData?.role || 'client';
+      console.log('📋 User role data:', roleData);
+      const role = roleData?.role || 'client';
+      console.log('✅ Final user role:', role);
+      return role;
     } catch (error) {
-      console.log('Exception fetching user role:', error);
+      console.log('💥 Exception fetching user role:', error);
       return 'client';
     }
   };
