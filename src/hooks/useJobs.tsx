@@ -137,6 +137,44 @@ export const useJobs = () => {
     }
   };
 
+  // Nova função para buscar TODOS os jobs públicos sem restrições de usuário
+  const fetchAllPublicJobs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data, error } = await supabase
+        .from('jobs')
+        .select(`
+          *,
+          service_categories(name, icon_name),
+          addresses(street, city, state, neighborhood),
+          proposals(
+            id,
+            price,
+            message,
+            status,
+            provider_id
+          )
+        `)
+        .in('status', ['open', 'in_progress', 'completed'])
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching all public jobs:', error);
+        setError(error.message);
+        return;
+      }
+
+      setJobs((data as Job[]) || []);
+    } catch (err) {
+      console.error('Exception fetching all public jobs:', err);
+      setError('Erro ao carregar trabalhos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchJobById = async (id: string) => {
     try {
       const { data, error } = await supabase
@@ -233,6 +271,7 @@ export const useJobs = () => {
     error,
     fetchJobs,
     fetchAllOpenJobs,
+    fetchAllPublicJobs,
     fetchJobById,
     createJob,
     updateJobStatus,

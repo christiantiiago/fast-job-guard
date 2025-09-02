@@ -27,7 +27,7 @@ import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGe
 
 const AllJobs = () => {
   const navigate = useNavigate();
-  const { jobs, loading, error, fetchAllOpenJobs } = useJobs();
+  const { jobs, loading, error, fetchAllPublicJobs } = useJobs();
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -36,8 +36,8 @@ const AllJobs = () => {
   const { position: userPosition, error: locationError } = useGeolocation();
 
   useEffect(() => {
-    fetchAllOpenJobs();
-  }, []); // Remove a dependência para evitar loop infinito
+    fetchAllPublicJobs();
+  }, []);
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
@@ -151,7 +151,7 @@ const AllJobs = () => {
             <div className="text-center space-y-4">
               <h2 className="text-xl font-semibold text-foreground">Erro ao carregar trabalhos</h2>
               <p className="text-muted-foreground">{error}</p>
-              <Button onClick={() => fetchAllOpenJobs()}>Tentar Novamente</Button>
+              <Button onClick={() => fetchAllPublicJobs()}>Tentar Novamente</Button>
             </div>
           </div>
         </div>
@@ -167,10 +167,10 @@ const AllJobs = () => {
             <div className="mb-8">
               <div className="flex justify-between items-start">
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground mb-2">Todos os Trabalhos</h1>
-                  <p className="text-muted-foreground">
-                    Encontre oportunidades de trabalho em sua área
-                  </p>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Todos os Trabalhos</h1>
+                    <p className="text-muted-foreground">
+                      Explore todos os trabalhos disponíveis na plataforma - desde oportunidades em aberto até projetos em andamento
+                    </p>
                 </div>
                 
                 {/* View Toggle */}
