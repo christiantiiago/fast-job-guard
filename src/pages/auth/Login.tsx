@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Briefcase, Eye, EyeOff } from 'lucide-react';
+import { Briefcase, Eye, EyeOff, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Login() {
@@ -20,8 +20,6 @@ export default function Login() {
   const [error, setError] = useState('');
 
   const from = location.state?.from?.pathname || '/dashboard';
-
-  // Remove auto redirect - user must enter credentials
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,12 +139,12 @@ export default function Login() {
               </div>
 
               <div className="text-center text-xs text-muted-foreground border-t pt-4">
-                Administrador?{' '}
                 <Link 
                   to="/auth/admin" 
-                  className="text-destructive hover:underline font-medium"
+                  className="text-destructive hover:underline font-medium flex items-center justify-center gap-1"
                 >
-                  Acesso Admin
+                  <Shield className="h-3 w-3" />
+                  Acesso Administrativo
                 </Link>
               </div>
             </CardFooter>

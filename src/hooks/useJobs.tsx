@@ -30,16 +30,16 @@ export interface Job {
   profiles?: {
     full_name?: string;
   } | null;
-  proposals?: Array<{
+  proposals?: {
     id: string;
     price: number;
     message?: string;
     status: string;
     provider_id: string;
-    profiles: {
+    profiles?: {
       full_name?: string;
     } | null;
-  }>;
+  }[];
   addresses?: {
     street: string;
     city: string;
