@@ -2,9 +2,29 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Menu, X, User, Briefcase } from "lucide-react";
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleAuthAction = () => {
+    if (user) {
+      signOut();
+    } else {
+      navigate('/auth/login');
+    }
+  };
+
+  const handlePublishJob = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth/register');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -39,12 +59,12 @@ const Header = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="hover:bg-primary/5 hover:text-primary">
+            <Button variant="ghost" size="sm" className="hover:bg-primary/5 hover:text-primary" onClick={handleAuthAction}>
               <User className="h-4 w-4 mr-2" />
-              Entrar
+              {user ? 'Sair' : 'Entrar'}
             </Button>
-            <Button variant="shipfy" size="sm">
-              Publicar Trabalho
+            <Button variant="shipfy" size="sm" onClick={handlePublishJob}>
+              {user ? 'Dashboard' : 'Começar'}
             </Button>
           </div>
 
@@ -76,12 +96,12 @@ const Header = () => {
                 Suporte
               </a>
               <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                <Button variant="ghost" className="justify-start hover:bg-primary/5 hover:text-primary">
+                <Button variant="ghost" className="justify-start hover:bg-primary/5 hover:text-primary" onClick={handleAuthAction}>
                   <User className="h-4 w-4 mr-2" />
-                  Entrar
+                  {user ? 'Sair' : 'Entrar'}
                 </Button>
-                <Button variant="shipfy">
-                  Publicar Trabalho
+                <Button variant="shipfy" onClick={handlePublishJob}>
+                  {user ? 'Dashboard' : 'Começar'}
                 </Button>
               </div>
             </nav>
