@@ -5,30 +5,29 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg",
+        default: "primary-gradient text-primary-foreground shadow-primary hover:shadow-elevated hover:scale-[1.02]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground shadow-md hover:bg-destructive/90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border-2 border-primary/20 bg-background hover:bg-primary/5 hover:border-primary/40 text-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-md hover:shadow-lg",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+          "success-gradient text-secondary-foreground shadow-md hover:shadow-elevated hover:scale-[1.02]",
+        ghost: "hover:bg-primary/5 hover:text-primary",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "cta-gradient text-accent-foreground hover:scale-105 shadow-accent font-semibold transform transition-all duration-300 hover:shadow-xl",
-        cta: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-accent hover:shadow-lg hover:scale-[1.02] font-semibold",
-        success: "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-md hover:shadow-lg",
-        premium: "hero-gradient text-primary-foreground hover:scale-105 shadow-brand font-semibold transform transition-all duration-300",
+        accent: "accent-gradient text-accent-foreground shadow-accent hover:shadow-elevated hover:scale-[1.02]",
+        modern: "bg-card border-2 border-border/50 hover:border-primary/30 hover:bg-primary/5 text-foreground shadow-card hover:shadow-elevated",
+        shipfy: "primary-gradient text-primary-foreground shadow-primary hover:shadow-elevated transform transition-all duration-300 hover:-translate-y-0.5",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-12 rounded-lg px-8 py-3",
-        xl: "h-14 rounded-xl px-10 py-4 text-base",
-        icon: "h-10 w-10",
+        default: "h-11 px-6 py-3",
+        sm: "h-9 rounded-xl px-4 text-xs",
+        lg: "h-14 rounded-2xl px-8 py-4 text-base font-semibold",
+        xl: "h-16 rounded-3xl px-10 py-5 text-lg font-semibold",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: {

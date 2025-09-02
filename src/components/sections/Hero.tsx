@@ -5,7 +5,7 @@ import heroImage from "@/assets/hero-image.jpg";
 
 const Hero = () => {
   return (
-    <section className="hero-gradient text-white section-padding overflow-hidden relative">
+    <section className="primary-gradient text-white section-padding overflow-hidden relative">
       {/* Background pattern overlay */}
       <div className="absolute inset-0 bg-black/10"></div>
       
@@ -43,7 +43,7 @@ const Hero = () => {
                     className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/70 h-12"
                   />
                 </div>
-                <Button variant="hero" size="lg" className="h-12 px-8">
+                <Button variant="shipfy" size="lg" className="h-12 px-8">
                   Buscar
                 </Button>
               </div>
@@ -63,7 +63,7 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button variant="cta" size="xl" className="flex-1 sm:flex-none">
+              <Button variant="accent" size="xl" className="flex-1 sm:flex-none">
                 Publicar Trabalho
               </Button>
               <Button variant="outline" size="xl" className="flex-1 sm:flex-none bg-white/10 border-white/30 text-white hover:bg-white/20">

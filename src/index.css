@@ -2,11 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Job Fast Design System - Modern marketplace with trust and professionalism */
+/* Job Fast Design System - Shipfy-inspired modern marketplace */
 
 @layer base {
   :root {
-    /* Core brand colors - Professional blue with energy accents */
+    /* Core brand colors - Shipfy-inspired coral/red theme */
     --background: 0 0% 100%;
     --foreground: 215 25% 27%;
 
@@ -16,48 +16,51 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 27%;
 
-    /* Primary: Trust blue - professional and reliable */
-    --primary: 214 84% 56%;
+    /* Primary: Shipfy coral-red - dynamic and modern */
+    --primary: 8 84% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 214 100% 70%;
+    --primary-soft: 8 75% 65%;
 
     /* Secondary: Success green for completed actions */
     --secondary: 142 71% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Accent: Energy orange for CTAs and highlights */
-    --accent: 25 95% 53%;
+    /* Accent: Orange for highlights and CTAs */
+    --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 40% 98%;
+    --muted-foreground: 215 20% 60%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 214 84% 56%;
+    --border: 214 32% 94%;
+    --input: 214 32% 96%;
+    --ring: 8 84% 60%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    /* Custom design tokens */
-    --gradient-hero: linear-gradient(135deg, hsl(214 84% 56%), hsl(142 71% 45%));
-    --gradient-cta: linear-gradient(135deg, hsl(25 95% 53%), hsl(25 95% 63%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(214 20% 98%));
+    /* Custom design tokens - Shipfy style */
+    --gradient-primary: linear-gradient(135deg, hsl(8 84% 60%), hsl(8 75% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(24 95% 53%), hsl(24 95% 63%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(210 20% 99%));
     
-    /* Shadows with brand colors */
-    --shadow-brand: 0 10px 30px -10px hsl(214 84% 56% / 0.3);
-    --shadow-accent: 0 4px 20px -2px hsl(25 95% 53% / 0.2);
-    --shadow-card: 0 2px 8px -1px hsl(215 25% 27% / 0.1);
+    /* Modern shadows */
+    --shadow-primary: 0 8px 32px -8px hsl(8 84% 60% / 0.24);
+    --shadow-accent: 0 4px 20px -4px hsl(24 95% 53% / 0.2);
+    --shadow-card: 0 2px 12px -2px hsl(215 25% 27% / 0.08);
+    --shadow-elevated: 0 12px 40px -12px hsl(215 25% 27% / 0.15);
     
-    /* Animations */
+    /* Smooth animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-spring: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-    /* Spacing for consistent layout */
-    --spacing-section: 5rem;
-    --spacing-component: 2rem;
+    /* Modern spacing */
+    --spacing-section: 4rem;
+    --spacing-component: 1.5rem;
   }
 
   .dark {
@@ -70,14 +73,14 @@
     --popover: 215 28% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 214 84% 56%;
+    --primary: 8 84% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 214 100% 70%;
+    --primary-soft: 8 75% 65%;
 
     --secondary: 142 71% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 25 95% 53%;
+    --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
 
     --muted: 215 28% 25%;
@@ -88,16 +91,17 @@
 
     --border: 215 28% 25%;
     --input: 215 28% 25%;
-    --ring: 214 84% 56%;
+    --ring: 8 84% 60%;
 
     /* Dark mode gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(214 84% 56%), hsl(142 71% 45%));
-    --gradient-cta: linear-gradient(135deg, hsl(25 95% 53%), hsl(25 95% 63%));
+    --gradient-primary: linear-gradient(135deg, hsl(8 84% 60%), hsl(8 75% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(24 95% 53%), hsl(24 95% 63%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
     --gradient-card: linear-gradient(135deg, hsl(215 28% 17%), hsl(215 28% 20%));
     
-    --shadow-brand: 0 10px 30px -10px hsl(214 84% 56% / 0.4);
-    --shadow-accent: 0 4px 20px -2px hsl(25 95% 53% / 0.3);
-    --shadow-card: 0 2px 8px -1px hsl(0 0% 0% / 0.2);
+    --shadow-primary: 0 8px 32px -8px hsl(8 84% 60% / 0.3);
+    --shadow-accent: 0 4px 20px -4px hsl(24 95% 53% / 0.25);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.2);
   }
 }
 
@@ -130,13 +134,17 @@
 }
 
 @layer components {
-  /* Hero section styles */
-  .hero-gradient {
-    background: var(--gradient-hero);
+  /* Modern gradients - Shipfy style */
+  .primary-gradient {
+    background: var(--gradient-primary);
   }
 
-  .cta-gradient {
-    background: var(--gradient-cta);
+  .accent-gradient {
+    background: var(--gradient-accent);
+  }
+
+  .success-gradient {
+    background: var(--gradient-success);
   }
 
   .card-gradient {
@@ -154,6 +162,10 @@
 
   .animate-scale-in {
     animation: scaleIn 0.5s var(--transition-bounce);
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
   }
 
   @keyframes fadeIn {
@@ -183,9 +195,40 @@
     }
   }
 
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Modern cards */
+  .card-modern {
+    @apply bg-card border border-border/50 rounded-2xl shadow-card backdrop-blur-sm;
+  }
+
+  .card-elevated {
+    @apply card-modern shadow-elevated hover:shadow-primary/10 transition-all duration-300;
+  }
+
+  /* Status badges */
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-open {
+    @apply status-badge bg-primary/10 text-primary border border-primary/20;
+  }
+
+  .status-progress {
+    @apply status-badge bg-accent/10 text-accent border border-accent/20;
+  }
+
+  .status-completed {
+    @apply status-badge bg-secondary/10 text-secondary border border-secondary/20;
+  }
+
   /* Utility classes */
   .section-padding {
-    @apply py-16 px-4 sm:py-20 sm:px-6 lg:py-24 lg:px-8;
+    @apply py-8 px-4 sm:py-12 sm:px-6 lg:py-16 lg:px-8;
   }
 
   .container-center {
@@ -194,6 +237,15 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Mobile-first layouts */
+  .mobile-stack {
+    @apply flex flex-col gap-4 sm:flex-row sm:items-center;
+  }
+
+  .mobile-grid {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
   }
 }
 

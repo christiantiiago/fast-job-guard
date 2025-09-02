@@ -92,7 +92,7 @@ const HowItWorks = () => {
               Junte-se aos milhares de clientes satisfeitos que já encontraram o profissional ideal
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="premium" size="xl">
+              <Button variant="shipfy" size="xl">
                 Publicar Trabalho Agora
               </Button>
               <Button variant="outline" size="xl">
