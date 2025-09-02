@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
 
 // Public pages
 import Index from "./pages/Index";
@@ -77,7 +78,9 @@ const App = () => (
               path="/jobs/new"
               element={
                 <ProtectedRoute>
-                  <JobNew />
+                  <ProtectedJobCreation>
+                    <JobNew />
+                  </ProtectedJobCreation>
                 </ProtectedRoute>
               }
             />
