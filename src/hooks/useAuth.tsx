@@ -20,38 +20,97 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
 
+  // Fetch user role separately to avoid async issues in auth state change
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data: roleData, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (error) {
+        console.log('Error fetching user role:', error);
+        return 'client';
+      }
+      
+      return roleData?.role || 'client';
+    } catch (error) {
+      console.log('Exception fetching user role:', error);
+      return 'client';
+    }
+  };
+
   useEffect(() => {
+    let isMounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (!isMounted) return;
+        
+        console.log('Auth state change:', event, session?.user?.id);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user role
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          setUserRole(roleData?.role || 'client');
+          // Fetch role in a separate async operation to avoid blocking
+          setTimeout(async () => {
+            if (!isMounted) return;
+            const role = await fetchUserRole(session.user.id);
+            if (isMounted) {
+              setUserRole(role);
+              setLoading(false);
+            }
+          }, 0);
         } else {
           setUserRole(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check for existing session only once
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.log('Error getting session:', error);
+          setLoading(false);
+          return;
+        }
 
-    return () => subscription.unsubscribe();
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const role = await fetchUserRole(session.user.id);
+          if (isMounted) {
+            setUserRole(role);
+          }
+        }
+        
+        if (isMounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.log('Exception getting initial session:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    getInitialSession();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -65,24 +124,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, userData: any) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
     
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: userData
-      }
-    });
-
-    // Create user role
-    if (data.user) {
-      await supabase.from('user_roles').insert({
-        user_id: data.user.id,
-        role: userData.role || 'client'
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: userData
+        }
       });
-    }
 
-    return { error };
+      if (error) {
+        console.log('Signup error:', error);
+        return { error };
+      }
+
+      // The trigger will automatically create user_roles and profiles
+      console.log('User signed up successfully:', data.user?.id);
+      
+      return { error: null };
+    } catch (err) {
+      console.log('Signup exception:', err);
+      return { error: err };
+    }
   };
 
   const signOut = async () => {
