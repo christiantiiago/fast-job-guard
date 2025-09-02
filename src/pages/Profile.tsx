@@ -45,11 +45,11 @@ export default function Profile() {
   const getKycStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Aprovado</Badge>;
+        return <Badge variant="default" className="bg-success/10 text-success border-success/20"><CheckCircle className="w-3 h-3 mr-1" />Aprovado</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
+        return <Badge variant="default" className="bg-warning/10 text-warning border-warning/20"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
+        return <Badge variant="default" className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
       default:
         return <Badge variant="secondary">Não enviado</Badge>;
     }
@@ -95,7 +95,7 @@ export default function Profile() {
                     <p className="text-muted-foreground capitalize">{userRole}</p>
                     {userRole === 'provider' && (
                       <div className="flex items-center mt-1">
-                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        <Star className="w-4 h-4 text-warning fill-current" />
                         <span className="ml-1 text-sm font-medium">{profileData.rating}</span>
                         <span className="ml-1 text-sm text-muted-foreground">
                           ({profileData.reviewCount} avaliações)
@@ -189,11 +189,11 @@ export default function Profile() {
                       <div className="text-sm text-muted-foreground">Trabalhos concluídos</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{profileData.totalEarnings}</div>
+                      <div className="text-2xl font-bold text-success">{profileData.totalEarnings}</div>
                       <div className="text-sm text-muted-foreground">Total ganho</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-600">{profileData.rating}/5</div>
+                      <div className="text-2xl font-bold text-warning">{profileData.rating}/5</div>
                       <div className="text-sm text-muted-foreground">Avaliação média</div>
                     </div>
                   </>
@@ -204,11 +204,11 @@ export default function Profile() {
                       <div className="text-sm text-muted-foreground">Trabalhos publicados</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">8</div>
+                      <div className="text-2xl font-bold text-success">8</div>
                       <div className="text-sm text-muted-foreground">Concluídos</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-600">4.9/5</div>
+                      <div className="text-2xl font-bold text-warning">4.9/5</div>
                       <div className="text-sm text-muted-foreground">Satisfação média</div>
                     </div>
                   </>
@@ -225,7 +225,7 @@ export default function Profile() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Status</span>
-                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                    <Badge variant="default" className="bg-success/10 text-success border-success/20">Ativo</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Plano</span>
@@ -233,13 +233,13 @@ export default function Profile() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Taxa reduzida</span>
-                    <span className="text-sm font-medium text-green-600">3.5%</span>
+                    <span className="text-sm font-medium text-success">3.5%</span>
                   </div>
                   <div className="pt-3 border-t">
                     <p className="text-xs text-muted-foreground mb-2">
                       Economia acumulada com taxa reduzida:
                     </p>
-                    <p className="text-lg font-bold text-green-600">R$ 127,50</p>
+                    <p className="text-lg font-bold text-success">R$ 127,50</p>
                   </div>
                   <Button variant="outline" className="w-full" size="sm">
                     Gerenciar Assinatura

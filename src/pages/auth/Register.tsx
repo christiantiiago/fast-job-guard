@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import { Briefcase, User, Wrench, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Register() {
-  const { user, signUp, loading } = useAuth();
+  const { user, signUp, signOut, loading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -27,9 +27,12 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (user && !loading) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Auto logout when accessing register page
+  useEffect(() => {
+    if (user && !loading) {
+      signOut();
+    }
+  }, [user, loading, signOut]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
