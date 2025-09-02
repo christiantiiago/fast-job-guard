@@ -1,27 +1,27 @@
 import { Home, Search, Briefcase, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NavLink, useLocation } from "react-router-dom";
 
 interface MobileBottomNavProps {
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
   userRole?: "client" | "provider" | "admin";
 }
 
-const MobileBottomNav = ({ activeTab = "home", onTabChange, userRole = "client" }: MobileBottomNavProps) => {
+const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
+  const location = useLocation();
+  
   const clientTabs = [
-    { id: "home", label: "Início", icon: Home },
-    { id: "search", label: "Buscar", icon: Search },
-    { id: "jobs", label: "Trabalhos", icon: Briefcase },
-    { id: "messages", label: "Chat", icon: MessageCircle },
-    { id: "profile", label: "Perfil", icon: User },
+    { id: "home", label: "Início", icon: Home, href: "/dashboard" },
+    { id: "all-jobs", label: "Todos Jobs", icon: Search, href: "/all-jobs" },
+    { id: "jobs", label: "Meus Jobs", icon: Briefcase, href: "/jobs" },
+    { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
+    { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
   const providerTabs = [
-    { id: "home", label: "Início", icon: Home },
-    { id: "discover", label: "Descobrir", icon: Search },
-    { id: "my-jobs", label: "Meus Jobs", icon: Briefcase },
-    { id: "messages", label: "Chat", icon: MessageCircle },
-    { id: "profile", label: "Perfil", icon: User },
+    { id: "home", label: "Início", icon: Home, href: "/dashboard" },
+    { id: "all-jobs", label: "Todos Jobs", icon: Search, href: "/all-jobs" },
+    { id: "my-jobs", label: "Meus Jobs", icon: Briefcase, href: "/provider/jobs" },
+    { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
   const tabs = userRole === "provider" ? providerTabs : clientTabs;
@@ -32,14 +32,14 @@ const MobileBottomNav = ({ activeTab = "home", onTabChange, userRole = "client" 
         <nav className="flex items-center justify-around h-16">
           {tabs.map((tab) => {
             const IconComponent = tab.icon;
-            const isActive = activeTab === tab.id;
+            const isActive = location.pathname === tab.href;
             
             return (
-              <button
+              <NavLink
                 key={tab.id}
-                onClick={() => onTabChange?.(tab.id)}
+                to={tab.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 px-2 py-1 rounded-xl transition-all duration-200",
+                  "flex flex-col items-center justify-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 relative",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground hover:text-foreground"
@@ -63,7 +63,7 @@ const MobileBottomNav = ({ activeTab = "home", onTabChange, userRole = "client" 
                 {isActive && (
                   <div className="absolute -top-0.5 w-8 h-0.5 primary-gradient rounded-full" />
                 )}
-              </button>
+              </NavLink>
             );
           })}
         </nav>
