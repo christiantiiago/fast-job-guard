@@ -110,6 +110,93 @@ export type Database = {
         }
         Relationships: []
       }
+      contracts: {
+        Row: {
+          agreed_deadline: string | null
+          agreed_price: number
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          client_id: string
+          client_signed: boolean | null
+          client_signed_at: string | null
+          created_at: string
+          escrow_amount: number | null
+          escrow_released: boolean | null
+          escrow_released_at: string | null
+          id: string
+          job_id: string
+          milestones: Json | null
+          proposal_id: string
+          provider_id: string
+          provider_signed: boolean | null
+          provider_signed_at: string | null
+          status: string | null
+          terms_and_conditions: string
+          updated_at: string
+        }
+        Insert: {
+          agreed_deadline?: string | null
+          agreed_price: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          client_id: string
+          client_signed?: boolean | null
+          client_signed_at?: string | null
+          created_at?: string
+          escrow_amount?: number | null
+          escrow_released?: boolean | null
+          escrow_released_at?: string | null
+          id?: string
+          job_id: string
+          milestones?: Json | null
+          proposal_id: string
+          provider_id: string
+          provider_signed?: boolean | null
+          provider_signed_at?: string | null
+          status?: string | null
+          terms_and_conditions: string
+          updated_at?: string
+        }
+        Update: {
+          agreed_deadline?: string | null
+          agreed_price?: number
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          client_id?: string
+          client_signed?: boolean | null
+          client_signed_at?: string | null
+          created_at?: string
+          escrow_amount?: number | null
+          escrow_released?: boolean | null
+          escrow_released_at?: string | null
+          id?: string
+          job_id?: string
+          milestones?: Json | null
+          proposal_id?: string
+          provider_id?: string
+          provider_signed?: boolean | null
+          provider_signed_at?: string | null
+          status?: string | null
+          terms_and_conditions?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disputes: {
         Row: {
           admin_notes: string | null
@@ -244,6 +331,7 @@ export type Database = {
           budget_min: number | null
           category_id: string
           client_id: string
+          contract_id: string | null
           created_at: string | null
           deadline_at: string | null
           description: string
@@ -265,6 +353,7 @@ export type Database = {
           budget_min?: number | null
           category_id: string
           client_id: string
+          contract_id?: string | null
           created_at?: string | null
           deadline_at?: string | null
           description: string
@@ -286,6 +375,7 @@ export type Database = {
           budget_min?: number | null
           category_id?: string
           client_id?: string
+          contract_id?: string | null
           created_at?: string | null
           deadline_at?: string | null
           description?: string
@@ -314,6 +404,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
             referencedColumns: ["id"]
           },
         ]
