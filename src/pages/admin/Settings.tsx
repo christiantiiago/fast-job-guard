@@ -28,51 +28,81 @@ import {
   Save,
   AlertTriangle
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function AdminSettings() {
   const { 
-    config, 
+    configs, 
     loading, 
     updateConfig, 
-    exportConfig, 
-    importConfig,
-    resetToDefaults 
+    exportConfigs 
   } = useSystemConfig();
   
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('fees');
-  const [localConfig, setLocalConfig] = useState({
-    fees: {},
-    security: {},
-    notifications: {}
-  });
+  
+  // Transform configs into a more usable format
+  const configsByCategory = useMemo(() => {
+    const result: Record<string, Record<string, any>> = {};
+    
+    configs.forEach(category => {
+      const categoryKey = category.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      result[categoryKey] = {};
+      
+      category.configs.forEach(config => {
+        result[categoryKey][config.key] = config.value;
+      });
+    });
+    
+    return result;
+  }, [configs]);
 
-  const handleSave = async (section: string) => {
+  const handleSave = async (configId: string, newValue: any) => {
     try {
-      await updateConfig(section, localConfig[section]);
+      await updateConfig(configId, newValue);
       toast({
-        title: "Configurações salvas",
-        description: "As alterações foram aplicadas com sucesso.",
+        title: "Configuração salva",
+        description: "A alteração foi aplicada com sucesso.",
       });
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: "Não foi possível salvar a configuração.",
       });
     }
   };
 
-  const handleConfigChange = (section: string, key: string, value: any) => {
-    setLocalConfig(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: value
+  const getConfigValue = (category: string, key: string) => {
+    return configsByCategory[category]?.[key] || 0;
+  };
+
+  const resetToDefaults = async () => {
+    try {
+      // Reset all configs to default values
+      const defaultConfigs = [
+        { id: 'fee-client-standard', value: 5.0 },
+        { id: 'fee-provider-standard', value: 5.0 },
+        { id: 'fee-client-premium', value: 3.5 },
+        { id: 'fee-provider-premium', value: 3.5 }
+      ];
+
+      for (const config of defaultConfigs) {
+        await updateConfig(config.id, config.value);
       }
-    }));
+
+      toast({
+        title: "Configurações restauradas",
+        description: "Todas as configurações foram restauradas aos valores padrão.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao restaurar",
+        description: "Não foi possível restaurar as configurações.",
+      });
+    }
   };
 
   if (loading) {
@@ -105,11 +135,11 @@ export default function AdminSettings() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => {}}>
+            <Button variant="outline" onClick={exportConfigs}>
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => {}}>
               <Upload className="h-4 w-4 mr-2" />
               Importar
             </Button>
@@ -148,8 +178,8 @@ export default function AdminSettings() {
                         id="client-standard"
                         type="number"
                         step="0.01"
-                        value={localConfig.fees?.clientStandard || 5}
-                        onChange={(e) => handleConfigChange('fees', 'clientStandard', parseFloat(e.target.value))}
+                        value={getConfigValue('configurações_financeiras', 'client_fee_standard')}
+                        onChange={(e) => handleSave('fee-client-standard', parseFloat(e.target.value))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -158,8 +188,8 @@ export default function AdminSettings() {
                         id="client-premium"
                         type="number"
                         step="0.01"
-                        value={localConfig.fees?.clientPremium || 3.5}
-                        onChange={(e) => handleConfigChange('fees', 'clientPremium', parseFloat(e.target.value))}
+                        value={getConfigValue('configurações_financeiras', 'client_fee_premium')}
+                        onChange={(e) => handleSave('fee-client-premium', parseFloat(e.target.value))}
                       />
                     </div>
                   </div>
@@ -172,8 +202,8 @@ export default function AdminSettings() {
                         id="provider-standard"
                         type="number"
                         step="0.01"
-                        value={localConfig.fees?.providerStandard || 5}
-                        onChange={(e) => handleConfigChange('fees', 'providerStandard', parseFloat(e.target.value))}
+                        value={getConfigValue('configurações_financeiras', 'provider_fee_standard')}
+                        onChange={(e) => handleSave('fee-provider-standard', parseFloat(e.target.value))}
                       />
                     </div>
                     <div className="space-y-2">
@@ -182,8 +212,8 @@ export default function AdminSettings() {
                         id="provider-premium"
                         type="number"
                         step="0.01"
-                        value={localConfig.fees?.providerPremium || 3.5}
-                        onChange={(e) => handleConfigChange('fees', 'providerPremium', parseFloat(e.target.value))}
+                        value={getConfigValue('configurações_financeiras', 'provider_fee_premium')}
+                        onChange={(e) => handleSave('fee-provider-premium', parseFloat(e.target.value))}
                       />
                     </div>
                   </div>
@@ -199,8 +229,8 @@ export default function AdminSettings() {
                       <Input
                         id="min-payout"
                         type="number"
-                        value={localConfig.fees?.minPayout || 50}
-                        onChange={(e) => handleConfigChange('fees', 'minPayout', parseFloat(e.target.value))}
+                        value={50}
+                        onChange={(e) => {}}
                       />
                     </div>
                     <div className="space-y-2">
@@ -208,8 +238,8 @@ export default function AdminSettings() {
                       <Input
                         id="max-job"
                         type="number"
-                        value={localConfig.fees?.maxJobValue || 10000}
-                        onChange={(e) => handleConfigChange('fees', 'maxJobValue', parseFloat(e.target.value))}
+                        value={10000}
+                        onChange={(e) => {}}
                       />
                     </div>
                     <div className="space-y-2">
@@ -217,17 +247,12 @@ export default function AdminSettings() {
                       <Input
                         id="escrow-days"
                         type="number"
-                        value={localConfig.fees?.escrowDays || 3}
-                        onChange={(e) => handleConfigChange('fees', 'escrowDays', parseInt(e.target.value))}
+                        value={3}
+                        onChange={(e) => {}}
                       />
                     </div>
                   </div>
                 </div>
-
-                <Button onClick={() => handleSave('fees')}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Configurações de Taxas
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -255,8 +280,8 @@ export default function AdminSettings() {
                     </div>
                     <Switch
                       id="facial-auth"
-                      checked={localConfig.security?.facialAuthRequired || false}
-                      onCheckedChange={(checked) => handleConfigChange('security', 'facialAuthRequired', checked)}
+                      checked={false}
+                      onCheckedChange={(checked) => {}}
                     />
                   </div>
 
@@ -269,8 +294,8 @@ export default function AdminSettings() {
                     </div>
                     <Switch
                       id="random-verification"
-                      checked={localConfig.security?.randomVerification || false}
-                      onCheckedChange={(checked) => handleConfigChange('security', 'randomVerification', checked)}
+                      checked={false}
+                      onCheckedChange={(checked) => {}}
                     />
                   </div>
 
@@ -283,8 +308,8 @@ export default function AdminSettings() {
                     </div>
                     <Switch
                       id="ip-blocking"
-                      checked={localConfig.security?.ipBlocking || false}
-                      onCheckedChange={(checked) => handleConfigChange('security', 'ipBlocking', checked)}
+                      checked={false}
+                      onCheckedChange={(checked) => {}}
                     />
                   </div>
                 </div>
@@ -297,8 +322,8 @@ export default function AdminSettings() {
                     <Input
                       id="session-timeout"
                       type="number"
-                      value={localConfig.security?.sessionTimeout || 120}
-                      onChange={(e) => handleConfigChange('security', 'sessionTimeout', parseInt(e.target.value))}
+                      value={getConfigValue('configurações_de_segurança', 'session_timeout')}
+                      onChange={(e) => handleSave('session-timeout', parseInt(e.target.value))}
                     />
                   </div>
                   <div className="space-y-2">
@@ -306,8 +331,8 @@ export default function AdminSettings() {
                     <Input
                       id="max-attempts"
                       type="number"
-                      value={localConfig.security?.maxLoginAttempts || 5}
-                      onChange={(e) => handleConfigChange('security', 'maxLoginAttempts', parseInt(e.target.value))}
+                      value={getConfigValue('configurações_de_segurança', 'max_login_attempts')}
+                      onChange={(e) => handleSave('max-login-attempts', parseInt(e.target.value))}
                     />
                   </div>
                   <div className="space-y-2">
@@ -315,15 +340,15 @@ export default function AdminSettings() {
                     <Input
                       id="lockout-duration"
                       type="number"
-                      value={localConfig.security?.lockoutDuration || 30}
-                      onChange={(e) => handleConfigChange('security', 'lockoutDuration', parseInt(e.target.value))}
+                      value={30}
+                      onChange={(e) => {}}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password-strength">Força da Senha</Label>
                     <Select
-                      value={localConfig.security?.passwordStrength || 'medium'}
-                      onValueChange={(value) => handleConfigChange('security', 'passwordStrength', value)}
+                      value="medium"
+                      onValueChange={(value) => {}}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -336,11 +361,6 @@ export default function AdminSettings() {
                     </Select>
                   </div>
                 </div>
-
-                <Button onClick={() => handleSave('security')}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Configurações de Segurança
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -378,28 +398,22 @@ export default function AdminSettings() {
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-2">
                             <Switch
-                              checked={localConfig.notifications?.[notification.key]?.email || false}
-                              onCheckedChange={(checked) => 
-                                handleConfigChange('notifications', `${notification.key}.email`, checked)
-                              }
+                              checked={getConfigValue('configurações_de_notificação', 'email_notifications')}
+                              onCheckedChange={(checked) => {}}
                             />
                             <Label className="text-sm">Email</Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Switch
-                              checked={localConfig.notifications?.[notification.key]?.push || false}
-                              onCheckedChange={(checked) => 
-                                handleConfigChange('notifications', `${notification.key}.push`, checked)
-                              }
+                              checked={getConfigValue('configurações_de_notificação', 'push_notifications')}
+                              onCheckedChange={(checked) => {}}
                             />
                             <Label className="text-sm">Push</Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Switch
-                              checked={localConfig.notifications?.[notification.key]?.sms || false}
-                              onCheckedChange={(checked) => 
-                                handleConfigChange('notifications', `${notification.key}.sms`, checked)
-                              }
+                              checked={false}
+                              onCheckedChange={(checked) => {}}
                             />
                             <Label className="text-sm">SMS</Label>
                           </div>
@@ -409,16 +423,38 @@ export default function AdminSettings() {
                     </div>
                   ))}
                 </div>
-
-                <Button onClick={() => handleSave('notifications')}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Configurações de Notificações
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Other tabs would continue similarly... */}
+          {/* Other tabs placeholders */}
+          <TabsContent value="integrations" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Integrações</CardTitle>
+                <CardDescription>
+                  Configure integrações com serviços externos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Em desenvolvimento...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="limits" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Limites e Cotas</CardTitle>
+                <CardDescription>
+                  Defina limites para usuários e operações
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Em desenvolvimento...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           <TabsContent value="maintenance" className="space-y-4">
             <Card>

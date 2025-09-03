@@ -3,7 +3,8 @@ import { useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
+import { NotificationCenter } from '@/components/admin/NotificationCenter';
+import {
   Home, 
   Briefcase, 
   MessageCircle, 
@@ -15,7 +16,9 @@ import {
   Shield,
   LogOut,
   Star,
-  Activity
+  Activity,
+  BarChart,
+  FileText
 } from 'lucide-react';
 
 const clientNavigation = [
@@ -41,6 +44,8 @@ const providerNavigation = [
 const adminNavigation = [
   { name: 'Dashboard', href: '/admin', icon: Shield },
   { name: 'Usuários', href: '/admin/users', icon: User },
+  { name: 'KYC', href: '/admin/kyc', icon: FileText },
+  { name: 'Analytics', href: '/admin/analytics', icon: BarChart },
   { name: 'Atividades', href: '/admin/activity', icon: Activity },
   { name: 'Disputas', href: '/admin/disputes', icon: MessageCircle },
   { name: 'Pagamentos', href: '/admin/payments', icon: Wallet },
@@ -59,14 +64,15 @@ export const Sidebar = () => {
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card border-r border-border px-6 pb-4">
-      {/* Logo */}
-      <div className="flex h-16 shrink-0 items-center">
+      {/* Logo and Notifications */}
+      <div className="flex h-16 shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 primary-gradient rounded-lg flex items-center justify-center">
             <Briefcase className="h-4 w-4 text-white" />
           </div>
           <span className="text-lg font-bold text-foreground">Job Fast</span>
         </div>
+        {userRole === 'admin' && <NotificationCenter />}
       </div>
 
       {/* User Profile */}

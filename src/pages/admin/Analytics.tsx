@@ -18,8 +18,7 @@ import {
   Download,
   Calendar
 } from 'lucide-react';
-import { ResponsiveContainer, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { LineChart as RechartsLineChart, BarChart as RechartsBarChart, Bar, Pie, Cell, PieChart as RechartsPieChart } from 'recharts';
+import { ResponsiveContainer, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart as RechartsLineChart, BarChart as RechartsBarChart, Bar, Pie, Cell, PieChart as RechartsPieChart } from 'recharts';
 
 export default function AdminAnalytics() {
   const { stats, loading } = useAdminStats();

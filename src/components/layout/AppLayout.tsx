@@ -1,4 +1,7 @@
 import { ReactNode } from 'react';
+import { NotificationCenter } from '@/components/admin/NotificationCenter';
+import { FacialAuthModal } from '@/components/admin/FacialAuthModal';
+import { useFacialAuth } from '@/hooks/useFacialAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { KYCBanner } from '@/components/kyc/KYCBanner';
