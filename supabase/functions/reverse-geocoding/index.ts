@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: 'Internal server error' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    }
-  );
+        status: 500,
+      }
+    );
 });
