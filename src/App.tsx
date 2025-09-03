@@ -40,6 +40,7 @@ import AdminKYC from "./pages/admin/KYC";
 import AdminPayments from "./pages/admin/Payments";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
+import AdminActivity from "./pages/admin/Activity";
 import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
@@ -267,6 +268,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/activity"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminActivity />
                 </ProtectedRoute>
               }
             />
