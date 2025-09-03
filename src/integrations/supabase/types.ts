@@ -619,15 +619,18 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           created_at: string | null
+          criminal_background_expires_at: string | null
           document_number: string | null
           full_name: string | null
           id: string
           is_verified: boolean | null
+          kyc_external_id: string | null
           kyc_notes: string | null
           kyc_status: Database["public"]["Enums"]["kyc_status"] | null
           phone: string | null
           rating_avg: number | null
           rating_count: number | null
+          stripe_account_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -635,15 +638,18 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string | null
+          criminal_background_expires_at?: string | null
           document_number?: string | null
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
+          kyc_external_id?: string | null
           kyc_notes?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           phone?: string | null
           rating_avg?: number | null
           rating_count?: number | null
+          stripe_account_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -651,15 +657,18 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string | null
+          criminal_background_expires_at?: string | null
           document_number?: string | null
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
+          kyc_external_id?: string | null
           kyc_notes?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           phone?: string | null
           rating_avg?: number | null
           rating_count?: number | null
+          stripe_account_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -1253,6 +1262,10 @@ export type Database = {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
       }
+      can_use_platform: {
+        Args: { user_id_input: string }
+        Returns: boolean
+      }
       disablelongtransactions: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1530,6 +1543,10 @@ export type Database = {
       }
       is_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_kyc_complete: {
+        Args: { user_id_input: string }
         Returns: boolean
       }
       is_provider: {
@@ -2832,7 +2849,13 @@ export type Database = {
         | "in_review"
         | "resolved_refund"
         | "resolved_release"
-      document_type: "rg" | "cpf" | "selfie" | "address_proof" | "bank_info"
+      document_type:
+        | "rg"
+        | "cpf"
+        | "selfie"
+        | "address_proof"
+        | "bank_info"
+        | "criminal_background"
       job_status:
         | "draft"
         | "open"
@@ -2997,7 +3020,14 @@ export const Constants = {
         "resolved_refund",
         "resolved_release",
       ],
-      document_type: ["rg", "cpf", "selfie", "address_proof", "bank_info"],
+      document_type: [
+        "rg",
+        "cpf",
+        "selfie",
+        "address_proof",
+        "bank_info",
+        "criminal_background",
+      ],
       job_status: [
         "draft",
         "open",
