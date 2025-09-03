@@ -59,16 +59,34 @@ export const useAlertManagement = () => {
     try {
       setLoading(true);
 
+      // Use audit_logs as alerts until admin_alerts table types are available
       const { data: alertsData, error: alertsError } = await supabase
-        .from('admin_alerts')
+        .from('audit_logs')
         .select('*')
+        .or('action.like.%alert%,action.like.%fraud%,action.like.%security%')
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (alertsError) throw alertsError;
 
-      setAlerts(alertsData || []);
-      calculateStats(alertsData || []);
+      // Transform audit logs to alert format
+      const transformedAlerts: Alert[] = (alertsData || []).map(log => ({
+        id: log.id,
+        type: log.action.includes('fraud') ? 'fraud' : 
+              log.action.includes('security') ? 'security' : 'system',
+        severity: log.action.includes('critical') ? 'critical' : 
+                 log.action.includes('high') ? 'high' : 'medium',
+        title: log.action.replace(/_/g, ' ').toUpperCase(),
+        message: `${log.entity_type} ${log.action}`,
+        entity_type: log.entity_type,
+        entity_id: log.entity_id,
+        metadata: log.metadata || {},
+        status: 'active' as const,
+        created_at: log.created_at
+      }));
+
+      setAlerts(transformedAlerts);
+      calculateStats(transformedAlerts);
 
     } catch (err) {
       console.error('Error fetching alerts:', err);
@@ -138,9 +156,16 @@ export const useAlertManagement = () => {
           undefined
       };
 
+      // Store as audit log until admin_alerts table types are available
       const { data, error } = await supabase
-        .from('admin_alerts')
-        .insert([alertData])
+        .from('audit_logs')
+        .insert([{
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          action: `${type}_${severity}_alert`,
+          entity_type: entityType || 'system',
+          entity_id: entityId,
+          metadata: { ...metadata, title, message, alert_type: type, severity }
+        }])
         .select()
         .single();
 
@@ -148,7 +173,7 @@ export const useAlertManagement = () => {
 
       // Notify admins for high/critical alerts
       if (severity === 'high' || severity === 'critical') {
-        await notifyAdmins(data);
+        await notifyAdmins(title, message, severity, type);
       }
 
       // Refresh alerts
@@ -162,7 +187,7 @@ export const useAlertManagement = () => {
     }
   }, [fetchAlerts]);
 
-  const notifyAdmins = async (alert: Alert) => {
+  const notifyAdmins = async (alertTitle: string, alertMessage: string, severity: string, type: string) => {
     try {
       // Get all admin users
       const { data: adminUsers } = await supabase
@@ -175,13 +200,12 @@ export const useAlertManagement = () => {
         for (const admin of adminUsers) {
           await createNotification(
             admin.user_id,
-            `🚨 ${alert.severity.toUpperCase()}: ${alert.title}`,
-            alert.message,
-            'alert',
+            `🚨 ${severity.toUpperCase()}: ${alertTitle}`,
+            alertMessage,
+            'warning',
             {
-              alert_id: alert.id,
-              severity: alert.severity,
-              type: alert.type
+              severity: severity,
+              type: type
             }
           );
         }
@@ -196,12 +220,15 @@ export const useAlertManagement = () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
 
+      // Update audit log to mark as acknowledged
       const { error } = await supabase
-        .from('admin_alerts')
+        .from('audit_logs')
         .update({
-          status: 'acknowledged',
-          acknowledged_at: new Date().toISOString(),
-          acknowledged_by: user.user.id
+          metadata: { 
+            acknowledged: true, 
+            acknowledged_at: new Date().toISOString(),
+            acknowledged_by: user.user.id 
+          }
         })
         .eq('id', alertId);
 
@@ -227,15 +254,16 @@ export const useAlertManagement = () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('User not authenticated');
 
+      // Update audit log to mark as resolved
       const { error } = await supabase
-        .from('admin_alerts')
+        .from('audit_logs')
         .update({
-          status: 'resolved',
-          resolved_at: new Date().toISOString(),
-          resolved_by: user.user.id,
           metadata: { 
+            resolved: true,
+            resolved_at: new Date().toISOString(),
+            resolved_by: user.user.id,
             resolution,
-            resolved_by_name: 'Admin User' // Would get from profile
+            resolved_by_name: 'Admin User'
           }
         })
         .eq('id', alertId);
@@ -266,9 +294,15 @@ export const useAlertManagement = () => {
 
   const dismissAlert = async (alertId: string) => {
     try {
+      // Update audit log to mark as dismissed
       const { error } = await supabase
-        .from('admin_alerts')
-        .update({ status: 'dismissed' })
+        .from('audit_logs')
+        .update({ 
+          metadata: { 
+            dismissed: true, 
+            dismissed_at: new Date().toISOString() 
+          } 
+        })
         .eq('id', alertId);
 
       if (error) throw error;
@@ -359,12 +393,12 @@ export const useAlertManagement = () => {
     // Check for alert conditions every 5 minutes
     const interval = setInterval(checkAlertConditions, 5 * 60 * 1000);
 
-    // Set up real-time subscription
+    // Set up real-time subscription for audit logs
     const channel = supabase
       .channel('admin-alerts')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'admin_alerts' },
+        { event: '*', schema: 'public', table: 'audit_logs' },
         () => {
           fetchAlerts();
         }

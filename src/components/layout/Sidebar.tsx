@@ -43,6 +43,7 @@ const providerNavigation = [
 
 const adminNavigation = [
   { name: 'Dashboard', href: '/admin', icon: Shield },
+  { name: 'Admin Avançado', href: '/admin/enhanced', icon: Activity },
   { name: 'Usuários', href: '/admin/users', icon: User },
   { name: 'KYC', href: '/admin/kyc', icon: FileText },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart },

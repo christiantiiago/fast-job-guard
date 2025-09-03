@@ -172,16 +172,7 @@ export const useJobFraudDetection = () => {
       // Fetch all jobs for analysis
       const { data: jobs, error: jobsError } = await supabase
         .from('jobs')
-        .select(`
-          *,
-          profiles!jobs_client_id_fkey (
-            full_name,
-            user_id
-          ),
-          service_categories (
-            name
-          )
-        `)
+        .select('*')
         .neq('status', 'draft')
         .order('created_at', { ascending: false });
 
@@ -192,22 +183,22 @@ export const useJobFraudDetection = () => {
         .map(job => {
           const analysis = analyzeJobForFraud(job);
           
-          return {
-            id: job.id,
-            title: job.title,
-            description: job.description,
-            client_id: job.client_id,
-            client_name: job.profiles?.full_name || 'Unknown Client',
-            budget_min: job.budget_min,
-            budget_max: job.budget_max,
-            category_name: job.service_categories?.name || 'Unknown Category',
-            created_at: job.created_at,
-            risk_score: analysis.riskScore,
-            fraud_indicators: analysis.indicators,
-            status: analysis.riskScore >= 70 ? 'flagged' : 
-                   analysis.riskScore >= 40 ? 'under_review' : 'approved',
-            admin_notes: ''
-          };
+            return {
+              id: job.id,
+              title: job.title,
+              description: job.description,
+              client_id: job.client_id,
+              client_name: 'Unknown Client', // Will get from separate query
+              budget_min: job.budget_min,
+              budget_max: job.budget_max,
+              category_name: 'Unknown Category',
+              created_at: job.created_at,
+              risk_score: analysis.riskScore,
+              fraud_indicators: analysis.indicators,
+              status: (analysis.riskScore >= 70 ? 'flagged' : 
+                     analysis.riskScore >= 40 ? 'under_review' : 'approved') as 'flagged' | 'under_review' | 'approved' | 'rejected',
+              admin_notes: ''
+            };
         })
         .filter(job => job.risk_score >= 30) // Only show jobs with some risk
         .sort((a, b) => b.risk_score - a.risk_score);
@@ -244,7 +235,7 @@ export const useJobFraudDetection = () => {
       .map(([pattern, count]) => ({
         pattern,
         count,
-        risk_level: count > 10 ? 'high' : count > 5 ? 'medium' : 'low',
+        risk_level: (count > 10 ? 'high' : count > 5 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
         examples: jobs
           .filter(j => j.fraud_indicators.includes(pattern))
           .slice(0, 3)

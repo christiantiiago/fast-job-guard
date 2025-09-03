@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          is_suspicious: boolean | null
+          location: string | null
+          metadata: Json | null
+          risk_score: number | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type: string
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          is_suspicious?: boolean | null
+          location?: string | null
+          metadata?: Json | null
+          risk_score?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          is_suspicious?: boolean | null
+          location?: string | null
+          metadata?: Json | null
+          risk_score?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       addresses: {
         Row: {
           city: string
@@ -65,6 +110,60 @@ export type Database = {
           street?: string
           user_id?: string | null
           zipcode?: string | null
+        }
+        Relationships: []
+      }
+      admin_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          auto_dismiss_at: string | null
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          auto_dismiss_at?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          auto_dismiss_at?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string | null
+          title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -280,6 +379,48 @@ export type Database = {
           name?: string
           provider_fee_premium?: number | null
           provider_fee_standard?: number | null
+        }
+        Relationships: []
+      }
+      fraud_analysis_logs: {
+        Row: {
+          ai_analysis: string | null
+          created_at: string | null
+          entity_id: string | null
+          fraud_indicators: Json | null
+          id: string
+          metadata: Json | null
+          recommendations: Json | null
+          requires_review: boolean | null
+          risk_level: string
+          risk_score: number
+          type: string
+        }
+        Insert: {
+          ai_analysis?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          fraud_indicators?: Json | null
+          id?: string
+          metadata?: Json | null
+          recommendations?: Json | null
+          requires_review?: boolean | null
+          risk_level: string
+          risk_score: number
+          type: string
+        }
+        Update: {
+          ai_analysis?: string | null
+          created_at?: string | null
+          entity_id?: string | null
+          fraud_indicators?: Json | null
+          id?: string
+          metadata?: Json | null
+          recommendations?: Json | null
+          requires_review?: boolean | null
+          risk_level?: string
+          risk_score?: number
+          type?: string
         }
         Relationships: []
       }
@@ -1089,6 +1230,39 @@ export type Database = {
           status?: Database["public"]["Enums"]["subscription_status"] | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      system_configs: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          key?: string
+          updated_at?: string | null
+          value?: Json
         }
         Relationships: []
       }

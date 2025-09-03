@@ -42,6 +42,7 @@ import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
 import AdminActivity from "./pages/admin/Activity";
 import AdminAnalytics from "./pages/admin/Analytics";
+import AdminEnhanced from "./pages/admin/AdminEnhanced";
 import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
@@ -285,6 +286,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminActivity />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/enhanced"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminEnhanced />
                 </ProtectedRoute>
               }
             />
