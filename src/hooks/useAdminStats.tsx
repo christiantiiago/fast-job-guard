@@ -18,7 +18,21 @@ export interface AdminStats {
 }
 
 export const useAdminStats = () => {
-  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [stats, setStats] = useState<AdminStats>({
+    totalUsers: 0,
+    newUsersThisMonth: 0,
+    totalJobs: 0,
+    activeJobs: 0,
+    completedJobs: 0,
+    totalRevenue: 0,
+    escrowAmount: 0,
+    openDisputes: 0,
+    pendingKyc: 0,
+    totalProviders: 0,
+    totalClients: 0,
+    totalAdmins: 0,
+    averageJobValue: 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,6 +147,22 @@ export const useAdminStats = () => {
     } catch (error) {
       console.error('Error fetching admin stats:', error);
       setError(error instanceof Error ? error.message : 'Erro desconhecido');
+      // Em caso de erro, manter valores padrão ao invés de deixar stats como null
+      setStats({
+        totalUsers: 0,
+        newUsersThisMonth: 0,
+        totalJobs: 0,
+        activeJobs: 0,
+        completedJobs: 0,
+        totalRevenue: 0,
+        escrowAmount: 0,
+        openDisputes: 0,
+        pendingKyc: 0,
+        totalProviders: 0,
+        totalClients: 0,
+        totalAdmins: 0,
+        averageJobValue: 0
+      });
     } finally {
       setLoading(false);
     }

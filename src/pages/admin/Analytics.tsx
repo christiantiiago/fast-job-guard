@@ -18,7 +18,7 @@ import {
   Download,
   Calendar
 } from 'lucide-react';
-import { ResponsiveContainer, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart as RechartsLineChart, BarChart as RechartsBarChart, Bar, Pie, Cell, PieChart as RechartsPieChart } from 'recharts';
+import { ResponsiveContainer, LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart as RechartsBarChart, Bar, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 
 export default function AdminAnalytics() {
   const { stats, loading } = useAdminStats();
@@ -34,28 +34,28 @@ export default function AdminAnalytics() {
   const kpiCards = [
     {
       title: "Receita Total",
-      value: `R$ ${stats.totalRevenue?.toLocaleString('pt-BR') || 0}`,
+      value: `R$ ${(stats?.totalRevenue || 0).toLocaleString('pt-BR')}`,
       change: "+12.5%",
       trend: "up",
       icon: DollarSign
     },
     {
       title: "Usuários Ativos",
-      value: stats.totalUsers || 0,
+      value: stats?.totalUsers || 0,
       change: "+8.2%", 
       trend: "up",
       icon: Users
     },
     {
       title: "Jobs Completados",
-      value: stats.completedJobs || 0,
+      value: stats?.completedJobs || 0,
       change: "+15.3%",
       trend: "up", 
       icon: Briefcase
     },
     {
       title: "Disputas Abertas",
-      value: stats.openDisputes || 0,
+      value: stats?.openDisputes || 0,
       change: "-2.1%",
       trend: "down",
       icon: AlertTriangle
@@ -220,8 +220,8 @@ export default function AdminAnalytics() {
                     <RechartsPieChart>
                       <Pie
                         data={[
-                          { name: 'Clientes', value: stats.totalClients || 0 },
-                          { name: 'Prestadores', value: stats.totalProviders || 0 }
+                          { name: 'Clientes', value: stats?.totalClients || 0 },
+                          { name: 'Prestadores', value: stats?.totalProviders || 0 }
                         ]}
                         cx="50%"
                         cy="50%"
