@@ -14,7 +14,8 @@ import {
   Settings,
   Shield,
   LogOut,
-  Star
+  Star,
+  Activity
 } from 'lucide-react';
 
 const clientNavigation = [
@@ -40,9 +41,9 @@ const providerNavigation = [
 const adminNavigation = [
   { name: 'Dashboard', href: '/admin', icon: Shield },
   { name: 'Usuários', href: '/admin/users', icon: User },
-  { name: 'Jobs', href: '/admin/jobs', icon: Briefcase },
-  { name: 'Pagamentos', href: '/admin/payments', icon: Wallet },
+  { name: 'Atividades', href: '/admin/activity', icon: Activity },
   { name: 'Disputas', href: '/admin/disputes', icon: MessageCircle },
+  { name: 'Pagamentos', href: '/admin/payments', icon: Wallet },
   { name: 'Configurações', href: '/admin/settings', icon: Settings },
 ];
 
