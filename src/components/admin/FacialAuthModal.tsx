@@ -9,26 +9,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFacialAuth } from '@/hooks/useFacialAuth';
-import { Camera, Shield, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Camera, Shield, AlertTriangle, CheckCircle, UserCheck, Fingerprint } from 'lucide-react';
 
 interface FacialAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   reason?: string;
+  mode?: 'enrollment' | 'verification';
 }
 
 export const FacialAuthModal = ({ 
   isOpen, 
   onClose, 
   onSuccess, 
-  reason = "Verificação de segurança necessária" 
+  reason = "Verificação de segurança necessária",
+  mode = 'verification'
 }: FacialAuthModalProps) => {
-  const { state, videoRef, startCapture, stopCapture, verifyIdentity } = useFacialAuth();
-  const [step, setStep] = useState<'instruction' | 'capture' | 'verifying' | 'success' | 'error'>('instruction');
+  const { state, videoRef, startCapture, stopCapture, enrollFace, verifyIdentity } = useFacialAuth();
+  const [step, setStep] = useState<'instruction' | 'capture' | 'processing' | 'success' | 'error'>('instruction');
   const [error, setError] = useState<string | null>(null);
 
-  const handleStartVerification = async () => {
+  const isEnrollment = mode === 'enrollment' || state.enrollmentRequired;
+
+  const handleStartCapture = async () => {
     try {
       setStep('capture');
       await startCapture();
@@ -38,25 +42,33 @@ export const FacialAuthModal = ({
     }
   };
 
-  const handleVerify = async () => {
+  const handleProcess = async () => {
     try {
-      setStep('verifying');
-      const success = await verifyIdentity();
+      setStep('processing');
       
-      if (success) {
-        setStep('success');
-        setTimeout(() => {
-          stopCapture();
-          onSuccess();
-          onClose();
-          setStep('instruction');
-        }, 2000);
+      if (isEnrollment) {
+        const success = await enrollFace();
+        if (success) {
+          setStep('success');
+          setTimeout(() => {
+            stopCapture();
+            onSuccess();
+            handleClose();
+          }, 2000);
+        }
       } else {
-        setError('Verificação facial falhou. Tente novamente.');
-        setStep('error');
+        const success = await verifyIdentity();
+        if (success) {
+          setStep('success');
+          setTimeout(() => {
+            stopCapture();
+            onSuccess();
+            handleClose();
+          }, 2000);
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro durante verificação');
+      setError(err instanceof Error ? err.message : 'Erro durante processamento');
       setStep('error');
     }
   };
@@ -67,28 +79,51 @@ export const FacialAuthModal = ({
     stopCapture();
   };
 
+  const handleClose = () => {
+    if (!isEnrollment) {
+      onClose();
+      setStep('instruction');
+      setError(null);
+      stopCapture();
+    }
+    // Para enrollment, não permitir fechar até completar
+  };
+
   const renderContent = () => {
     switch (step) {
       case 'instruction':
         return (
           <div className="text-center space-y-6">
             <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <Shield className="w-8 h-8 text-primary" />
+              {isEnrollment ? (
+                <UserCheck className="w-8 h-8 text-primary" />
+              ) : (
+                <Shield className="w-8 h-8 text-primary" />
+              )}
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-2">Verificação Facial Necessária</h3>
-              <p className="text-muted-foreground">{reason}</p>
+              <h3 className="text-lg font-semibold mb-2">
+                {isEnrollment ? 'Cadastro Facial Obrigatório' : 'Verificação Facial Necessária'}
+              </h3>
+              <p className="text-muted-foreground">
+                {isEnrollment 
+                  ? 'Para sua segurança, é necessário cadastrar seu rosto antes de continuar.'
+                  : reason
+                }
+              </p>
             </div>
             <Alert>
               <Camera className="h-4 w-4" />
               <AlertDescription>
-                Posicione seu rosto na frente da câmera e siga as instruções.
-                Certifique-se de estar em um local bem iluminado.
+                {isEnrollment 
+                  ? 'Posicione seu rosto na frente da câmera. Certifique-se de estar em um local bem iluminado e siga as instruções.'
+                  : 'Posicione seu rosto na frente da câmera e siga as instruções. Certifique-se de estar em um local bem iluminado.'
+                }
               </AlertDescription>
             </Alert>
-            <Button onClick={handleStartVerification} className="w-full">
+            <Button onClick={handleStartCapture} className="w-full">
               <Camera className="mr-2 h-4 w-4" />
-              Iniciar Verificação
+              {isEnrollment ? 'Iniciar Cadastro' : 'Iniciar Verificação'}
             </Button>
           </div>
         );
@@ -99,7 +134,10 @@ export const FacialAuthModal = ({
             <div className="text-center">
               <h3 className="text-lg font-semibold mb-2">Posicione seu rosto</h3>
               <p className="text-muted-foreground">
-                Olhe diretamente para a câmera e mantenha o rosto centralizado
+                {isEnrollment 
+                  ? 'Olhe diretamente para a câmera. Mantenha o rosto centralizado e aguarde a captura automática.'
+                  : 'Olhe diretamente para a câmera e mantenha o rosto centralizado'
+                }
               </p>
             </div>
             
@@ -114,34 +152,50 @@ export const FacialAuthModal = ({
               <div className="absolute inset-0 border-4 border-primary rounded-lg pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-36 border-2 border-primary rounded-lg"></div>
               </div>
+              {isEnrollment && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-3 py-1 rounded text-sm">
+                  <Fingerprint className="inline mr-1 h-3 w-3" />
+                  Cadastro Facial
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={handleRetry} className="flex-1">
-                Cancelar
+              <Button 
+                variant="outline" 
+                onClick={isEnrollment ? undefined : handleRetry} 
+                className="flex-1"
+                disabled={isEnrollment}
+              >
+                {isEnrollment ? 'Obrigatório' : 'Cancelar'}
               </Button>
               <Button 
-                onClick={handleVerify} 
-                disabled={!state.isActive || state.isVerifying}
+                onClick={handleProcess} 
+                disabled={!state.isActive || state.isVerifying || state.isEnrolling}
                 className="flex-1"
               >
                 <Camera className="mr-2 h-4 w-4" />
-                Verificar
+                {isEnrollment ? 'Cadastrar' : 'Verificar'}
               </Button>
             </div>
           </div>
         );
 
-      case 'verifying':
+      case 'processing':
         return (
           <div className="text-center space-y-6">
             <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-2">Verificando identidade...</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {isEnrollment ? 'Processando cadastro...' : 'Verificando identidade...'}
+              </h3>
               <p className="text-muted-foreground">
-                Aguarde enquanto analisamos sua foto
+                {isEnrollment 
+                  ? 'Analisando e salvando seus dados faciais de forma segura'
+                  : 'Aguarde enquanto analisamos sua foto'
+                }
               </p>
             </div>
           </div>
@@ -155,10 +209,13 @@ export const FacialAuthModal = ({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-green-600 mb-2">
-                Verificação Bem-sucedida!
+                {isEnrollment ? 'Cadastro Concluído!' : 'Verificação Bem-sucedida!'}
               </h3>
               <p className="text-muted-foreground">
-                Sua identidade foi confirmada com sucesso
+                {isEnrollment 
+                  ? 'Seu rosto foi cadastrado com sucesso. Agora você pode usar a verificação facial.'
+                  : 'Sua identidade foi confirmada com sucesso'
+                }
               </p>
             </div>
           </div>
@@ -172,7 +229,7 @@ export const FacialAuthModal = ({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-red-600 mb-2">
-                Verificação Falhou
+                {isEnrollment ? 'Falha no Cadastro' : 'Verificação Falhou'}
               </h3>
               <p className="text-muted-foreground">{error}</p>
             </div>
@@ -188,15 +245,27 @@ export const FacialAuthModal = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={isOpen} onOpenChange={isEnrollment ? undefined : handleClose}>
+      <DialogContent className="max-w-md" onPointerDownOutside={isEnrollment ? (e) => e.preventDefault() : undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Autenticação Facial
+            {isEnrollment ? (
+              <>
+                <UserCheck className="h-5 w-5" />
+                Cadastro Facial Obrigatório
+              </>
+            ) : (
+              <>
+                <Shield className="h-5 w-5" />
+                Autenticação Facial
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
-            Verificação biométrica de segurança para administradores
+            {isEnrollment 
+              ? 'Cadastro biométrico obrigatório para administradores'
+              : 'Verificação biométrica de segurança para administradores'
+            }
           </DialogDescription>
         </DialogHeader>
         

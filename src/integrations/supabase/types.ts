@@ -349,6 +349,87 @@ export type Database = {
           },
         ]
       }
+      facial_enrollment: {
+        Row: {
+          created_at: string
+          enrollment_completed_at: string
+          face_embedding: Json
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          quality_score: number
+          reference_photo_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enrollment_completed_at?: string
+          face_embedding: Json
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          quality_score: number
+          reference_photo_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enrollment_completed_at?: string
+          face_embedding?: Json
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          quality_score?: number
+          reference_photo_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      facial_verification_logs: {
+        Row: {
+          action_requested: string | null
+          confidence_score: number | null
+          created_at: string
+          failure_reason: string | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string
+          verification_photo_url: string | null
+          verification_result: boolean
+        }
+        Insert: {
+          action_requested?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id: string
+          verification_photo_url?: string | null
+          verification_result: boolean
+        }
+        Update: {
+          action_requested?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string
+          verification_photo_url?: string | null
+          verification_result?: boolean
+        }
+        Relationships: []
+      }
       fee_rules: {
         Row: {
           client_fee_premium: number | null
@@ -859,12 +940,15 @@ export type Database = {
           created_at: string | null
           criminal_background_expires_at: string | null
           document_number: string | null
+          facial_enrollment_completed_at: string | null
+          facial_enrollment_status: string | null
           full_name: string | null
           id: string
           is_verified: boolean | null
           kyc_external_id: string | null
           kyc_notes: string | null
           kyc_status: Database["public"]["Enums"]["kyc_status"] | null
+          last_facial_verification_at: string | null
           phone: string | null
           rating_avg: number | null
           rating_count: number | null
@@ -878,12 +962,15 @@ export type Database = {
           created_at?: string | null
           criminal_background_expires_at?: string | null
           document_number?: string | null
+          facial_enrollment_completed_at?: string | null
+          facial_enrollment_status?: string | null
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
           kyc_external_id?: string | null
           kyc_notes?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
+          last_facial_verification_at?: string | null
           phone?: string | null
           rating_avg?: number | null
           rating_count?: number | null
@@ -897,12 +984,15 @@ export type Database = {
           created_at?: string | null
           criminal_background_expires_at?: string | null
           document_number?: string | null
+          facial_enrollment_completed_at?: string | null
+          facial_enrollment_status?: string | null
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
           kyc_external_id?: string | null
           kyc_notes?: string | null
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
+          last_facial_verification_at?: string | null
           phone?: string | null
           rating_avg?: number | null
           rating_count?: number | null
