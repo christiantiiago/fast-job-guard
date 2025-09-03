@@ -99,7 +99,7 @@ export default function KYCUpload() {
 
   if (!type || !DOCUMENT_CONFIG[type]) {
     return (
-      <AppLayout>
+      <AppLayout showKYCBanner={false}>
         <div className="container mx-auto px-4 py-8">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -169,7 +169,7 @@ export default function KYCUpload() {
 
   if (uploadSuccess) {
     return (
-      <AppLayout>
+      <AppLayout showKYCBanner={false}>
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto text-center space-y-4">
             <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
@@ -185,7 +185,7 @@ export default function KYCUpload() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout showKYCBanner={false}>
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header */}

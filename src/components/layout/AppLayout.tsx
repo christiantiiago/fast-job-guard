@@ -1,5 +1,7 @@
 import { ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useKYCStatus } from '@/hooks/useKYCStatus';
+import { KYCBanner } from '@/components/kyc/KYCBanner';
 import MobileBottomNav from './MobileBottomNav';
 import MobileHeader from './MobileHeader';
 import { Sidebar } from './Sidebar';
@@ -8,10 +10,12 @@ import { cn } from '@/lib/utils';
 interface AppLayoutProps {
   children: ReactNode;
   className?: string;
+  showKYCBanner?: boolean;
 }
 
-export const AppLayout = ({ children, className }: AppLayoutProps) => {
+export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayoutProps) => {
   const { userRole } = useAuth();
+  const { status } = useKYCStatus();
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,6 +35,12 @@ export const AppLayout = ({ children, className }: AppLayoutProps) => {
         className
       )}>
         <div className="min-h-screen">
+          {/* KYC Banner */}
+          {showKYCBanner && status && !status.isComplete && (
+            <div className="p-4 border-b">
+              <KYCBanner status={status} userRole={userRole} />
+            </div>
+          )}
           {children}
         </div>
       </main>

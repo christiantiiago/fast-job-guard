@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
+import { KYCGate } from "@/components/kyc/KYCGate";
 
 // Public pages
 import Index from "./pages/Index";
@@ -28,9 +29,14 @@ import Reviews from "./pages/Reviews";
 import ProviderFinance from "./pages/provider/Finance";
 import ProviderOnboarding from "./pages/provider/Onboarding";
 
+// KYC pages
+import KYCVerify from "./pages/kyc/KYCVerify";
+import KYCUpload from "./pages/kyc/KYCUpload";
+
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
+import AdminKYC from "./pages/admin/KYC";
 import AdminPayments from "./pages/admin/Payments";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
@@ -52,12 +58,32 @@ const App = () => (
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/admin" element={<AdminLogin />} />
 
-            {/* Protected routes */}
+            {/* KYC routes - protected but allowed without full KYC */}
+            <Route
+              path="/kyc/verify"
+              element={
+                <ProtectedRoute>
+                  <KYCVerify />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kyc/upload/:type"
+              element={
+                <ProtectedRoute>
+                  <KYCUpload />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Protected routes with KYC gate */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <KYCGate>
+                    <Dashboard />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -73,7 +99,9 @@ const App = () => (
               path="/jobs"
               element={
                 <ProtectedRoute>
-                  <Jobs />
+                  <KYCGate>
+                    <Jobs />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -81,9 +109,11 @@ const App = () => (
               path="/jobs/new"
               element={
                 <ProtectedRoute>
-                  <ProtectedJobCreation>
-                    <JobNew />
-                  </ProtectedJobCreation>
+                  <KYCGate>
+                    <ProtectedJobCreation>
+                      <JobNew />
+                    </ProtectedJobCreation>
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -91,7 +121,9 @@ const App = () => (
               path="/jobs/:id"
               element={
                 <ProtectedRoute>
-                  <JobDetails />
+                  <KYCGate>
+                    <JobDetails />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -99,7 +131,9 @@ const App = () => (
               path="/discover"
               element={
                 <ProtectedRoute>
-                  <Discover />
+                  <KYCGate>
+                    <Discover />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -107,7 +141,9 @@ const App = () => (
               path="/all-jobs"
               element={
                 <ProtectedRoute>
-                  <AllJobs />
+                  <KYCGate>  
+                    <AllJobs />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -115,7 +151,9 @@ const App = () => (
               path="/chat"
               element={
                 <ProtectedRoute>
-                  <Chat />
+                  <KYCGate>
+                    <Chat />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -123,7 +161,9 @@ const App = () => (
               path="/chat/:jobId"
               element={
                 <ProtectedRoute>
-                  <Chat />
+                  <KYCGate>
+                    <Chat />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -131,7 +171,9 @@ const App = () => (
               path="/wallet"
               element={
                 <ProtectedRoute>
-                  <Wallet />
+                  <KYCGate>
+                    <Wallet />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -139,7 +181,9 @@ const App = () => (
               path="/reviews"
               element={
                 <ProtectedRoute>
-                  <Reviews />
+                  <KYCGate>
+                    <Reviews />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -148,7 +192,9 @@ const App = () => (
               path="/checkout/:jobId"
               element={
                 <ProtectedRoute>
-                  <Checkout />
+                  <KYCGate>
+                    <Checkout />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -158,7 +204,9 @@ const App = () => (
               path="/provider/onboarding"
               element={
                 <ProtectedRoute>
-                  <ProviderOnboarding />
+                  <KYCGate>
+                    <ProviderOnboarding />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
@@ -166,17 +214,27 @@ const App = () => (
               path="/provider/finance"
               element={
                 <ProtectedRoute>
-                  <ProviderFinance />
+                  <KYCGate>
+                    <ProviderFinance />
+                  </KYCGate>
                 </ProtectedRoute>
               }
             />
 
-            {/* Admin routes */}
+            {/* Admin routes - no KYC gate for admin */}
             <Route
               path="/admin"
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/kyc"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminKYC />
                 </ProtectedRoute>
               }
             />

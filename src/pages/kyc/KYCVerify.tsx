@@ -62,7 +62,7 @@ export default function KYCVerify() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout showKYCBanner={false}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -72,7 +72,7 @@ export default function KYCVerify() {
 
   if (!status) {
     return (
-      <AppLayout>
+      <AppLayout showKYCBanner={false}>
         <div className="container mx-auto px-4 py-8">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -87,7 +87,7 @@ export default function KYCVerify() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout showKYCBanner={false}>
       <div className="container mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
