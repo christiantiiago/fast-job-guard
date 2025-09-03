@@ -415,14 +415,105 @@ export type Database = {
           },
         ]
       }
+      kyc_admin_actions: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string | null
+          document_id: string
+          id: string
+          metadata: Json | null
+          new_status: string | null
+          notes: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string | null
+          document_id: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          notes?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string | null
+          document_id?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          notes?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_admin_actions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kyc_ai_analysis: {
+        Row: {
+          ai_model_version: string | null
+          analysis_result: Json
+          confidence_score: number | null
+          created_at: string | null
+          document_id: string
+          fraud_indicators: Json | null
+          id: string
+          processed_at: string | null
+          recommendations: string | null
+        }
+        Insert: {
+          ai_model_version?: string | null
+          analysis_result: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          document_id: string
+          fraud_indicators?: Json | null
+          id?: string
+          processed_at?: string | null
+          recommendations?: string | null
+        }
+        Update: {
+          ai_model_version?: string | null
+          analysis_result?: Json
+          confidence_score?: number | null
+          created_at?: string | null
+          document_id?: string
+          fraud_indicators?: Json | null
+          id?: string
+          processed_at?: string | null
+          recommendations?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_ai_analysis_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kyc_documents: {
         Row: {
           created_at: string | null
           document_type: Database["public"]["Enums"]["document_type"]
+          duplicate_count: number | null
+          file_hash: string | null
           file_name: string | null
           file_size: number | null
           file_url: string
           id: string
+          is_duplicate: boolean | null
           is_verified: boolean | null
           mime_type: string | null
           notes: string | null
@@ -433,10 +524,13 @@ export type Database = {
         Insert: {
           created_at?: string | null
           document_type: Database["public"]["Enums"]["document_type"]
+          duplicate_count?: number | null
+          file_hash?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url: string
           id?: string
+          is_duplicate?: boolean | null
           is_verified?: boolean | null
           mime_type?: string | null
           notes?: string | null
@@ -447,10 +541,13 @@ export type Database = {
         Update: {
           created_at?: string | null
           document_type?: Database["public"]["Enums"]["document_type"]
+          duplicate_count?: number | null
+          file_hash?: string | null
           file_name?: string | null
           file_size?: number | null
           file_url?: string
           id?: string
+          is_duplicate?: boolean | null
           is_verified?: boolean | null
           mime_type?: string | null
           notes?: string | null
@@ -2865,7 +2962,14 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "disputed"
-      kyc_status: "pending" | "approved" | "rejected" | "incomplete"
+      kyc_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "incomplete"
+        | "em_analise"
+        | "bloqueado"
+        | "suspeito"
       payment_method: "card" | "pix" | "boleto"
       payment_provider: "stripe" | "mercadopago"
       payment_status:
@@ -3038,7 +3142,15 @@ export const Constants = {
         "cancelled",
         "disputed",
       ],
-      kyc_status: ["pending", "approved", "rejected", "incomplete"],
+      kyc_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "incomplete",
+        "em_analise",
+        "bloqueado",
+        "suspeito",
+      ],
       payment_method: ["card", "pix", "boleto"],
       payment_provider: ["stripe", "mercadopago"],
       payment_status: [
