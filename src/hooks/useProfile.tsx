@@ -12,7 +12,7 @@ interface Profile {
   rating_avg: number;
   rating_count: number;
   is_verified: boolean;
-  kyc_status: 'incomplete' | 'pending' | 'approved' | 'rejected';
+  kyc_status: 'incomplete' | 'pending' | 'approved' | 'rejected' | 'em_analise' | 'bloqueado' | 'suspeito';
   created_at: string;
   updated_at: string;
 }

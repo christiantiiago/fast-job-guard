@@ -36,46 +36,26 @@ export const KYCGate = ({ children }: KYCGateProps) => {
     );
   }
 
-  // Não logado - deixar o ProtectedRoute lidar com isso
+  // Se o usuário não estiver autenticado, renderizar os filhos normalmente
   if (!user) {
     return <>{children}</>;
   }
 
-  // Rota permitida sem KYC - permitir acesso
+  // Rota permitida sem KYC - permitir acesso  
   if (isAllowedRoute) {
     return <>{children}</>;
   }
 
-  // Verificar se KYC é obrigatório para esta ação
-  const needsKYC = !status?.canUsePlatform;
-
-  if (needsKYC) {
-    // Redirecionar para página de verificação KYC
+  // BLOQUEIO RIGOROSO: Verificar se pode usar a plataforma
+  // Não permitir nenhuma ação se KYC não estiver aprovado
+  if (!status || !status.canUsePlatform) {
     return <Navigate to="/kyc/verify" replace />;
   }
 
-  // Verificar regras específicas por role
-  if (userRole === 'provider') {
-    // Prestadores precisam de KYC completo + certidão válida
-    if (!status?.canUsePlatform) {
-      return <Navigate to="/kyc/verify" replace />;
-    }
-    
-    // Avisar sobre expiração próxima da certidão (30 dias)
-    if (status?.criminalBackgroundExpiry) {
-      const expiryDate = new Date(status.criminalBackgroundExpiry);
-      const daysToExpiry = Math.ceil(
-        (expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-      );
-      
-      if (daysToExpiry <= 30 && daysToExpiry > 0) {
-        // Poderia mostrar um banner de aviso aqui
-        console.warn(`Certidão de antecedentes criminais expira em ${daysToExpiry} dias`);
-      }
-    }
-  } else if (userRole === 'client') {
-    // Clientes precisam apenas do KYC básico
-    if (!status?.isComplete) {
+  // Verificação adicional para prestadores: certidão criminal válida
+  if (userRole === 'provider' && status.criminalBackgroundExpiry) {
+    const expiryDate = new Date(status.criminalBackgroundExpiry);
+    if (expiryDate <= new Date()) {
       return <Navigate to="/kyc/verify" replace />;
     }
   }

@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useKYCStatus } from '@/hooks/useKYCStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { KYCBlockedMessage } from '@/components/kyc/KYCBlockedMessage';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,9 +39,37 @@ import { ptBR } from 'date-fns/locale';
 
 export default function JobNew() {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
+  const { status: kycStatus, loading: kycLoading } = useKYCStatus();
   const { categories } = useCategories();
   const { createJob } = useJobs();
   const { calculateFeeRange, formatCurrency, getFeeDescription, loading: feeLoading } = useFeeRules();
+  
+  // Verificar se o usuário pode criar trabalhos
+  if (kycLoading) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Bloquear se KYC não estiver aprovado
+  if (kycStatus && !kycStatus.canUsePlatform) {
+    return (
+      <AppLayout showKYCBanner={false}>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <KYCBlockedMessage 
+            status={kycStatus} 
+            userRole={userRole} 
+            action="job_creation" 
+          />
+        </div>
+      </AppLayout>
+    );
+  }
   
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
