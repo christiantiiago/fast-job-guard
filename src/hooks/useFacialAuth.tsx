@@ -40,6 +40,15 @@ export const useFacialAuth = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+        
+        // Aguardar o vídeo estar pronto
+        await new Promise<void>((resolve) => {
+          const onLoadedMetadata = () => {
+            videoRef.current?.removeEventListener('loadedmetadata', onLoadedMetadata);
+            resolve();
+          };
+          videoRef.current?.addEventListener('loadedmetadata', onLoadedMetadata);
+        });
       }
 
       setState(prev => ({ ...prev, isActive: true, isCapturing: false }));
@@ -70,8 +79,13 @@ export const useFacialAuth = () => {
 
   // Capturar foto para verificação
   const capturePhoto = useCallback(async (): Promise<string> => {
-    if (!videoRef.current) {
+    if (!videoRef.current || !streamRef.current) {
       throw new Error('Câmera não inicializada');
+    }
+
+    // Verificar se o vídeo tem dimensões válidas
+    if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+      throw new Error('Vídeo ainda não carregou completamente');
     }
 
     const canvas = document.createElement('canvas');
