@@ -1,4 +1,4 @@
-import { Home, Search, Briefcase, MessageCircle, User } from "lucide-react";
+import { Home, Search, Briefcase, MessageCircle, User, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -11,16 +11,18 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
   
   const clientTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
-    { id: "jobs", label: "Meus Jobs", icon: Briefcase, href: "/jobs" },
+    { id: "jobs", label: "Trabalhos", icon: Briefcase, href: "/jobs" },
     { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
+    { id: "wallet", label: "Carteira", icon: Wallet, href: "/wallet" },
     { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
   const providerTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
     { id: "discover", label: "Descobrir", icon: Search, href: "/discover" },
-    { id: "all-jobs", label: "Todos Jobs", icon: Briefcase, href: "/all-jobs" },
-    { id: "my-jobs", label: "Meus Jobs", icon: Briefcase, href: "/jobs" },
+    { id: "jobs", label: "Trabalhos", icon: Briefcase, href: "/jobs" },
+    { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
+    { id: "wallet", label: "Carteira", icon: Wallet, href: "/provider/finance" },
     { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 

@@ -34,6 +34,7 @@ import AdminUsers from "./pages/admin/Users";
 import AdminPayments from "./pages/admin/Payments";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
+import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
 
@@ -139,6 +140,15 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Reviews />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/checkout/:jobId"
+              element={
+                <ProtectedRoute>
+                  <Checkout />
                 </ProtectedRoute>
               }
             />
