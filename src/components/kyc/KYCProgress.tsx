@@ -41,7 +41,7 @@ export const KYCProgress = ({ status, userRole }: KYCProgressProps) => {
     return { status: 'missing', icon: AlertCircle, color: 'text-gray-400' };
   };
 
-  const progressPercentage = (status.completedDocs.length / status.requiredDocs.length) * 100;
+  const progressPercentage = status.progress.percentage;
 
   const getRejectedDocument = (docType: string) => {
     return status.documents.find(doc => 
@@ -50,15 +50,21 @@ export const KYCProgress = ({ status, userRole }: KYCProgressProps) => {
   };
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Verificação de Identidade (KYC)</span>
           <Badge variant={status.isComplete ? "default" : "secondary"}>
-            {status.completedDocs.length}/{status.requiredDocs.length} concluído
+            {status.progress.completed}/{status.progress.total} concluído
           </Badge>
         </CardTitle>
-        <Progress value={progressPercentage} className="w-full" />
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Progresso</span>
+            <span>{progressPercentage}%</span>
+          </div>
+          <Progress value={progressPercentage} className="w-full" />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {status.requiredDocs.map((docType) => {

@@ -22,6 +22,11 @@ export interface KYCStatus {
   documents: KYCDocument[];
   criminalBackgroundExpiry?: string;
   kyc_status: 'incomplete' | 'pending' | 'approved' | 'rejected' | 'em_analise' | 'bloqueado' | 'suspeito';
+  progress: {
+    completed: number;
+    total: number;
+    percentage: number;
+  };
 }
 
 export const useKYCStatus = () => {
@@ -93,6 +98,11 @@ export const useKYCStatus = () => {
         canUsePlatform = isComplete && expiryDate > new Date();
       }
 
+      // Calcular progresso
+      const completedCount = completedDocs.length;
+      const totalCount = requiredDocs.length;
+      const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
       const kycStatus: KYCStatus = {
         isComplete,
         canUsePlatform,
@@ -102,7 +112,12 @@ export const useKYCStatus = () => {
         rejectedDocs,
         documents: documents || [],
         criminalBackgroundExpiry: profile?.criminal_background_expires_at,
-        kyc_status: profile?.kyc_status || 'incomplete'
+        kyc_status: profile?.kyc_status || 'incomplete',
+        progress: {
+          completed: completedCount,
+          total: totalCount,
+          percentage: Math.round(progressPercentage)
+        }
       };
 
       setStatus(kycStatus);
@@ -121,6 +136,45 @@ export const useKYCStatus = () => {
   const refreshStatus = () => {
     fetchKYCStatus();
   };
+
+  // Setup realtime subscription para atualizar quando documentos são aprovados/rejeitados
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('kyc_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kyc_documents',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('KYC document changed:', payload);
+          fetchKYCStatus(); // Refresh status quando documentos são alterados
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Profile changed:', payload);
+          fetchKYCStatus(); // Refresh status quando perfil é alterado
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   useEffect(() => {
     fetchKYCStatus();

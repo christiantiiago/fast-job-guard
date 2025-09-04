@@ -3,6 +3,8 @@ import Footer from "@/components/layout/Footer";
 import Hero from "@/components/sections/Hero";
 import Categories from "@/components/sections/Categories";
 import HowItWorks from "@/components/sections/HowItWorks";
+import StatsSection from "@/components/sections/StatsSection";
+import NewsSection from "@/components/sections/NewsSection";
 
 const Index = () => {
   return (
@@ -10,8 +12,10 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
+        <StatsSection />
         <Categories />
         <HowItWorks />
+        <NewsSection />
       </main>
       <Footer />
     </div>
