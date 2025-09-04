@@ -36,6 +36,8 @@ interface KYCDocument {
   is_verified: boolean;
   notes: string | null;
   created_at: string;
+  verified_at?: string | null;
+  verified_by?: string | null;
   profiles: {
     full_name: string | null;
     phone: string | null;
@@ -65,30 +67,59 @@ const AdminKYCEnhanced = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [analysisLoading, setAnalysisLoading] = useState<string | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Primeiro, buscar os documentos KYC
+      const { data: kycData, error: kycError } = await supabase
         .from('kyc_documents')
-        .select(`
-          *,
-          profiles(full_name, phone, kyc_status),
-          user_roles(role),
-          kyc_ai_analysis(
-            id,
-            confidence_score,
-            fraud_indicators,
-            recommendations,
-            analysis_result,
-            processed_at
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setDocuments(data as any || []);
-      setFilteredDocuments(data as any || []);
+      if (kycError) throw kycError;
+
+      // Buscar análises de IA separadamente
+      const { data: aiAnalyses, error: aiError } = await supabase
+        .from('kyc_ai_analysis')
+        .select('*');
+
+      if (aiError) console.warn('Erro ao buscar análises de IA:', aiError);
+
+      // Buscar informações dos usuários separadamente
+      const documentsWithUserInfo = await Promise.all(
+        (kycData || []).map(async (doc) => {
+          // Buscar perfil do usuário
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, phone, kyc_status')
+            .eq('user_id', doc.user_id)
+            .single();
+
+          // Buscar role do usuário
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', doc.user_id)
+            .single();
+
+          // Encontrar análises de IA para este documento
+          const docAIAnalyses = aiAnalyses?.filter(ai => ai.document_id === doc.id) || [];
+
+          return {
+            ...doc,
+            profiles: profileData,
+            user_roles: roleData,
+            kyc_ai_analysis: docAIAnalyses
+          };
+        })
+      );
+
+      setDocuments(documentsWithUserInfo as any);
+      setFilteredDocuments(documentsWithUserInfo as any);
     } catch (error) {
       console.error('Erro ao buscar documentos:', error);
       toast({
@@ -339,6 +370,95 @@ const AdminKYCEnhanced = () => {
     (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
   ).length;
 
+  // Funções para ações em massa
+  const bulkApproveDocuments = async () => {
+    if (selectedDocuments.length === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      for (const docId of selectedDocuments) {
+        await approveDocument(docId);
+      }
+      setSelectedDocuments([]);
+      toast({
+        title: "Documentos aprovados",
+        description: `${selectedDocuments.length} documentos foram aprovados.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao aprovar documentos em massa.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const bulkRejectDocuments = async () => {
+    if (selectedDocuments.length === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      for (const docId of selectedDocuments) {
+        await rejectDocument(docId);
+      }
+      setSelectedDocuments([]);
+      toast({
+        title: "Documentos rejeitados",
+        description: `${selectedDocuments.length} documentos foram rejeitados.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao rejeitar documentos em massa.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const exportDocuments = async () => {
+    setExportLoading(true);
+    try {
+      const csvContent = [
+        ['Nome do Usuário', 'Tipo de Documento', 'Status', 'Data de Criação', 'Data de Verificação', 'Observações'].join(','),
+        ...filteredDocuments.map(doc => [
+          doc.profiles?.full_name || 'Nome não informado',
+          doc.document_type,
+          doc.is_verified ? 'Aprovado' : (doc.notes ? 'Rejeitado' : 'Pendente'),
+          new Date(doc.created_at).toLocaleDateString('pt-BR'),
+          doc.verified_at ? new Date(doc.verified_at).toLocaleDateString('pt-BR') : '',
+          doc.notes || ''
+        ].map(field => `"${field}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `documentos-kyc-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Exportação concluída",
+        description: "Os documentos foram exportados com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os documentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -405,6 +525,48 @@ const AdminKYCEnhanced = () => {
           </Card>
         </div>
 
+        {/* Ações em massa e exportação */}
+        {selectedDocuments.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {selectedDocuments.length} documento(s) selecionado(s)
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => bulkApproveDocuments()}
+                    disabled={bulkActionLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Aprovar Selecionados
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => bulkRejectDocuments()}
+                    disabled={bulkActionLoading}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Rejeitar Selecionados
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedDocuments([])}
+                  >
+                    Limpar Seleção
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filtros */}
         <Card>
           <CardHeader>
@@ -460,6 +622,30 @@ const AdminKYCEnhanced = () => {
                 Limpar Filtros
               </Button>
             </div>
+            
+            <div className="flex gap-2 mt-4">
+              <Button 
+                onClick={() => exportDocuments()}
+                disabled={exportLoading}
+                variant="outline"
+              >
+                {exportLoading ? 'Exportando...' : 'Exportar CSV'}
+              </Button>
+              
+              {filteredDocuments.length > 0 && (
+                <Button
+                  onClick={() => {
+                    const allIds = filteredDocuments.map(d => d.id);
+                    setSelectedDocuments(
+                      selectedDocuments.length === allIds.length ? [] : allIds
+                    );
+                  }}
+                  variant="outline"
+                >
+                  {selectedDocuments.length === filteredDocuments.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -473,22 +659,36 @@ const AdminKYCEnhanced = () => {
               {filteredDocuments.map((doc) => (
                 <div key={doc.id} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{doc.profiles?.full_name || 'Nome não informado'}</span>
-                        <Badge variant="outline">{doc.user_roles?.role}</Badge>
-                        {getStatusBadge(doc)}
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <FileText className="h-4 w-4" />
-                          {doc.document_type.toUpperCase()}
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocuments.includes(doc.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedDocuments([...selectedDocuments, doc.id]);
+                          } else {
+                            setSelectedDocuments(selectedDocuments.filter(id => id !== doc.id));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{doc.profiles?.full_name || 'Nome não informado'}</span>
+                          <Badge variant="outline">{doc.user_roles?.role}</Badge>
+                          {getStatusBadge(doc)}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                      
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-4 w-4" />
+                            {doc.document_type.toUpperCase()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                          </div>
                         </div>
                       </div>
                     </div>
