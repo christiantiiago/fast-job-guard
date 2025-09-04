@@ -296,6 +296,45 @@ export type Database = {
           },
         ]
       }
+      counter_offers: {
+        Row: {
+          created_at: string
+          delivery_date: string | null
+          estimated_hours: number | null
+          id: string
+          message: string
+          offered_by: string
+          price: number
+          proposal_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          message: string
+          offered_by: string
+          price: number
+          proposal_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          message?: string
+          offered_by?: string
+          price?: number
+          proposal_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       disputes: {
         Row: {
           admin_notes: string | null
