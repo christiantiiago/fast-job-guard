@@ -182,19 +182,22 @@ const ProposalNegotiation = ({
     try {
       setLoading(true);
 
-      // First, create the counter offer by updating the proposal directly
-      const { error: proposalError } = await supabase
-        .from('proposals')
-        .update({
-          price: parseFloat(counterPrice),
-          message: `CONTRAPROPOSTA: ${counterMessage}`,
-          estimated_hours: counterHours ? parseInt(counterHours) : proposal.estimated_hours,
-          delivery_date: counterDelivery ? new Date(counterDelivery).toISOString() : proposal.delivery_date,
-          status: 'sent'
-        })
-        .eq('id', proposal.id);
+      // Create the counter offer record
+      const counterOfferData = {
+        proposal_id: proposal.id,
+        offered_by: isClient ? 'client' : 'provider',
+        price: parseFloat(counterPrice),
+        message: counterMessage,
+        estimated_hours: counterHours ? parseInt(counterHours) : null,
+        delivery_date: counterDelivery ? new Date(counterDelivery).toISOString() : null,
+        status: 'pending'
+      };
 
-      if (proposalError) throw proposalError;
+      const { error: counterError } = await supabase
+        .from('counter_offers')
+        .insert([counterOfferData]);
+
+      if (counterError) throw counterError;
 
       toast({
         title: "Contraproposta enviada!",

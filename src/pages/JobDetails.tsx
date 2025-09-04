@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import Map from '@/components/ui/map';
 import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
+import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
 
 interface JobProfile {
   full_name?: string;
@@ -584,48 +585,18 @@ export default function JobDetails() {
                 </Card>
               </div>
             )}
-
-            {/* Job Actions for Providers */}
-            {userRole === 'provider' && job.status === 'open' && (
-              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-900">
-                    <TrendingUp className="h-5 w-5" />
-                    Oportunidade de Trabalho
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1 text-green-600">
-                        <Award className="h-4 w-4" />
-                        <span>Orçamento: {job.budget_min === job.budget_max 
-                          ? formatCurrency(job.budget_min || 0)
-                          : `${formatCurrency(job.budget_min || 0)} - ${formatCurrency(job.budget_max || 0)}`
-                        }</span>
-                      </div>
-                      {job.deadline_at && (
-                        <div className="flex items-center gap-1 text-blue-600">
-                          <Clock className="h-4 w-4" />
-                          <span>Prazo: {new Date(job.deadline_at).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="bg-white/50 p-3 rounded-lg border border-blue-100">
-                      <p className="text-sm text-blue-800">
-                        💡 <strong>Dica:</strong> Faça uma proposta competitiva e detalhada. 
-                        Clientes valorizam prestadores que demonstram expertise e profissionalismo.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Enhanced Job Actions for Providers - Sidebar */}
+            {userRole === 'provider' && job.status === 'open' && (
+              <EnhancedJobActions 
+                job={job} 
+                userRole={userRole} 
+                onUpdate={fetchJobDetails}
+              />
+            )}
             {/* Client Info */}
             <Card>
               <CardHeader>
