@@ -14,7 +14,8 @@ import {
   AlertCircle,
   Star,
   MapPin,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -82,16 +83,16 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             {userRole === 'client' && (
               <>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <Link to="/jobs/new">
                     <Plus className="mr-2 h-4 w-4" />
                     Criar Job
                   </Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
                   <Link to="/jobs">
                     <Briefcase className="mr-2 h-4 w-4" />
                     Meus Jobs
@@ -101,19 +102,27 @@ export default function Dashboard() {
             )}
             {userRole === 'provider' && (
               <>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <Link to="/discover">
                     <Briefcase className="mr-2 h-4 w-4" />
                     Descobrir Jobs
                   </Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
                   <Link to="/jobs">
                     <Clock className="mr-2 h-4 w-4" />
                     Meus Trabalhos
                   </Link>
                 </Button>
               </>
+            )}
+            {userRole === 'admin' && (
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link to="/admin">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Painel Admin
+                </Link>
+              </Button>
             )}
           </div>
         </div>
