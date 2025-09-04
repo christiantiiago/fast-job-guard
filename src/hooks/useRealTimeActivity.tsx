@@ -44,34 +44,41 @@ export const useRealTimeActivity = (limit: number = 50) => {
     try {
       setLoading(true);
 
-      // Use audit_logs as activity events until activity_events table types are available
+      // Get audit_logs without JOIN
       const { data: eventsData, error: eventsError } = await supabase
         .from('audit_logs')
-        .select(`
-          *,
-          profiles (
-            full_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (eventsError) throw eventsError;
 
-      // Transform audit logs to activity events
-      const processedEvents: ActivityEvent[] = (eventsData || []).map(event => ({
-        id: event.id,
-        user_id: event.user_id || '',
-        event_type: event.action as ActivityEvent['event_type'],
-        entity_type: event.entity_type as ActivityEvent['entity_type'],
-        entity_id: event.entity_id,
-        metadata: event.metadata || {},
-        created_at: event.created_at,
-        user_name: 'Unknown User', // Will be populated separately
-        user_role: 'unknown',
-        risk_score: 0,
-        is_suspicious: false
-      }));
+      // Get user profiles separately
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+
+      if (profilesError) {
+        console.warn('Could not fetch profiles:', profilesError);
+      }
+
+      // Transform audit logs to activity events and combine with user data
+      const processedEvents: ActivityEvent[] = (eventsData || []).map(event => {
+        const userProfile = profiles?.find(p => p.user_id === event.user_id);
+        return {
+          id: event.id,
+          user_id: event.user_id || '',
+          event_type: event.action as ActivityEvent['event_type'],
+          entity_type: event.entity_type as ActivityEvent['entity_type'],
+          entity_id: event.entity_id,
+          metadata: event.metadata || {},
+          created_at: event.created_at,
+          user_name: userProfile?.full_name || 'Usuário não identificado',
+          user_role: 'unknown',
+          risk_score: 0,
+          is_suspicious: false
+        };
+      });
 
       setEvents(processedEvents);
 
