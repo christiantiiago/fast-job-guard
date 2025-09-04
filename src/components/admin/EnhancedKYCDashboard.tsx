@@ -230,11 +230,11 @@ export const EnhancedKYCDashboard = () => {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{getDocumentLabel(doc.document_type)}</h3>
-                          <Badge variant="secondary">
-                            <User className="w-3 h-3 mr-1" />
-                            {doc.profiles?.full_name || 'Unknown User'}
-                          </Badge>
+                           <h3 className="font-medium">{getDocumentLabel(doc.document_type)}</h3>
+                           <Badge variant="secondary">
+                             <User className="w-3 h-3 mr-1" />
+                             {doc.user_name || 'Usuário não identificado'}
+                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Enviado em {new Date(doc.created_at).toLocaleDateString('pt-BR')} • {doc.file_name}
@@ -270,9 +270,9 @@ export const EnhancedKYCDashboard = () => {
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl">
                             <DialogHeader>
-                              <DialogTitle>
-                                {getDocumentLabel(doc.document_type)} - {doc.profiles?.full_name}
-                              </DialogTitle>
+                               <DialogTitle>
+                                 {getDocumentLabel(doc.document_type)} - {doc.user_name || 'Usuário não identificado'}
+                               </DialogTitle>
                               <DialogDescription>
                                 Análise completa do documento KYC
                               </DialogDescription>

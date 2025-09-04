@@ -25,15 +25,19 @@ export const useRealTimeUsers = () => {
     try {
       setLoading(true);
       
-      // Get all users with their profiles and roles
+      // Get all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select(`
-          *,
-          user_roles!inner(role)
-        `);
+        .select('*');
 
       if (profilesError) throw profilesError;
+
+      // Get user roles separately
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) console.warn('Could not fetch roles:', rolesError);
 
       // Get job statistics for each user
       const { data: jobStats, error: jobStatsError } = await supabase
@@ -53,6 +57,9 @@ export const useRealTimeUsers = () => {
           .filter(job => job.provider_id === profile.user_id && job.final_price)
           .reduce((sum, job) => sum + (job.final_price || 0), 0);
 
+        // Find user role
+        const userRole = userRoles?.find(role => role.user_id === profile.user_id);
+
         return {
           id: profile.id,
           user_id: profile.user_id,
@@ -61,7 +68,7 @@ export const useRealTimeUsers = () => {
           kyc_status: profile.kyc_status,
           created_at: profile.created_at,
           is_verified: profile.is_verified,
-          role: Array.isArray(profile.user_roles) ? profile.user_roles[0]?.role : null,
+          role: userRole?.role || null,
           total_jobs: totalJobs,
           total_earnings: totalEarnings,
           last_login: null, // This would need auth logs to populate
