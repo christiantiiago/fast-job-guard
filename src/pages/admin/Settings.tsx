@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { FacialAuthTest } from '@/components/admin/FacialAuthTest';
 
 export default function AdminSettings() {
   const { 
@@ -312,6 +313,14 @@ export default function AdminSettings() {
                       onCheckedChange={(checked) => {}}
                     />
                   </div>
+                </div>
+
+                <Separator />
+
+                {/* Facial Authentication Test */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Teste de Autenticação Facial</h4>
+                  <FacialAuthTest />
                 </div>
 
                 <Separator />

@@ -30,13 +30,6 @@ export const useFacialAuth = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Check enrollment status on component mount
-  useEffect(() => {
-    if (user) {
-      checkEnrollmentStatus();
-    }
-  }, [user]);
-
   // Check if user has completed facial enrollment
   const checkEnrollmentStatus = useCallback(async () => {
     if (!user) return;
@@ -66,6 +59,13 @@ export const useFacialAuth = () => {
       console.error('Error checking enrollment status:', error);
     }
   }, [user]);
+
+  // Check enrollment status on component mount
+  useEffect(() => {
+    if (user) {
+      checkEnrollmentStatus();
+    }
+  }, [user, checkEnrollmentStatus]);
 
   // Iniciar captura de vídeo
   const startCapture = useCallback(async () => {
@@ -437,21 +437,32 @@ export const useFacialAuth = () => {
 
   // Analisar qualidade da imagem
   const analyzeImageQuality = useCallback((imageDataUrl: string): number => {
-    // Simular análise de qualidade (em produção, usar algoritmos reais)
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-    };
-    
-    img.src = imageDataUrl;
-    
-    // Retornar score simulado baseado em fatores como iluminação, resolução, etc.
-    return Math.random() * 0.3 + 0.7; // Score entre 0.7 e 1.0
+    try {
+      // Simular análise de qualidade baseada no tamanho da imagem
+      const base64Length = imageDataUrl.length;
+      const imageSize = (base64Length * 3) / 4; // Aproximar tamanho em bytes
+      
+      // Verificações básicas de qualidade
+      let qualityScore = 0.7; // Score base
+      
+      // Bonificação por tamanho adequado (entre 50KB e 5MB)
+      if (imageSize > 50000 && imageSize < 5000000) {
+        qualityScore += 0.2;
+      }
+      
+      // Verificar se não é muito pequena
+      if (imageSize > 10000) {
+        qualityScore += 0.1;
+      }
+      
+      // Adicionar variação aleatória para simular análise real
+      qualityScore += (Math.random() * 0.1) - 0.05;
+      
+      return Math.min(1.0, Math.max(0.3, qualityScore));
+    } catch (error) {
+      console.error('Erro na análise de qualidade:', error);
+      return 0.75; // Score padrão em caso de erro
+    }
   }, []);
 
   // Helper function to generate mock face embedding (replace with actual ML)

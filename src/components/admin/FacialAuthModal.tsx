@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -88,6 +88,15 @@ export const FacialAuthModal = ({
     }
     // Para enrollment, não permitir fechar até completar
   };
+
+  // Cleanup quando componente desmonta
+  useEffect(() => {
+    return () => {
+      if (state.isActive) {
+        stopCapture();
+      }
+    };
+  }, [state.isActive, stopCapture]);
 
   const renderContent = () => {
     switch (step) {

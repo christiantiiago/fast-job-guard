@@ -36,11 +36,21 @@ export const useKYCUpload = () => {
         return false;
       }
 
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      // Tipos permitidos: imagens (fotos) e PDFs  
+      const allowedTypes = [
+        'image/jpeg', 
+        'image/png', 
+        'image/jpg', 
+        'image/webp',
+        'image/heic', 
+        'image/heif',
+        'application/pdf'
+      ];
+      
       if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Tipo de arquivo não permitido",
-          description: "Apenas imagens (JPG, PNG) e PDFs são aceitos.",
+          description: "Aceito: Fotos (JPG, PNG, WEBP, HEIC) e documentos PDF.",
           variant: "destructive",
         });
         return false;

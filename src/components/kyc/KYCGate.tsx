@@ -13,6 +13,7 @@ const ALLOWED_ROUTES_WITHOUT_KYC = [
   '/auth/admin',
   '/kyc/verify',
   '/kyc/upload',
+  '/kyc/documents',
   '/profile',
   '/'
 ];

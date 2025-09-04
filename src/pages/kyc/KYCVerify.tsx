@@ -194,6 +194,16 @@ export default function KYCVerify() {
 
         {/* Ações */}
         <div className="flex justify-center gap-4">
+          <Button
+            asChild
+            variant="default"
+          >
+            <Link to="/kyc/documents">
+              <FileText className="h-4 w-4 mr-2" />
+              Enviar Documentos
+            </Link>
+          </Button>
+          
           <Button 
             variant="outline" 
             onClick={refreshStatus}

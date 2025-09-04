@@ -32,6 +32,7 @@ import ProviderOnboarding from "./pages/provider/Onboarding";
 // KYC pages
 import KYCVerify from "./pages/kyc/KYCVerify";
 import KYCUpload from "./pages/kyc/KYCUpload";
+import KYCDocuments from "./pages/kyc/KYCDocuments";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -67,6 +68,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCVerify />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kyc/documents"
+              element={
+                <ProtectedRoute>
+                  <KYCDocuments />
                 </ProtectedRoute>
               }
             />
