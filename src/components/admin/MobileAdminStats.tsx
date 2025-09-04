@@ -110,7 +110,7 @@ export const MobileAdminStats = ({ stats, loading }: MobileAdminStatsProps) => {
                   variant={stat.variant} 
                   className="mt-1 text-xs"
                 >
-                  {stat.variant === 'destructive' ? 'Atenção' : 'Aguardando'}
+                  {stat.variant === 'secondary' ? 'Aguardando' : 'Normal'}
                 </Badge>
               )}
             </CardContent>
