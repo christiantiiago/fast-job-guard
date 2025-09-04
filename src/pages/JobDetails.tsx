@@ -9,12 +9,13 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import Map from '@/components/ui/map';
+import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
 
 interface JobProfile {
   full_name?: string;
@@ -553,67 +554,71 @@ export default function JobDetails() {
               </Card>
             )}
 
-            {/* Proposals (Client View) */}
+            {/* Enhanced Proposals with Negotiation */}
             {userRole === 'client' && proposals.length > 0 && (
-              <Card>
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Handshake className="h-5 w-5" />
+                      Propostas Recebidas ({proposals.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {proposals.map((proposal) => {
+                        const providerProfile = proposalProfiles[proposal.provider_id];
+                        return (
+                          <ProposalNegotiation
+                            key={proposal.id}
+                            proposal={proposal}
+                            providerProfile={providerProfile}
+                            jobId={job.id}
+                            isClient={true}
+                            onProposalUpdate={fetchProposals}
+                          />
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Job Actions for Providers */}
+            {userRole === 'provider' && job.status === 'open' && (
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
                 <CardHeader>
-                  <CardTitle>Propostas Recebidas ({proposals.length})</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-blue-900">
+                    <TrendingUp className="h-5 w-5" />
+                    Oportunidade de Trabalho
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {proposals.map((proposal) => {
-                    const providerProfile = proposalProfiles[proposal.provider_id];
-                    return (
-                      <div key={proposal.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={providerProfile?.avatar_url} />
-                              <AvatarFallback>
-                                {providerProfile?.full_name?.charAt(0) || 'P'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h4 className="font-medium">{providerProfile?.full_name || 'Prestador'}</h4>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                  <span>{providerProfile?.rating_avg?.toFixed(1) || '0.0'}</span>
-                                  <span>({providerProfile?.rating_count || 0} avaliações)</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold">{formatCurrency(proposal.price)}</div>
-                            {proposal.estimated_hours && (
-                              <div className="text-sm text-muted-foreground">
-                                ~{proposal.estimated_hours}h
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="text-sm mb-3">{proposal.message}</p>
-
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Proposta enviada em {new Date(proposal.created_at).toLocaleDateString('pt-BR')}</span>
-                          {proposal.delivery_date && (
-                            <span>Entrega: {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}</span>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex gap-2">
-                          <Button variant="default" size="sm">
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            Negociar
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Ver Perfil
-                          </Button>
-                        </div>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1 text-green-600">
+                        <Award className="h-4 w-4" />
+                        <span>Orçamento: {job.budget_min === job.budget_max 
+                          ? formatCurrency(job.budget_min || 0)
+                          : `${formatCurrency(job.budget_min || 0)} - ${formatCurrency(job.budget_max || 0)}`
+                        }</span>
                       </div>
-                    );
-                  })}
+                      {job.deadline_at && (
+                        <div className="flex items-center gap-1 text-blue-600">
+                          <Clock className="h-4 w-4" />
+                          <span>Prazo: {new Date(job.deadline_at).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="bg-white/50 p-3 rounded-lg border border-blue-100">
+                      <p className="text-sm text-blue-800">
+                        💡 <strong>Dica:</strong> Faça uma proposta competitiva e detalhada. 
+                        Clientes valorizam prestadores que demonstram expertise e profissionalismo.
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

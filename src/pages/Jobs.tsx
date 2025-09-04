@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
+import JobsMap from '@/components/jobs/JobsMap';
 import { 
   Plus,
   Search,
@@ -20,13 +21,38 @@ import {
   Calendar,
   Filter,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Map,
+  List,
+  LayoutGrid
 } from 'lucide-react';
+
+interface JobMapData {
+  id: string;
+  title: string;
+  description: string;
+  latitude?: number;
+  longitude?: number;
+  budget_min?: number;
+  budget_max?: number;
+  final_price?: number;
+  status: string;
+  service_categories?: {
+    name: string;
+    color?: string;
+  };
+  addresses?: {
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  };
+}
 
 export default function Jobs() {
   const { userRole } = useAuth();
   const { jobs, loading, error } = useJobs();
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -247,62 +273,96 @@ export default function Jobs() {
               className="pl-10"
             />
           </div>
-          <Button variant="outline">
-            <Filter className="mr-2 h-4 w-4" />
-            Filtros
-          </Button>
+          
+          <div className="flex gap-2">
+            <div className="flex border rounded-lg p-1 bg-muted/50">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 px-3"
+              >
+                <List className="h-4 w-4 mr-1" />
+                Lista
+              </Button>
+              <Button
+                variant={viewMode === 'map' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('map')}
+                className="h-8 px-3"
+              >
+                <Map className="h-4 w-4 mr-1" />
+                Mapa
+              </Button>
+            </div>
+            
+            <Button variant="outline">
+              <Filter className="mr-2 h-4 w-4" />
+              Filtros
+            </Button>
+          </div>
         </div>
 
-        {/* Jobs by Status */}
-        <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">Todos ({filteredJobs.length})</TabsTrigger>
-            <TabsTrigger value="open">Abertos ({filterJobsByStatus('open').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
-            <TabsTrigger value="in_progress">Em Andamento ({filterJobsByStatus('in_progress').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
-            <TabsTrigger value="completed">Concluídos ({filterJobsByStatus('completed').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelados ({filterJobsByStatus('cancelled').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
-          </TabsList>
+        {/* Content based on view mode */}
+        {viewMode === 'map' ? (
+          <Card className="p-0 overflow-hidden">
+            <JobsMap 
+              jobs={filteredJobs as JobMapData[]} 
+              className="h-[600px]" 
+            />
+          </Card>
+        ) : (
+          /* Jobs by Status */
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="all">Todos ({filteredJobs.length})</TabsTrigger>
+              <TabsTrigger value="open">Abertos ({filterJobsByStatus('open').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
+              <TabsTrigger value="in_progress">Em Andamento ({filterJobsByStatus('in_progress').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
+              <TabsTrigger value="completed">Concluídos ({filterJobsByStatus('completed').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelados ({filterJobsByStatus('cancelled').filter(j => filteredJobs.includes(j)).length})</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {filteredJobs.map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </TabsContent>
+            <TabsContent value="all" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {filteredJobs.map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="open" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {filterJobsByStatus('open').filter(j => filteredJobs.includes(j)).map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </TabsContent>
+            <TabsContent value="open" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {filterJobsByStatus('open').filter(j => filteredJobs.includes(j)).map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="in_progress" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {filterJobsByStatus('in_progress').filter(j => filteredJobs.includes(j)).map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </TabsContent>
+            <TabsContent value="in_progress" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {filterJobsByStatus('in_progress').filter(j => filteredJobs.includes(j)).map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="completed" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {filterJobsByStatus('completed').filter(j => filteredJobs.includes(j)).map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </TabsContent>
+            <TabsContent value="completed" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {filterJobsByStatus('completed').filter(j => filteredJobs.includes(j)).map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            </TabsContent>
 
-          <TabsContent value="cancelled" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              {filterJobsByStatus('cancelled').filter(j => filteredJobs.includes(j)).map((job) => (
-                <JobCard key={job.id} job={job} />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="cancelled" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {filterJobsByStatus('cancelled').filter(j => filteredJobs.includes(j)).map((job) => (
+                  <JobCard key={job.id} job={job} />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
 
         {/* Empty State */}
         {filteredJobs.length === 0 && (

@@ -33,9 +33,33 @@ export const AdminProtection = ({
     }
   }, [isAdmin, requireFacialAuth, action]);
 
-  // If user is not admin, render children normally
+  // If user is not admin, block access completely
   if (!isAdmin) {
-    return <>{children}</>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="max-w-md mx-auto text-center space-y-6 p-6">
+          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+            <Shield className="w-8 h-8 text-red-600" />
+          </div>
+          
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Acesso Negado
+            </h2>
+            <p className="text-muted-foreground">
+              Você não tem permissões de administrador para acessar esta área.
+            </p>
+          </div>
+
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription>
+              Esta área é restrita apenas para administradores do sistema.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
   }
 
   // If blocked, show blocking UI
