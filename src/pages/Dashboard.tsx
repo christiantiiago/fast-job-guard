@@ -15,7 +15,10 @@ import {
   Star,
   MapPin,
   TrendingUp,
-  Shield
+  Shield,
+  Users,
+  UserCheck,
+  Activity
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -61,11 +64,11 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-8">
+      <div className="p-3 sm:p-6 space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+        <div className="flex flex-col space-y-3 sm:space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
               {userRole === 'client' 
                 ? `Olá, ${user?.email?.split('@')[0]}! 👋 Vamos criar seu próximo projeto?`
                 : userRole === 'provider'
@@ -73,7 +76,7 @@ export default function Dashboard() {
                 : `Painel Administrativo - ${user?.email?.split('@')[0]}`
               }
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               {userRole === 'client' 
                 ? 'Publique trabalhos, encontre profissionais qualificados e gerencie seus projetos com facilidade'
                 : userRole === 'provider'
@@ -128,55 +131,55 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
           {userRole === 'client' && stats ? (
             <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Jobs</CardTitle>
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total de Jobs</CardTitle>
+                  <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.totalJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Total publicados
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Em Andamento</CardTitle>
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.activeJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Projetos ativos
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Concluídos</CardTitle>
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.completedJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.completedJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Finalizados
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Abertos</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Abertos</CardTitle>
+                  <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.openJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.openJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Aguardando propostas
                   </p>
@@ -185,52 +188,52 @@ export default function Dashboard() {
             </>
           ) : userRole === 'provider' && stats ? (
             <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Jobs Aplicados</CardTitle>
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Jobs Aplicados</CardTitle>
+                  <Briefcase className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.appliedJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.appliedJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Propostas enviadas
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Em Execução</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Em Execução</CardTitle>
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.activeJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Projetos ativos
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Concluídos</CardTitle>
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.completedJobs}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{stats.completedJobs}</div>
                   <p className="text-xs text-muted-foreground">
                     Trabalhos finalizados
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Ganhos</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <Card className="p-3 sm:p-6">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 p-0 sm:p-0">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Ganhos</CardTitle>
+                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(stats.earnings)}</div>
+                <CardContent className="p-0 pt-1 sm:pt-2">
+                  <div className="text-lg sm:text-2xl font-bold">{formatCurrency(stats.earnings)}</div>
                   <p className="text-xs text-muted-foreground">
                     Total recebido
                   </p>
@@ -241,39 +244,39 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Star className="h-4 w-4 sm:h-5 sm:w-5" />
                 Ações Rápidas
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Acesse rapidamente as funcionalidades principais
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2 sm:space-y-3 pt-0">
               {userRole === 'client' ? (
                 <>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/jobs/new">
                       <Plus className="mr-2 h-4 w-4" />
                       Criar novo trabalho
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/jobs">
                       <Briefcase className="mr-2 h-4 w-4" />
                       Gerenciar trabalhos
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/discover">
                       <Star className="mr-2 h-4 w-4" />
                       Ver trabalhos públicos
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/wallet">
                       <TrendingUp className="mr-2 h-4 w-4" />
                       Ver carteira
@@ -282,22 +285,49 @@ export default function Dashboard() {
                 </>
               ) : userRole === 'provider' ? (
                 <>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/discover">
                       <Briefcase className="mr-2 h-4 w-4" />
                       Descobrir trabalhos
                     </Link>
                   </Button>
-                   <Button asChild variant="outline" className="w-full justify-start">
+                   <Button asChild variant="outline" className="w-full justify-start text-sm">
                      <Link to="/jobs">
                        <Clock className="mr-2 h-4 w-4" />
                        Meus trabalhos
                      </Link>
                    </Button>
-                  <Button asChild variant="outline" className="w-full justify-start">
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
                     <Link to="/provider/finance">
                       <TrendingUp className="mr-2 h-4 w-4" />
                       Financeiro
+                    </Link>
+                  </Button>
+                </>
+              ) : userRole === 'admin' ? (
+                <>
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
+                    <Link to="/admin">
+                      <Shield className="mr-2 h-4 w-4" />
+                      Painel Administrativo
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
+                    <Link to="/admin/kyc">
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Gerenciar KYC
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
+                    <Link to="/admin/users">
+                      <Users className="mr-2 h-4 w-4" />
+                      Usuários
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="w-full justify-start text-sm">
+                    <Link to="/admin/activity">
+                      <Activity className="mr-2 h-4 w-4" />
+                      Atividades
                     </Link>
                   </Button>
                 </>
@@ -305,20 +335,20 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity Placeholder */}
+          {/* Recent Activity */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5" />
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />
                 Últimas Atividades
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Suas ações mais recentes na plataforma
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-6 text-muted-foreground">
-                <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <CardContent className="pt-0">
+              <div className="text-center py-4 sm:py-6 text-muted-foreground">
+                <Clock className="h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Nenhuma atividade recente</p>
               </div>
             </CardContent>
