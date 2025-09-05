@@ -51,7 +51,7 @@ const Map: React.FC<MapProps> = ({
     if (!mapContainer.current) return;
 
     // Set Mapbox access token
-    mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbTQwcmdlaGUwN3E0Mmxxb2FuY29jdG16In0.FKBfqIhY5AdAvHEHj5Iffw';
+    mapboxgl.accessToken = 'pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw';
 
     // Initialize map
     map.current = new mapboxgl.Map({

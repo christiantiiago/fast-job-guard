@@ -59,6 +59,8 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         setMapboxToken(data.token);
       } catch (err) {
         console.error('Error getting Mapbox token:', err);
+        // Fallback to hardcoded token
+        setMapboxToken('pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw');
       }
     };
 
@@ -279,13 +281,13 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
   ];
 
   // Show loading or error states
-  if (geoLoading || !mapboxToken) {
+  if (geoLoading) {
     return (
       <div className={`flex items-center justify-center h-96 ${className}`}>
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <p className="text-sm text-muted-foreground">
-            {geoLoading ? 'Obtendo sua localização...' : 'Carregando mapa...'}
+            Obtendo sua localização...
           </p>
         </div>
       </div>
@@ -316,6 +318,19 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
             Não foi possível obter sua localização. Verifique se o GPS está ativado.
           </AlertDescription>
         </Alert>
+      </div>
+    );
+  }
+
+  if (!mapboxToken) {
+    return (
+      <div className={`flex items-center justify-center h-96 ${className}`}>
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            Carregando mapa...
+          </p>
+        </div>
       </div>
     );
   }

@@ -12,18 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const token = Deno.env.get('MAPBOX_ACCESS_TOKEN')
+    // Return the updated token
+    const token = 'pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw';
     
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'Mapbox token not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
     return new Response(
       JSON.stringify({ token }),
       { 
@@ -32,10 +23,12 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Error:', error)
+    // Return fallback token
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        token: 'pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw'
+      }),
       { 
-        status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
