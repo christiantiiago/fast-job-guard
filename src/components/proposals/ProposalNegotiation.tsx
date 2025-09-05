@@ -62,7 +62,7 @@ interface ProviderProfile {
 
 interface ProposalNegotiationProps {
   proposal: ProposalData;
-  providerProfile: ProviderProfile;
+  providerProfile?: ProviderProfile | null;
   jobId: string;
   isClient: boolean;
   onProposalUpdate: () => void;
@@ -259,22 +259,22 @@ const ProposalNegotiation = ({
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={providerProfile.avatar_url} />
+              <AvatarImage src={providerProfile?.avatar_url} />
               <AvatarFallback>
-                {providerProfile.full_name?.charAt(0) || <User className="h-6 w-6" />}
+                {providerProfile?.full_name?.charAt(0) || <User className="h-6 w-6" />}
               </AvatarFallback>
             </Avatar>
             
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <CardTitle className="text-lg">
-                  {providerProfile.full_name || 'Prestador'}
+                  {providerProfile?.full_name || 'Prestador'}
                 </CardTitle>
-                {providerProfile.rating_avg && (
+                {providerProfile?.rating_avg && (
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span>{providerProfile.rating_avg.toFixed(1)}</span>
-                    <span>({providerProfile.rating_count})</span>
+                    <span>{providerProfile?.rating_avg?.toFixed(1)}</span>
+                    <span>({providerProfile?.rating_count})</span>
                   </div>
                 )}
               </div>
