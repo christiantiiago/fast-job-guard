@@ -4,8 +4,11 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Navigation, Layers, Search, Filter } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { MapPin, Navigation, Layers, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
+import { supabase } from '@/integrations/supabase/client';
 
 interface JobMapData {
   id: string;
@@ -26,6 +29,7 @@ interface JobMapData {
     city?: string;
     state?: string;
   };
+  distance?: number;
 }
 
 interface JobsMapProps {
@@ -41,41 +45,69 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
   
   const [selectedJob, setSelectedJob] = useState<JobMapData | null>(null);
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/light-v11');
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [jobsWithDistance, setJobsWithDistance] = useState<JobMapData[]>([]);
+  
+  const { position, error: geoError, loading: geoLoading } = useGeolocation();
 
-  // Get user location
+  // Get Mapbox token from Supabase
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.longitude, position.coords.latitude]);
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-          // Default to São Paulo if location is denied
-          setUserLocation([-46.6333, -23.5505]);
-        }
-      );
-    } else {
-      // Default to São Paulo
-      setUserLocation([-46.6333, -23.5505]);
-    }
+    const getMapboxToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        if (error) throw error;
+        setMapboxToken(data.token);
+      } catch (err) {
+        console.error('Error getting Mapbox token:', err);
+      }
+    };
+
+    getMapboxToken();
   }, []);
+
+  // Calculate distances when position or jobs change
+  useEffect(() => {
+    if (!position || !jobs.length) {
+      setJobsWithDistance(jobs);
+      return;
+    }
+
+    const jobsWithDist = jobs
+      .filter(job => job.latitude && job.longitude)
+      .map(job => ({
+        ...job,
+        distance: calculateDistance(
+          position.latitude,
+          position.longitude,
+          job.latitude!,
+          job.longitude!
+        )
+      }))
+      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+    setJobsWithDistance(jobsWithDist);
+  }, [position, jobs]);
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !userLocation) return;
+    if (!mapContainer.current || !mapboxToken || !position) return;
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1tYXAiLCJhIjoiY2x3aDV5YzF4MGV6cTJqcGd6Mm9sdnppbyJ9.4-QACX8mPQeRQN6KMTjPfA';
+    mapboxgl.accessToken = mapboxToken;
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: mapStyle,
-      center: userLocation,
-      zoom: 11,
+      center: [position.longitude, position.latitude],
+      zoom: 12,
       pitch: 45,
       bearing: -10
     });
+
+    // Add user location marker
+    new mapboxgl.Marker({ color: '#3b82f6', scale: 1.2 })
+      .setLngLat([position.longitude, position.latitude])
+      .setPopup(new mapboxgl.Popup().setHTML('<div class="p-2"><strong>Sua localização</strong></div>'))
+      .addTo(map.current);
 
     // Add navigation controls
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -96,20 +128,18 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
     return () => {
       map.current?.remove();
     };
-  }, [userLocation, mapStyle]);
+  }, [position, mapStyle, mapboxToken]);
 
   // Add job markers
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !position) return;
 
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
-    // Add markers for jobs with location
-    const jobsWithLocation = jobs.filter(job => job.latitude && job.longitude);
-
-    jobsWithLocation.forEach((job) => {
+    // Add markers for jobs with location and distance
+    jobsWithDistance.forEach((job) => {
       const statusColors = {
         open: '#3b82f6',
         in_progress: '#eab308',
@@ -137,10 +167,10 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         transition: all 0.3s ease;
       `;
       
-      // Add price or status indicator
-      const price = job.final_price || job.budget_max || job.budget_min;
-      if (price) {
-        markerEl.textContent = `R$${(price / 1000).toFixed(0)}k`;
+      // Add distance indicator
+      if (job.distance !== undefined) {
+        markerEl.textContent = formatDistance(job.distance);
+        markerEl.style.fontSize = '10px';
       } else {
         markerEl.innerHTML = '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>';
       }
@@ -177,21 +207,28 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
     });
 
     // Fit map to show all jobs
-    if (jobsWithLocation.length > 0) {
+    if (jobsWithDistance.length > 0 && position) {
       const bounds = new mapboxgl.LngLatBounds();
-      jobsWithLocation.forEach(job => {
-        bounds.extend([job.longitude!, job.latitude!]);
+      
+      // Include user position
+      bounds.extend([position.longitude, position.latitude]);
+      
+      // Include job positions
+      jobsWithDistance.forEach(job => {
+        if (job.longitude && job.latitude) {
+          bounds.extend([job.longitude, job.latitude]);
+        }
       });
       
       // Add padding and delay to ensure map is ready
       setTimeout(() => {
         map.current?.fitBounds(bounds, {
-          padding: { top: 50, bottom: 50, left: 50, right: 50 },
+          padding: { top: 80, bottom: 80, left: 80, right: 80 },
           maxZoom: 15
         });
-      }, 100);
+      }, 500);
     }
-  }, [jobs]);
+  }, [jobsWithDistance, position]);
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
@@ -241,10 +278,62 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
     { id: 'streets', name: 'Ruas', style: 'mapbox://styles/mapbox/streets-v12' }
   ];
 
+  // Show loading or error states
+  if (geoLoading || !mapboxToken) {
+    return (
+      <div className={`flex items-center justify-center h-96 ${className}`}>
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            {geoLoading ? 'Obtendo sua localização...' : 'Carregando mapa...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (geoError) {
+    return (
+      <div className={`${className}`}>
+        <Alert className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Localização necessária:</strong> {geoError}
+            <br />
+            Por favor, permita o acesso à sua localização para ver os trabalhos próximos.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!position) {
+    return (
+      <div className={`${className}`}>
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Não foi possível obter sua localização. Verifique se o GPS está ativado.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative ${className}`}>
+      {/* Location Info */}
+      <div className="absolute top-4 left-4 z-10">
+        <Card className="p-3">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 text-green-500" />
+            <span className="font-medium text-green-600">GPS Ativo</span>
+          </div>
+        </Card>
+      </div>
+
       {/* Map Controls */}
-      <div className="absolute top-4 left-4 z-10 space-y-2">
+      <div className="absolute top-16 left-4 z-10 space-y-2">
         <Card className="p-2">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4" />
@@ -319,6 +408,14 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
                     {formatAddress(selectedJob.addresses)}
                   </span>
                 </div>
+                {selectedJob.distance !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-blue-500" />
+                    <span className="text-blue-600 font-medium">
+                      {formatDistance(selectedJob.distance)} de distância
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-primary">
                     {formatCurrency(
@@ -366,9 +463,14 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
           <div className="flex items-center gap-2 text-sm">
             <MapPin className="w-4 h-4" />
             <span className="font-medium">
-              {jobs.filter(j => j.latitude && j.longitude).length} trabalhos no mapa
+              {jobsWithDistance.length} trabalhos próximos
             </span>
           </div>
+          {jobsWithDistance.length > 0 && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Mais próximo: {formatDistance(jobsWithDistance[0]?.distance || 0)}
+            </div>
+          )}
         </Card>
       </div>
 

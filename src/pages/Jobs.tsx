@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs, Job } from '@/hooks/useJobs';
@@ -50,9 +50,16 @@ interface JobMapData {
 
 export default function Jobs() {
   const { userRole } = useAuth();
-  const { jobs, loading, error } = useJobs();
+  const { jobs, loading, error, fetchAllPublicJobs } = useJobs();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
+  // Load public jobs when in map mode
+  useEffect(() => {
+    if (viewMode === 'map') {
+      fetchAllPublicJobs();
+    }
+  }, [viewMode, fetchAllPublicJobs]);
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -305,12 +312,21 @@ export default function Jobs() {
 
         {/* Content based on view mode */}
         {viewMode === 'map' ? (
-          <Card className="p-0 overflow-hidden">
-            <JobsMap 
-              jobs={filteredJobs as JobMapData[]} 
-              className="h-[600px]" 
-            />
-          </Card>
+          <div className="space-y-4">
+            <Card className="p-0 overflow-hidden">
+              <JobsMap 
+                jobs={filteredJobs as JobMapData[]} 
+                className="h-[600px]" 
+              />
+            </Card>
+            {filteredJobs.length === 0 && (
+              <Card className="p-6 text-center">
+                <p className="text-muted-foreground">
+                  Nenhum trabalho encontrado na sua região. Ative o GPS para ver trabalhos próximos.
+                </p>
+              </Card>
+            )}
+          </div>
         ) : (
           /* Jobs by Status */
           <Tabs defaultValue="all" className="space-y-6">

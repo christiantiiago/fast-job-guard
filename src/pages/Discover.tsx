@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
+import JobsMap from '@/components/jobs/JobsMap';
 import { 
   Search,
   MapPin,
@@ -19,7 +20,9 @@ import {
   Filter,
   Briefcase,
   Users,
-  AlertCircle
+  AlertCircle,
+  Map,
+  List
 } from 'lucide-react';
 
 export default function Discover() {
@@ -27,6 +30,7 @@ export default function Discover() {
   const { categories } = useCategories();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
     fetchAllOpenJobs();
@@ -129,11 +133,37 @@ export default function Discover() {
     <AppLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Descobrir Trabalhos</h1>
-          <p className="text-muted-foreground">
-            Encontre trabalhos abertos e envie suas propostas
-          </p>
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Descobrir Trabalhos</h1>
+            <p className="text-muted-foreground">
+              Encontre trabalhos abertos e envie suas propostas
+            </p>
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex gap-2">
+            <div className="flex border rounded-lg p-1 bg-muted/50">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 px-3"
+              >
+                <List className="h-4 w-4 mr-1" />
+                Lista
+              </Button>
+              <Button
+                variant={viewMode === 'map' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('map')}
+                className="h-8 px-3"
+              >
+                <Map className="h-4 w-4 mr-1" />
+                Mapa
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -172,10 +202,40 @@ export default function Discover() {
           </p>
         </div>
 
-        {/* Jobs Grid */}
-        {filteredJobs.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredJobs.map((job) => (
+        {/* Content based on view mode */}
+        {viewMode === 'map' ? (
+          <div className="space-y-4">
+            <Card className="p-0 overflow-hidden">
+              <JobsMap 
+                jobs={filteredJobs.map(job => ({
+                  id: job.id,
+                  title: job.title,
+                  description: job.description,
+                  latitude: job.latitude,
+                  longitude: job.longitude,
+                  budget_min: job.budget_min,
+                  budget_max: job.budget_max,
+                  final_price: job.final_price,
+                  status: job.status,
+                  service_categories: job.service_categories,
+                  addresses: job.addresses
+                }))}
+                className="h-[600px]" 
+              />
+            </Card>
+            {filteredJobs.length === 0 && (
+              <Card className="p-6 text-center">
+                <p className="text-muted-foreground">
+                  Nenhum trabalho encontrado na sua região. Ative o GPS para ver trabalhos próximos.
+                </p>
+              </Card>
+            )}
+          </div>
+        ) : (
+          /* Jobs Grid */
+          filteredJobs.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredJobs.map((job) => (
               <Card key={job.id} className="hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="space-y-2">
@@ -262,7 +322,7 @@ export default function Discover() {
               </Button>
             )}
           </div>
-        )}
+        ))}
       </div>
     </AppLayout>
   );
