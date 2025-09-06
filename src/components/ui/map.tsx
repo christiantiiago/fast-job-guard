@@ -63,128 +63,130 @@ const Map: React.FC<MapProps> = ({
     };
 
     const initializeMap = () => {
-
-    // Initialize map
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: mapCenter,
-      zoom: zoom,
-      interactive: interactive,
-    });
-
-    // Add navigation controls if interactive
-    if (interactive) {
-      map.current.addControl(
-        new mapboxgl.NavigationControl({
-          visualizePitch: true,
-        }),
-        'top-right'
-      );
-    }
-
-    // Handle map load
-    map.current.on('load', () => {
-      setIsLoading(false);
-    });
-
-    // Add click handler for location selection
-    if (interactive && onLocationSelect) {
-      map.current.on('click', async (e) => {
-        const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-        
-        // Try to get address from reverse geocoding
-        try {
-          const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
-            body: { longitude: coordinates[0], latitude: coordinates[1] }
-          });
-
-          if (!error && data?.address) {
-            onLocationSelect(coordinates, data.address);
-          } else {
-            onLocationSelect(coordinates);
-          }
-        } catch (error) {
-          console.error('Erro ao buscar endereço:', error);
-          onLocationSelect(coordinates);
-        }
+      // Initialize map
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: mapCenter,
+        zoom: zoom,
+        interactive: interactive,
       });
-    }
 
-    // Create single marker if needed
-    if (showMarker && !markers.length) {
-      marker.current = new mapboxgl.Marker({
-        color: '#3B82F6',
-        draggable: interactive
-      })
-        .setLngLat(mapCenter)
-        .addTo(map.current);
+      // Add navigation controls if interactive
+      if (interactive) {
+        map.current.addControl(
+          new mapboxgl.NavigationControl({
+            visualizePitch: true,
+          }),
+          'top-right'
+        );
+      }
 
-      // Handle marker drag
-      if (interactive && onLocationSelect && marker.current) {
-        marker.current.on('dragend', async () => {
-          if (!marker.current) return;
+      // Handle map load
+      map.current.on('load', () => {
+        setIsLoading(false);
+      });
+
+      // Add click handler for location selection
+      if (interactive && onLocationSelect) {
+        map.current.on('click', async (e) => {
+          const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
           
-          const coordinates = marker.current.getLngLat();
-          const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
-          
+          // Try to get address from reverse geocoding
           try {
             const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
-              body: { longitude: coordinates.lng, latitude: coordinates.lat }
+              body: { longitude: coordinates[0], latitude: coordinates[1] }
             });
 
             if (!error && data?.address) {
-              onLocationSelect(coordsArray, data.address);
+              onLocationSelect(coordinates, data.address);
             } else {
-              onLocationSelect(coordsArray);
+              onLocationSelect(coordinates);
             }
           } catch (error) {
             console.error('Erro ao buscar endereço:', error);
-            onLocationSelect(coordsArray);
+            onLocationSelect(coordinates);
           }
         });
       }
-    }
 
-    // Create multiple markers if provided
-    if (markers.length > 0) {
-      markersRef.current = markers.map(markerData => {
-        const markerEl = new mapboxgl.Marker({
-          color: '#EF4444'
+      // Create single marker if needed
+      if (showMarker && !markers.length) {
+        marker.current = new mapboxgl.Marker({
+          color: '#3B82F6',
+          draggable: interactive
         })
-          .setLngLat([markerData.longitude, markerData.latitude])
-          .addTo(map.current!);
+          .setLngLat(mapCenter)
+          .addTo(map.current);
 
-        // Add popup
-        const popup = new mapboxgl.Popup({ offset: 25 })
-          .setHTML(`
-            <div class="p-2 cursor-pointer">
-              <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
-              ${markerData.description ? `<p class="text-xs text-gray-600 mb-2">${markerData.description}</p>` : ''}
-              <p class="text-xs text-blue-600 font-medium">Clique para ver detalhes →</p>
-            </div>
-          `);
-        
-        markerEl.setPopup(popup);
+        // Handle marker drag
+        if (interactive && onLocationSelect && marker.current) {
+          marker.current.on('dragend', async () => {
+            if (!marker.current) return;
+            
+            const coordinates = marker.current.getLngLat();
+            const coordsArray: [number, number] = [coordinates.lng, coordinates.lat];
+            
+            try {
+              const { data, error } = await supabase.functions.invoke('reverse-geocoding', {
+                body: { longitude: coordinates.lng, latitude: coordinates.lat }
+              });
 
-        // Add click handler for navigation
-        markerEl.getElement().addEventListener('click', () => {
-          if (onLocationSelect) {
-            onLocationSelect([markerData.longitude, markerData.latitude]);
-          }
-        });
-        return markerEl;
-      });
-
-      // Fit map to markers
-      if (markersRef.current.length > 1) {
-        const bounds = new mapboxgl.LngLatBounds();
-        markers.forEach(marker => {
-          bounds.extend([marker.longitude, marker.latitude]);
-        });
-        map.current.fitBounds(bounds, { padding: 50 });
+              if (!error && data?.address) {
+                onLocationSelect(coordsArray, data.address);
+              } else {
+                onLocationSelect(coordsArray);
+              }
+            } catch (error) {
+              console.error('Erro ao buscar endereço:', error);
+              onLocationSelect(coordsArray);
+            }
+          });
+        }
       }
-    }
+
+      // Create multiple markers if provided
+      if (markers.length > 0) {
+        markersRef.current = markers.map(markerData => {
+          const markerEl = new mapboxgl.Marker({
+            color: '#EF4444'
+          })
+            .setLngLat([markerData.longitude, markerData.latitude])
+            .addTo(map.current!);
+
+          // Add popup
+          const popup = new mapboxgl.Popup({ offset: 25 })
+            .setHTML(`
+              <div class="p-2 cursor-pointer">
+                <h3 class="font-medium text-sm mb-1">${markerData.title}</h3>
+                ${markerData.description ? `<p class="text-xs text-gray-600 mb-2">${markerData.description}</p>` : ''}
+                <p class="text-xs text-blue-600 font-medium">Clique para ver detalhes →</p>
+              </div>
+            `);
+          
+          markerEl.setPopup(popup);
+
+          // Add click handler for navigation
+          markerEl.getElement().addEventListener('click', () => {
+            if (onLocationSelect) {
+              onLocationSelect([markerData.longitude, markerData.latitude]);
+            }
+          });
+          return markerEl;
+        });
+
+        // Fit map to markers
+        if (markersRef.current.length > 1) {
+          const bounds = new mapboxgl.LngLatBounds();
+          markers.forEach(marker => {
+            bounds.extend([marker.longitude, marker.latitude]);
+          });
+          map.current.fitBounds(bounds, { padding: 50 });
+        }
+      }
+    };
+
+    fetchMapboxToken();
 
     // Cleanup
     return () => {
