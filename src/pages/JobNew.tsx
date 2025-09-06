@@ -43,34 +43,9 @@ export default function JobNew() {
   const { status: kycStatus, loading: kycLoading } = useKYCStatus();
   const { categories } = useCategories();
   const { createJob } = useJobs();
-  const { calculateFeeRange, formatCurrency, getFeeDescription, loading: feeLoading } = useFeeRules();
+  const { calculateFees, calculateFeeRange, formatCurrency, getFeeDescription, loading: feeLoading } = useFeeRules();
   
-  // Verificar se o usuário pode criar trabalhos
-  if (kycLoading) {
-    return (
-      <AppLayout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  // Bloquear se KYC não estiver aprovado
-  if (kycStatus && !kycStatus.canUsePlatform) {
-    return (
-      <AppLayout showKYCBanner={false}>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <KYCBlockedMessage 
-            status={kycStatus} 
-            userRole={userRole} 
-            action="job_creation" 
-          />
-        </div>
-      </AppLayout>
-    );
-  }
-  
+  // All hooks must be called before any early returns
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -89,8 +64,33 @@ export default function JobNew() {
 
   // Calculate fees when budget changes
   const budgetAmount = parseFloat(formData.budget) || 0;
-  const { calculateFees } = useFeeRules();
   const feeCalculation = budgetAmount > 0 ? calculateFees(budgetAmount) : null;
+
+  // Verificar se o usuário pode criar trabalhos - AFTER all hooks
+  if (kycLoading) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Bloquear se KYC não estiver aprovado - AFTER all hooks
+  if (kycStatus && !kycStatus.canUsePlatform) {
+    return (
+      <AppLayout showKYCBanner={false}>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <KYCBlockedMessage 
+            status={kycStatus} 
+            userRole={userRole} 
+            action="job_creation" 
+          />
+        </div>
+      </AppLayout>
+    );
+  }
 
   const handleAddressSelect = (address: string, coords?: [number, number]) => {
     setFormData(prev => ({ ...prev, address }));
