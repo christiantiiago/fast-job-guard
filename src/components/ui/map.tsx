@@ -50,8 +50,19 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Set Mapbox access token
-    mapboxgl.accessToken = 'pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw';
+    const fetchMapboxToken = async () => {
+      try {
+        const { data } = await supabase.functions.invoke('get-mapbox-token');
+        if (data?.token) {
+          mapboxgl.accessToken = data.token;
+          initializeMap();
+        }
+      } catch (error) {
+        console.error('Failed to get Mapbox token:', error);
+      }
+    };
+
+    const initializeMap = () => {
 
     // Initialize map
     map.current = new mapboxgl.Map({

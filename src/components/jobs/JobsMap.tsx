@@ -59,8 +59,6 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         setMapboxToken(data.token);
       } catch (err) {
         console.error('Error getting Mapbox token:', err);
-        // Fallback to hardcoded token
-        setMapboxToken('pk.eyJ1IjoiY2hyaXN0aWFudGlhZ28iLCJhIjoiY21ic3NvYTRlMDZrMDJscHRtOHk2c3l6YyJ9.-hRvBI4Ie6wvbNFgtc1IHw');
       }
     };
 
