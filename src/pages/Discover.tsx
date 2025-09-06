@@ -22,7 +22,8 @@ import {
   Users,
   AlertCircle,
   Map,
-  List
+  List,
+  Info
 } from 'lucide-react';
 
 export default function Discover() {
@@ -33,6 +34,7 @@ export default function Discover() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
+    console.log('Discover: Calling fetchAllOpenJobs');
     fetchAllOpenJobs();
   }, []);
 
@@ -70,6 +72,10 @@ export default function Discover() {
     
     return matchesSearch && matchesCategory;
   });
+
+  console.log('Discover: Total jobs loaded:', jobs.length);
+  console.log('Discover: Filtered jobs:', filteredJobs.length);
+  console.log('Discover: Jobs with coordinates:', filteredJobs.filter(job => job.latitude && job.longitude).length);
 
   if (loading) {
     return (
@@ -205,6 +211,22 @@ export default function Discover() {
         {/* Content based on view mode */}
         {viewMode === 'map' ? (
           <div className="space-y-4">
+            {/* Warning about jobs without location */}
+            {filteredJobs.length > 0 && filteredJobs.filter(job => job.latitude && job.longitude).length < filteredJobs.length && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <Info className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-yellow-800">Alguns trabalhos não aparecem no mapa</h4>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      {filteredJobs.length - filteredJobs.filter(job => job.latitude && job.longitude).length} de {filteredJobs.length} trabalhos não possuem endereço definido e não aparecem no mapa. 
+                      Use a visualização em lista para ver todos os trabalhos disponíveis.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <Card className="p-0 overflow-hidden">
               <JobsMap 
                 jobs={filteredJobs.map(job => ({

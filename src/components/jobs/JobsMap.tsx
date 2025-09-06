@@ -67,6 +67,9 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
 
   // Calculate distances when position or jobs change
   useEffect(() => {
+    console.log('Jobs received in JobsMap:', jobs);
+    console.log('Jobs with coordinates:', jobs.filter(job => job.latitude && job.longitude));
+    
     if (!position || !jobs.length) {
       setJobsWithDistance(jobs);
       return;
@@ -85,6 +88,7 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
       }))
       .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
+    console.log('Jobs with distance calculated:', jobsWithDist);
     setJobsWithDistance(jobsWithDist);
   }, [position, jobs]);
 

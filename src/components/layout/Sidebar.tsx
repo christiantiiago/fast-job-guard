@@ -33,7 +33,6 @@ const clientNavigation = [
 const providerNavigation = [
   { name: 'Início', href: '/dashboard', icon: Home },
   { name: 'Descobrir Jobs', href: '/discover', icon: Search },
-  { name: 'Todos os Jobs', href: '/all-jobs', icon: Briefcase },
   { name: 'Meus Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Financeiro', href: '/provider/finance', icon: Wallet },
