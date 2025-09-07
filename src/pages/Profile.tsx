@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from 'react-router-dom';
 import { 
   User, 
   Mail, 
@@ -118,14 +119,16 @@ export default function Profile() {
               Gerencie suas informações pessoais e configurações
             </p>
           </div>
-           <Button disabled={updating}>
-             {updating ? (
-               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-             ) : (
-               <Edit className="mr-2 h-4 w-4" />
-             )}
-             Editar Perfil
-           </Button>
+           <Button asChild disabled={updating}>
+             <Link to="/profile/edit">
+              {updating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Edit className="mr-2 h-4 w-4" />
+              )}
+              Editar Perfil
+             </Link>
+            </Button>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -330,17 +333,23 @@ export default function Profile() {
                 <CardTitle>Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <User className="mr-2 h-4 w-4" />
-                  Editar informações
+                <Button variant="outline" className="w-full justify-start" size="sm" asChild>
+                  <Link to="/profile/edit">
+                    <User className="mr-2 h-4 w-4" />
+                    Editar informações
+                  </Link>
                 </Button>
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Configurar segurança
+                <Button variant="outline" className="w-full justify-start" size="sm" asChild>
+                  <Link to="/profile/edit?tab=security">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Configurar segurança
+                  </Link>
                 </Button>
-                <Button variant="outline" className="w-full justify-start" size="sm">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Baixar comprovantes
+                <Button variant="outline" className="w-full justify-start" size="sm" asChild>
+                  <Link to="/documents">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Ver documentos
+                  </Link>
                 </Button>
               </CardContent>
             </Card>

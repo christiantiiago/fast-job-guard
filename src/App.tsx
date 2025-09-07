@@ -13,6 +13,8 @@ import Index from "./pages/Index";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
+import ProfileEdit from "./pages/ProfileEdit";
+import MyDocuments from "./pages/MyDocuments";
 import NotFound from "./pages/NotFound";
 
 // Protected pages
@@ -87,6 +89,15 @@ const App = () => (
               }
             />
 
+            <Route
+              path="/documents"
+              element={
+                <ProtectedRoute>
+                  <MyDocuments />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Protected routes with KYC gate */}
             <Route
               path="/dashboard"
@@ -103,6 +114,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <ProfileEdit />
                 </ProtectedRoute>
               }
             />

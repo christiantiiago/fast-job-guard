@@ -289,53 +289,14 @@ export default function Jobs() {
             />
           </div>
           
-          <div className="flex gap-2">
-            <div className="flex border rounded-lg p-1 bg-muted/50">
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="h-8 px-3"
-              >
-                <List className="h-4 w-4 mr-1" />
-                Lista
-              </Button>
-              <Button
-                variant={viewMode === 'map' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('map')}
-                className="h-8 px-3"
-              >
-                <Map className="h-4 w-4 mr-1" />
-                Mapa
-              </Button>
-            </div>
-            
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-            </Button>
-          </div>
+          <Button variant="outline">
+            <Filter className="mr-2 h-4 w-4" />
+            Filtros
+          </Button>
         </div>
 
-        {/* Content based on view mode */}
-        {viewMode === 'map' ? (
-          <div className="space-y-4">
-            <Card className="p-0 overflow-hidden">
-              <JobsMap 
-                jobs={filteredJobs as JobMapData[]} 
-                className="h-[600px]" 
-              />
-            </Card>
-            {filteredJobs.length === 0 && (
-              <Card className="p-6 text-center">
-                <p className="text-muted-foreground">
-                  Nenhum trabalho encontrado na sua região. Ative o GPS para ver trabalhos próximos.
-                </p>
-              </Card>
-            )}
-          </div>
-        ) : userRole === 'provider' ? (
+        {/* Content */}
+        {userRole === 'provider' ? (
           /* For providers, show simple list without tabs */
           <div className="grid gap-4 md:grid-cols-2">
             {filteredJobs.map((job) => (
