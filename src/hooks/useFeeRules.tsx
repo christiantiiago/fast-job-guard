@@ -97,20 +97,40 @@ export const useFeeRules = () => {
     
     if (userRole === 'client') {
       feePercentage = isPremium ? feeRules.client_fee_premium : feeRules.client_fee_standard;
+      // For clients, add platform fee to the amount they pay
+      const platformFee = (amount * feePercentage) / 100;
+      const processingFee = amount * 0.029 + 0.39; // Stripe fee (2.9% + R$0.39)
+      const total = amount + platformFee + processingFee;
+
+      return {
+        subtotal: amount,
+        platformFee,
+        processingFee,
+        total,
+        feePercentage
+      };
     } else if (userRole === 'provider') {
       feePercentage = isPremium ? feeRules.provider_fee_premium : feeRules.provider_fee_standard;
+      // For providers, deduct platform fee from the amount they receive
+      const platformFee = (amount * feePercentage) / 100;
+      const netAmount = amount - platformFee; // Provider receives less due to platform fee
+
+      return {
+        subtotal: amount, // Original job amount
+        platformFee,
+        processingFee: 0, // Providers don't pay processing fees
+        total: netAmount, // What provider actually receives
+        feePercentage
+      };
     }
 
-    const platformFee = (amount * feePercentage) / 100;
-    const processingFee = amount * 0.029 + 0.39; // Stripe fee (2.9% + R$0.39)
-    const total = amount + platformFee + processingFee;
-
+    // Fallback for other roles
     return {
       subtotal: amount,
-      platformFee,
-      processingFee,
-      total,
-      feePercentage
+      platformFee: 0,
+      processingFee: 0,
+      total: amount,
+      feePercentage: 0
     };
   };
 
@@ -141,8 +161,12 @@ export const useFeeRules = () => {
     let feePercentage = 0;
     if (userRole === 'client') {
       feePercentage = isPremium ? feeRules.client_fee_premium : feeRules.client_fee_standard;
+      const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
+      return `Taxa da plataforma ${planType}: ${feePercentage}% (será adicionada ao valor final)`;
     } else if (userRole === 'provider') {
       feePercentage = isPremium ? feeRules.provider_fee_premium : feeRules.provider_fee_standard;
+      const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
+      return `Taxa da plataforma ${planType}: ${feePercentage}% (será descontada do valor que você recebe)`;
     }
 
     const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';

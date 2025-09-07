@@ -111,12 +111,20 @@ export default function Jobs() {
     return jobs.filter(job => job.status === status);
   };
 
-  const filteredJobs = jobs.filter(job => 
-    searchQuery === '' || 
-    job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.service_categories?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter jobs for providers - only show jobs they are actively working on
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = searchQuery === '' || 
+      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      job.service_categories?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // For providers, only show jobs they are working on (in_progress status)
+    if (userRole === 'provider') {
+      return matchesSearch && job.status === 'in_progress';
+    }
+    
+    return matchesSearch;
+  });
 
   const JobCard = ({ job }: { job: Job }) => (
     <Card className="hover:shadow-md transition-shadow">
@@ -249,12 +257,12 @@ export default function Jobs() {
         <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              {userRole === 'client' ? 'Meus Trabalhos' : 'Trabalhos Aplicados'}
+              {userRole === 'client' ? 'Meus Trabalhos' : 'Meus Trabalhos'}
             </h1>
             <p className="text-muted-foreground">
               {userRole === 'client' 
                 ? 'Gerencie todos os trabalhos que você publicou'
-                : 'Acompanhe os trabalhos que você aplicou ou está executando'
+                : 'Acompanhe os trabalhos que você está executando'
               }
             </p>
           </div>
@@ -327,8 +335,15 @@ export default function Jobs() {
               </Card>
             )}
           </div>
+        ) : userRole === 'provider' ? (
+          /* For providers, show simple list without tabs */
+          <div className="grid gap-4 md:grid-cols-2">
+            {filteredJobs.map((job) => (
+              <JobCard key={job.id} job={job} />
+            ))}
+          </div>
         ) : (
-          /* Jobs by Status */
+          /* Jobs by Status - Only for clients */
           <Tabs defaultValue="all" className="space-y-6">
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">Todos ({filteredJobs.length})</TabsTrigger>
@@ -390,7 +405,7 @@ export default function Jobs() {
             <p className="text-muted-foreground mb-4">
               {userRole === 'client' 
                 ? 'Você ainda não publicou nenhum trabalho.'
-                : 'Você ainda não aplicou para nenhum trabalho.'
+                : 'Você não tem trabalhos em andamento no momento.'
               }
             </p>
             {userRole === 'client' && (
