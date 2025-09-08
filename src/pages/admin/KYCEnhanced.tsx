@@ -736,11 +736,63 @@ const AdminKYCEnhanced = () => {
                             {/* Documento */}
                             <div className="space-y-2">
                               <h4 className="font-medium">Documento</h4>
-                              <img
-                                src={doc.file_url}
-                                alt="Documento"
-                                className="max-w-full h-auto border rounded-lg"
-                              />
+                               <div className="relative bg-gray-50 border rounded-lg p-4">
+                                 <img
+                                   src={doc.file_url}
+                                   alt="Documento KYC"
+                                   className="max-w-full h-auto max-h-[400px] mx-auto rounded shadow-sm"
+                                   onError={(e) => {
+                                     console.error('Erro ao carregar imagem:', doc.file_url);
+                                     e.currentTarget.style.display = 'none';
+                                     const errorDiv = e.currentTarget.parentElement?.querySelector('.error-fallback');
+                                     if (errorDiv) {
+                                       (errorDiv as HTMLElement).style.display = 'block';
+                                     }
+                                   }}
+                                   onLoad={() => console.log('Imagem carregada:', doc.file_url)}
+                                 />
+                                 <div className="error-fallback hidden text-center p-8 text-red-600">
+                                   <AlertTriangle className="h-16 w-16 mx-auto mb-4" />
+                                   <p className="font-medium">Erro ao carregar imagem</p>
+                                   <p className="text-sm text-muted-foreground mt-2 break-all">URL: {doc.file_url}</p>
+                                   <Button
+                                     variant="outline"
+                                     className="mt-4"
+                                     onClick={() => window.open(doc.file_url, '_blank')}
+                                   >
+                                     <Eye className="h-4 w-4 mr-2" />
+                                     Abrir em nova aba
+                                   </Button>
+                                 </div>
+                                 <div className="absolute top-2 right-2 flex gap-2">
+                                   <Button
+                                     variant="secondary"
+                                     size="sm"
+                                     onClick={() => window.open(doc.file_url, '_blank')}
+                                   >
+                                     <Eye className="h-4 w-4 mr-2" />
+                                     Abrir original
+                                   </Button>
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => runAIAnalysis(doc.id)}
+                                     disabled={analysisLoading === doc.id}
+                                   >
+                                     {analysisLoading === doc.id ? (
+                                       <>
+                                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1"></div>
+                                         Analisando...
+                                       </>
+                                     ) : (
+                                       <>
+                                         <Brain className="h-3 w-3 mr-1" />
+                                         Analisar IA
+                                       </>
+                                     )}
+                                   </Button>
+                                 </div>
+                               </div>
                             </div>
                             
                             {/* Notas existentes */}

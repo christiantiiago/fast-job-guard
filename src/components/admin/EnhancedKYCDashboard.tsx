@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useKYCManagement } from '@/hooks/useKYCManagement';
 import { useRealTimeUsers } from '@/hooks/useRealTimeUsers';
 import { useToast } from '@/hooks/use-toast';
+import { RealTimeActivityFeed } from './RealTimeActivityFeed';
 import { 
   FileText, 
   Users, 
@@ -481,6 +482,11 @@ export const EnhancedKYCDashboard = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Atividades em Tempo Real */}
+      <div className="mt-8">
+        <RealTimeActivityFeed />
+      </div>
     </div>
   );
 };
