@@ -277,17 +277,50 @@ export default function AdminActivity() {
                         )}
                       </div>
                       
-                      {/* Metadata expandável */}
-                      {log.metadata && Object.keys(log.metadata).length > 0 && (
-                        <details className="mt-2">
-                          <summary className="cursor-pointer text-xs text-primary hover:underline">
-                            Ver detalhes
-                          </summary>
-                          <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-auto max-h-32">
-                            {JSON.stringify(log.metadata, null, 2)}
-                          </pre>
-                        </details>
-                      )}
+                       {/* Detalhes expandíveis com melhor formatação */}
+                       {((log.metadata && Object.keys(log.metadata).length > 0) || log.old_values || log.new_values) && (
+                         <details className="mt-2">
+                           <summary className="cursor-pointer text-xs text-primary hover:underline flex items-center gap-1">
+                             <FileText className="h-3 w-3" />
+                             Ver detalhes da atividade
+                           </summary>
+                           <div className="mt-2 space-y-2">
+                             {log.metadata && Object.keys(log.metadata).length > 0 && (
+                               <div className="p-3 bg-blue-50 rounded border-l-4 border-blue-200">
+                                 <h5 className="text-xs font-semibold text-blue-800 mb-2">Metadados</h5>
+                                 <div className="text-xs text-blue-700">
+                                   {Object.entries(log.metadata).map(([key, value]) => (
+                                     <div key={key} className="mb-1">
+                                       <span className="font-medium">{key}:</span>{' '}
+                                       <span className="text-blue-600">
+                                         {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                       </span>
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+                             
+                             {log.old_values && (
+                               <div className="p-3 bg-red-50 rounded border-l-4 border-red-200">
+                                 <h5 className="text-xs font-semibold text-red-800 mb-2">Valores Anteriores</h5>
+                                 <pre className="text-xs text-red-700 overflow-auto max-h-24">
+                                   {JSON.stringify(log.old_values, null, 2)}
+                                 </pre>
+                               </div>
+                             )}
+                             
+                             {log.new_values && (
+                               <div className="p-3 bg-green-50 rounded border-l-4 border-green-200">
+                                 <h5 className="text-xs font-semibold text-green-800 mb-2">Novos Valores</h5>
+                                 <pre className="text-xs text-green-700 overflow-auto max-h-24">
+                                   {JSON.stringify(log.new_values, null, 2)}
+                                 </pre>
+                               </div>
+                             )}
+                           </div>
+                         </details>
+                       )}
                     </div>
                   </div>
                 ))}

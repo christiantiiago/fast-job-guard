@@ -293,13 +293,30 @@ export const EnhancedKYCDashboard = () => {
                                       Abrir arquivo
                                     </a>
                                   </div>
-                                ) : (
-                                  <img
-                                    src={doc.file_url}
-                                    alt="Documento"
-                                    className="max-w-full h-auto max-h-96 mx-auto rounded"
-                                  />
-                                )}
+                                 ) : (
+                                   <div className="relative">
+                                     <img
+                                       src={doc.file_url}
+                                       alt="Documento"
+                                       className="max-w-full h-auto max-h-96 mx-auto rounded border"
+                                       onError={(e) => {
+                                         console.error('Erro ao carregar imagem:', doc.file_url);
+                                         e.currentTarget.src = '/placeholder.svg';
+                                       }}
+                                       onLoad={() => console.log('Imagem carregada:', doc.file_url)}
+                                     />
+                                     <div className="absolute top-2 right-2">
+                                       <Button
+                                         variant="secondary"
+                                         size="sm"
+                                         onClick={() => window.open(doc.file_url, '_blank')}
+                                       >
+                                         <Eye className="h-4 w-4 mr-2" />
+                                         Abrir em nova aba
+                                       </Button>
+                                     </div>
+                                   </div>
+                                 )}
                               </div>
 
                               <div className="flex gap-2 justify-end">
