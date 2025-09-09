@@ -2166,6 +2166,31 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      search_providers_optimized: {
+        Args: {
+          p_category?: string
+          p_latitude?: number
+          p_limit?: number
+          p_longitude?: number
+          p_max_distance?: number
+          p_min_rating?: number
+        }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          distance_km: number
+          full_name: string
+          id: string
+          is_premium: boolean
+          kyc_status: Database["public"]["Enums"]["kyc_status"]
+          priority_score: number
+          rating_avg: number
+          rating_count: number
+          services: Json
+          user_id: string
+          verified_at: string
+        }[]
+      }
       spheroid_in: {
         Args: { "": unknown }
         Returns: unknown
