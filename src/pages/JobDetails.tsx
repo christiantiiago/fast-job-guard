@@ -971,9 +971,6 @@ export default function JobDetails() {
                   userRole={userRole}
                   onUpdate={() => {
                     fetchJobDetails();
-                    if (userRole === 'client') {
-                      fetchProposals();
-                    }
                   }}
                 />
 
