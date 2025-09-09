@@ -23,6 +23,7 @@ export interface KYCStatus {
   documents: KYCDocument[];
   criminalBackgroundExpiry?: string;
   kyc_status: 'incomplete' | 'pending' | 'approved' | 'rejected' | 'em_analise' | 'bloqueado' | 'suspeito';
+  verifiedAt?: string;
   progress: {
     completed: number;
     total: number;
@@ -64,10 +65,10 @@ export const useKYCStatus = () => {
         throw docsError;
       }
 
-      // Buscar informações do perfil (incluindo expiração da certidão criminal)
+      // Buscar informações do perfil (incluindo expiração da certidão criminal e data de verificação)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('criminal_background_expires_at, kyc_status')
+        .select('criminal_background_expires_at, kyc_status, verified_at')
         .eq('user_id', user.id)
         .single();
 
@@ -114,6 +115,7 @@ export const useKYCStatus = () => {
         documents: documents || [],
         criminalBackgroundExpiry: profile?.criminal_background_expires_at,
         kyc_status: profile?.kyc_status || 'incomplete',
+        verifiedAt: profile?.verified_at,
         progress: {
           completed: completedCount,
           total: totalCount,

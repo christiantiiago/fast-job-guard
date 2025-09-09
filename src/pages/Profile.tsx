@@ -162,7 +162,7 @@ export default function Profile() {
                         {kycStatus?.canUsePlatform && (
                           <VerificationBadge 
                             isVerified={true} 
-                            verifiedAt={kycStatus?.documents?.find(d => d.is_verified && d.verified_at)?.verified_at}
+                            verifiedAt={kycStatus?.verifiedAt}
                             size="md"
                           />
                         )}
