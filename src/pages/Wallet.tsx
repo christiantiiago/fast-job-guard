@@ -79,8 +79,8 @@ export default function Wallet() {
     try {
       setLoading(true);
 
-        // Fetch real payments and escrow data
-        if (userRole === 'client') {
+      // Fetch real payments and escrow data
+      if (userRole === 'client') {
           const { data: escrowPaymentsData, error: escrowError } = await supabase
             .from('escrow_payments')
             .select('*')
@@ -171,6 +171,7 @@ export default function Wallet() {
           if (payoutsError) throw payoutsError;
           setPayouts(payoutsData || []);
         }
+        
         // Update stats calculation for escrow system
         if (userRole === 'client') {
           const totalSpent = payments.reduce((sum, payment) => {
@@ -183,11 +184,11 @@ export default function Wallet() {
           }));
         } else if (userRole === 'provider') {
           const totalEarnings = payments.reduce((sum, payment) => {
-            return payment.status === 'captured' ? sum + payment.net_amount : sum;
+            return payment.status === 'released' ? sum + payment.net_amount : sum;
           }, 0);
 
           const pendingBalance = payments.reduce((sum, payment) => {
-            return payment.status === 'held' ? sum + payment.net_amount : sum;
+            return payment.status === 'pending' || payment.status === 'held' ? sum + payment.net_amount : sum;
           }, 0);
 
           const withdrawnAmount = payouts.reduce((sum, payout) => {
@@ -195,7 +196,7 @@ export default function Wallet() {
           }, 0);
 
           setStats({
-            availableBalance: totalEarnings - withdrawnAmount - pendingBalance,
+            availableBalance: totalEarnings - withdrawnAmount,
             pendingBalance,
             totalEarnings,
             totalSpent: 0
@@ -254,6 +255,7 @@ export default function Wallet() {
     const variants = {
       'pending': { color: 'bg-warning/10 text-warning border-warning/20', label: 'Pendente', icon: Clock },
       'held': { color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', label: 'Retido', icon: AlertCircle },
+      'released': { color: 'bg-success/10 text-success border-success/20', label: 'Liberado', icon: CheckCircle2 },
       'captured': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
       'paid': { color: 'bg-success/10 text-success border-success/20', label: 'Pago', icon: CheckCircle2 },
       'failed': { color: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Falhou', icon: AlertCircle }
