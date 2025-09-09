@@ -163,7 +163,7 @@ export default function Premium() {
     {
       icon: TrendingUp,
       title: 'Taxas Reduzidas',
-      description: 'Apenas 3,5% por transação (vs 4,9% padrão)'
+      description: 'Apenas 5% por transação (vs 7,5% padrão)'
     },
     {
       icon: Star,
@@ -396,11 +396,11 @@ export default function Premium() {
                   <div className="w-3 h-3 bg-muted rounded-full"></div>
                   <span className="font-medium">Plano Gratuito</span>
                 </div>
-                <div className="text-2xl font-bold mb-1">4,9%</div>
+                <div className="text-2xl font-bold mb-1">7,5%</div>
                 <p className="text-sm text-muted-foreground">Taxa por transação</p>
                 <div className="mt-3 space-y-1 text-sm">
-                  <div>Em R$ 1.000: <span className="font-medium">R$ 49,00</span></div>
-                  <div>Em R$ 5.000: <span className="font-medium">R$ 245,00</span></div>
+                  <div>Em R$ 1.000: <span className="font-medium">R$ 75,00</span></div>
+                  <div>Em R$ 5.000: <span className="font-medium">R$ 375,00</span></div>
                 </div>
               </div>
               
@@ -409,14 +409,14 @@ export default function Premium() {
                   <Crown className="w-3 h-3 text-accent" />
                   <span className="font-medium text-accent">Premium</span>
                 </div>
-                <div className="text-2xl font-bold mb-1">3,5%</div>
+                <div className="text-2xl font-bold mb-1">5%</div>
                 <p className="text-sm text-muted-foreground">Taxa por transação</p>
                 <div className="mt-3 space-y-1 text-sm">
-                  <div>Em R$ 1.000: <span className="font-medium text-green-600">R$ 35,00</span></div>
-                  <div>Em R$ 5.000: <span className="font-medium text-green-600">R$ 175,00</span></div>
+                  <div>Em R$ 1.000: <span className="font-medium text-green-600">R$ 50,00</span></div>
+                  <div>Em R$ 5.000: <span className="font-medium text-green-600">R$ 250,00</span></div>
                 </div>
                 <div className="mt-2 text-xs text-green-600 font-medium">
-                  Economia de R$ 70,00 em R$ 5.000!
+                  Economia de R$ 125,00 em R$ 5.000!
                 </div>
               </div>
             </div>

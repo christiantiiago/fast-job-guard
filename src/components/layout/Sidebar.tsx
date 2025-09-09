@@ -116,12 +116,12 @@ export const Sidebar = () => {
 
       {userRole === 'provider' && (
         <div className="space-y-2">
-          <Button asChild variant="outline" className="w-full justify-start" size="sm">
-            <NavLink to="/discover">
-              <Search className="mr-2 h-4 w-4" />
-              Procurar Jobs
-            </NavLink>
-          </Button>
+            <Button asChild variant="outline" className="w-full justify-start" size="sm">
+              <NavLink to="/providers/discover">
+                <Search className="mr-2 h-4 w-4" />
+                Procurar Jobs
+              </NavLink>
+            </Button>
         </div>
       )}
 

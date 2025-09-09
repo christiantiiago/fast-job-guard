@@ -1,6 +1,8 @@
-import { Home, Search, Briefcase, MessageCircle, User, Wallet } from "lucide-react";
+import { Home, Search, Briefcase, MessageCircle, User, Wallet, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NavLink, useLocation } from "react-router-dom";
+import { usePremiumStatus } from "@/hooks/usePremiumStatus";
+import { useAuth } from "@/hooks/useAuth";
 
 interface MobileBottomNavProps {
   userRole?: "client" | "provider" | "admin";
@@ -8,6 +10,8 @@ interface MobileBottomNavProps {
 
 const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
   const location = useLocation();
+  const { premiumStatus } = usePremiumStatus();
+  const { user } = useAuth();
   
   const clientTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
@@ -19,14 +23,22 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
 
   const providerTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
-    { id: "discover", label: "Descobrir", icon: Search, href: "/discover" },
+    { id: "discover", label: "Descobrir", icon: Search, href: "/providers/discover" },
     { id: "jobs", label: "Trabalhos", icon: Briefcase, href: "/jobs" },
     { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
     { id: "wallet", label: "Carteira", icon: Wallet, href: "/provider/finance" },
-    { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
-  const tabs = userRole === "provider" ? providerTabs : clientTabs;
+  // Show premium tab for non-premium users
+  const shouldShowPremium = !premiumStatus.is_premium && userRole !== 'admin';
+  
+  let tabs = userRole === "provider" ? providerTabs : clientTabs;
+  
+  if (shouldShowPremium) {
+    tabs = [...tabs.slice(0, 4), { id: "premium", label: "Premium", icon: Crown, href: "/premium" }];
+  } else {
+    tabs = [...tabs, { id: "profile", label: "Perfil", icon: User, href: "/profile" }];
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border/50 backdrop-blur-md lg:hidden">
@@ -53,12 +65,14 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
                 )}>
                   <IconComponent className={cn(
                     "w-5 h-5 transition-all duration-200",
-                    isActive && "scale-110"
+                    isActive && "scale-110",
+                    tab.id === 'premium' && "text-accent"
                   )} />
                 </div>
                 <span className={cn(
                   "text-xs font-medium transition-all duration-200",
-                  isActive && "font-semibold"
+                  isActive && "font-semibold",
+                  tab.id === 'premium' && "text-accent"
                 )}>
                   {tab.label}
                 </span>

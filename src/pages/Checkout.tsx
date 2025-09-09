@@ -172,7 +172,7 @@ export default function Checkout() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl min-h-screen overflow-y-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Checkout</h1>
           <p className="text-muted-foreground">Confirme os detalhes e escolha a forma de pagamento</p>

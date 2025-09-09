@@ -24,6 +24,7 @@ import Jobs from "./pages/Jobs";
 import JobNew from "./pages/JobNew";
 import JobDetails from "./pages/JobDetails";
 import Discover from "./pages/Discover";
+import ProvidersDiscover from "./pages/ProvidersDiscover";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
@@ -147,6 +148,16 @@ const App = () => (
                 <ProtectedRoute>
                   <KYCGate>
                     <Discover />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/providers/discover"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <ProvidersDiscover />
                   </KYCGate>
                 </ProtectedRoute>
               }

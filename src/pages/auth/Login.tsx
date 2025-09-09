@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Briefcase, Eye, EyeOff, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -18,8 +19,18 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  // Carregar email salvo ao montar componente
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberedEmail');
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +46,13 @@ export default function Login() {
           description: error.message
         });
       } else {
+        // Salvar credenciais se "Manter conectado" estiver marcado
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
+        
         toast.success('Login realizado com sucesso!');
         navigate(from);
       }
@@ -116,6 +134,19 @@ export default function Login() {
                     )}
                   </Button>
                 </div>
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="remember" 
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                />
+                <Label 
+                  htmlFor="remember" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Manter conectado
+                </Label>
               </div>
             </CardContent>
 
