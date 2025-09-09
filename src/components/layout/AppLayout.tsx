@@ -29,7 +29,7 @@ export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayo
 
       {/* Mobile Header */}
       <div className="lg:hidden">
-        <MobileHeader />
+        <MobileHeader showMenu={true} title="ShipFy" />
       </div>
 
       {/* Main content */}
