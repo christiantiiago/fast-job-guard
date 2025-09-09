@@ -77,7 +77,7 @@ export const useJobs = () => {
 
       // Filter by user role
       if (userRole === 'client') {
-        query = query.eq('client_id', user?.id);
+        query = query.eq('client_id', user?.id).neq('status', 'cancelled');
       } else if (userRole === 'provider') {
         // For providers, show jobs they can apply to (open jobs) or jobs they're working on
         query = query.or(`status.eq.open,provider_id.eq.${user?.id}`);
@@ -263,23 +263,50 @@ export const useJobs = () => {
     try {
       console.log('🚀 deleteJob chamado para:', jobId);
       console.log('🔍 Usuário logado:', user?.id);
+      console.log('👤 User role:', userRole);
       
-      const { error } = await supabase
+      // Primeiro, vamos buscar o job para ver se o usuário é o dono
+      const { data: jobData, error: jobFetchError } = await supabase
+        .from('jobs')
+        .select('id, client_id, provider_id, status, title')
+        .eq('id', jobId)
+        .single();
+        
+      if (jobFetchError) {
+        console.error('❌ Erro ao buscar job:', jobFetchError);
+        throw new Error(`Erro ao buscar trabalho: ${jobFetchError.message}`);
+      }
+      
+      console.log('📄 Dados do job:', jobData);
+      console.log('🔐 User é cliente?', jobData.client_id === user?.id);
+      console.log('🔐 User é prestador?', jobData.provider_id === user?.id);
+      
+      const { error, data } = await supabase
         .from('jobs')
         .update({ 
           status: 'cancelled',
           updated_at: new Date().toISOString()
         })
-        .eq('id', jobId);
+        .eq('id', jobId)
+        .select();
 
-      console.log('📊 Resultado da query:', { error });
+      console.log('📊 Resultado da query:', { error, data });
 
       if (error) {
-        console.error('❌ Erro na query:', error);
+        console.error('❌ Erro na query UPDATE:', error);
+        if (error.code === '42501') {
+          throw new Error('Você não tem permissão para excluir este trabalho. Apenas o cliente que criou o trabalho pode excluí-lo.');
+        }
         throw error;
       }
       
-      console.log('✅ Job atualizado com sucesso');
+      console.log('✅ Job atualizado com sucesso, dados retornados:', data);
+      
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Nenhum registro foi atualizado');
+        throw new Error('Nenhum trabalho foi encontrado ou atualizado');
+      }
+      
       // Refresh jobs list
       fetchJobs();
     } catch (err) {
