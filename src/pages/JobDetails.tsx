@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2, Edit3, Send } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2, Edit3, Send, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,19 @@ import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
 import { EscrowManager } from '@/components/escrow/EscrowManager';
 import { useProposalCooldown } from '@/hooks/useProposalCooldown';
 import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
+import { useJobProposalManager } from '@/hooks/useJobProposalManager';
+import { ActiveProposalsPanel } from '@/components/proposals/ActiveProposalsPanel';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface JobProfile {
   full_name?: string;
@@ -95,6 +108,7 @@ export default function JobDetails() {
   const { calculateFees, formatCurrency, getFeeDescription, isPremiumUser } = useFeeRules();
   const { canPropose, cooldownEnd, getCooldownTimeRemaining, recordRejection } = useProposalCooldown(id || '');
   const { sendNotification } = useRealTimeNotifications();
+  const { canProposeToJob, withdrawProposal, rejectProposal, cancelJob, activeLocks } = useJobProposalManager();
   
   const [job, setJob] = useState<JobData | null>(null);
   const [clientProfile, setClientProfile] = useState<JobProfile | null>(null);
@@ -269,14 +283,29 @@ export default function JobDetails() {
   const handleDirectAccept = async () => {
     if (!job || !user) return;
 
+    // Verificar se pode fazer proposta
+    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+    if (!canProposeToThisJob && reason) {
+      toast({
+        title: "Não é possível aceitar",
+        description: reason,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmittingProposal(true);
+
+      // Calcular o valor exato com taxas
+      const jobAmount = job.budget_max || job.budget_min || 0;
+      const fees = calculateFees(jobAmount);
 
       const proposalData = {
         job_id: job.id,
         provider_id: user.id,
-        price: job.budget_max || job.budget_min || 0,
-        message: `Aceito realizar este trabalho pelo valor proposto de ${formatCurrency(job.budget_max || job.budget_min || 0)}.`,
+        price: jobAmount,
+        message: `Aceito realizar este trabalho pelo valor proposto de ${formatCurrency(jobAmount)}.`,
         proposal_type: 'direct_accept',
         auto_accepted: false,
         status: 'sent' as const
@@ -288,15 +317,18 @@ export default function JobDetails() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error(`Erro no banco de dados: ${error.message}`);
+      }
 
       // Enviar notificação para o cliente
       await sendNotification(
         job.client_id,
         'job_proposal',
         'Nova Aceitação Direta!',
-        `${user.email} aceitou seu trabalho "${job.title}" pelo valor de ${formatCurrency(job.budget_max || job.budget_min || 0)}. Clique para avaliar.`,
-        { jobId: job.id, proposalId: proposalResult.id, type: 'direct_accept' },
+        `${user.email} aceitou seu trabalho "${job.title}" pelo valor de ${formatCurrency(jobAmount)}. Clique para avaliar.`,
+        { jobId: job.id, proposalId: proposalResult.id, type: 'direct_accept', amount: jobAmount },
         3
       );
 
@@ -305,11 +337,17 @@ export default function JobDetails() {
         description: "O cliente foi notificado e pode aprovar sua participação.",
       });
 
-    } catch (error) {
+      // Atualizar locks locais
+      setTimeout(() => {
+        // Refresh para atualizar o estado
+        window.location.reload();
+      }, 1000);
+
+    } catch (error: any) {
       console.error('Error submitting direct accept:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível enviar a aceitação.",
+        description: error.message || "Não foi possível enviar a aceitação.",
         variant: "destructive",
       });
     } finally {
@@ -340,13 +378,25 @@ export default function JobDetails() {
       return;
     }
 
+    // Verificar se pode fazer proposta
+    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+    if (!canProposeToThisJob && reason) {
+      toast({
+        title: "Não é possível fazer proposta",
+        description: reason,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmittingProposal(true);
 
+      const price = parseFloat(proposalPrice);
       const proposalData = {
         job_id: job.id,
         provider_id: user.id,
-        price: parseFloat(proposalPrice),
+        price: price,
         message: proposalMessage,
         estimated_hours: estimatedHours ? parseInt(estimatedHours) : null,
         delivery_date: deliveryDate ? new Date(deliveryDate).toISOString() : null,
@@ -359,15 +409,18 @@ export default function JobDetails() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw new Error(`Erro no banco de dados: ${error.message}`);
+      }
 
       // Enviar notificação para o cliente
       await sendNotification(
         job.client_id,
         'job_proposal',
         'Nova Proposta Recebida!',
-        `${user.email} enviou uma proposta para "${job.title}" por ${formatCurrency(parseFloat(proposalPrice))}.`,
-        { jobId: job.id, proposalId: proposalResult.id, type: 'custom' },
+        `${user.email} enviou uma proposta para "${job.title}" por ${formatCurrency(price)}.`,
+        { jobId: job.id, proposalId: proposalResult.id, type: 'custom', amount: price },
         2
       );
 
@@ -381,16 +434,18 @@ export default function JobDetails() {
       setProposalMessage('');
       setEstimatedHours('');
       setDeliveryDate('');
+      setShowProposalForm(false);
 
-      // Refresh proposals if client
-      if (userRole === 'client') {
-        fetchProposals();
-      }
-    } catch (error) {
+      // Refresh para atualizar o estado
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+    } catch (error: any) {
       console.error('Error in handleSubmitProposal:', error);
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro ao enviar a proposta.",
+        description: error.message || "Ocorreu um erro ao enviar a proposta.",
         variant: "destructive",
       });
     } finally {
@@ -638,7 +693,7 @@ export default function JobDetails() {
             )}
 
             {/* Provider Proposal Form */}
-            {userRole === 'provider' && job.status === 'open' && (
+            {userRole === 'provider' && job.status === 'open' && showProposalForm && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -694,13 +749,21 @@ export default function JobDetails() {
                     />
                   </div>
 
-                  <Button 
-                    onClick={handleSubmitProposal} 
-                    disabled={submittingProposal}
-                    className="w-full"
-                  >
-                    {submittingProposal ? 'Enviando...' : 'Enviar Proposta'}
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={handleSubmitProposal} 
+                      disabled={submittingProposal}
+                      className="flex-1"
+                    >
+                      {submittingProposal ? 'Enviando...' : 'Enviar Proposta'}
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setShowProposalForm(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -872,13 +935,139 @@ export default function JobDetails() {
 
           {/* Sidebar */}
           <div className="xl:col-span-1 space-y-6">
+            {/* Active Proposals Panel for Providers */}
+            {userRole === 'provider' && (
+              <ActiveProposalsPanel />
+            )}
+
             {/* Enhanced Job Actions for Providers - Sidebar */}
             {userRole === 'provider' && job.status === 'open' && (
-              <EnhancedJobActions 
-                job={job} 
-                userRole={userRole} 
-                onUpdate={fetchJobDetails}
-              />
+              <div className="space-y-4">
+                {/* Direct Accept Button */}
+                {job.budget_max && (
+                  <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-green-800">
+                        <Handshake className="h-5 w-5" />
+                        Aceitação Direta
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-700 mb-1">
+                          {formatCurrency(job.budget_max)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Valor proposto pelo cliente
+                        </p>
+                      </div>
+
+                      {/* Check if can propose */}
+                      {(() => {
+                        const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+                        return !canProposeToThisJob ? (
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-sm text-amber-700">{reason}</p>
+                          </div>
+                        ) : (
+                          <Button 
+                            onClick={handleDirectAccept}
+                            disabled={submittingProposal}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            size="lg"
+                          >
+                            {submittingProposal ? 'Enviando...' : 'Aceitar Trabalho'}
+                          </Button>
+                        );
+                      })()}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Custom Proposal Button */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2">
+                      <Edit3 className="h-5 w-5" />
+                      Proposta Personalizada
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+                      return !canProposeToThisJob ? (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-sm text-amber-700">{reason}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Envie uma proposta com seu preço e condições
+                          </p>
+                          <Button 
+                            onClick={() => setShowProposalForm(!showProposalForm)}
+                            variant="outline" 
+                            className="w-full"
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            {showProposalForm ? 'Ocultar Formulário' : 'Fazer Proposta'}
+                          </Button>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Client Actions */}
+            {userRole === 'client' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Ações do Cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {job.status === 'open' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          <X className="h-4 w-4 mr-2" />
+                          Cancelar Trabalho
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar Trabalho</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja cancelar este trabalho? 
+                            Todos os prestadores interessados serão notificados.
+                            Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Manter Trabalho</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => cancelJob(job.id, 'Cancelado pelo cliente')}>
+                            Sim, Cancelar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate(`/jobs/${job.id}/edit`)}
+                    disabled={job.status !== 'open'}
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Editar Trabalho
+                  </Button>
+                </CardContent>
+              </Card>
             )}
             
             {/* Client Info - Enhanced */}

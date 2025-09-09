@@ -80,7 +80,7 @@ export const useFeeRules = () => {
     }
   };
 
-  // Calculate fees based on amount
+  // Calculate fees based on amount with exact precision
   const calculateFees = (amount: number, forceStandard: boolean = false): FeeCalculation => {
     if (!feeRules || !amount) {
       return {
@@ -98,9 +98,9 @@ export const useFeeRules = () => {
     if (userRole === 'client') {
       feePercentage = isPremium ? feeRules.client_fee_premium : feeRules.client_fee_standard;
       // For clients, add platform fee to the amount they pay
-      const platformFee = (amount * feePercentage) / 100;
-      const processingFee = amount * 0.029 + 0.39; // Stripe fee (2.9% + R$0.39)
-      const total = amount + platformFee + processingFee;
+      const platformFee = Math.round((amount * feePercentage) / 100 * 100) / 100; // Round to 2 decimals
+      const processingFee = Math.round((amount * 0.029 + 0.39) * 100) / 100; // Stripe fee (2.9% + R$0.39)
+      const total = Math.round((amount + platformFee + processingFee) * 100) / 100;
 
       return {
         subtotal: amount,
@@ -112,8 +112,8 @@ export const useFeeRules = () => {
     } else if (userRole === 'provider') {
       feePercentage = isPremium ? feeRules.provider_fee_premium : feeRules.provider_fee_standard;
       // For providers, deduct platform fee from the amount they receive
-      const platformFee = (amount * feePercentage) / 100;
-      const netAmount = amount - platformFee; // Provider receives less due to platform fee
+      const platformFee = Math.round((amount * feePercentage) / 100 * 100) / 100;
+      const netAmount = Math.round((amount - platformFee) * 100) / 100; // Provider receives less due to platform fee
 
       return {
         subtotal: amount, // Original job amount
