@@ -87,8 +87,22 @@ export const ImprovedDocumentsPage = () => {
   );
 
   const requiredDocsCount = filteredDocuments.filter(doc => doc.required).length;
-  const approvedDocsCount = status?.completedDocs?.length || 0;
+  
+  // Calculate approved docs from KYC status for more accurate count
+  const approvedDocsCount = filteredDocuments.filter(doc => {
+    const docStatus = getDocumentStatus(doc.type);
+    return docStatus.status === 'approved';
+  }).length;
+  
   const progressPercentage = requiredDocsCount > 0 ? (approvedDocsCount / requiredDocsCount) * 100 : 0;
+
+  console.log('Documents progress:', { 
+    userRole, 
+    requiredDocsCount, 
+    approvedDocsCount, 
+    progressPercentage,
+    filteredDocsCount: filteredDocuments.length 
+  });
 
   useEffect(() => {
     fetchDocuments();
@@ -211,8 +225,16 @@ export const ImprovedDocumentsPage = () => {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">Verificação de Documentos</h1>
           <p className="text-muted-foreground">
-            Complete sua verificação enviando os documentos necessários
+            {userRole === 'provider' 
+              ? 'Complete sua verificação enviando os documentos necessários para prestadores'
+              : 'Complete sua verificação enviando os documentos necessários'
+            }
           </p>
+          {userRole === 'provider' && (
+            <p className="text-sm text-amber-600">
+              ⚠️ Prestadores precisam enviar certidão de antecedentes criminais
+            </p>
+          )}
         </div>
 
         {/* Progress Card */}

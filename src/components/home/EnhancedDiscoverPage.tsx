@@ -76,11 +76,25 @@ export default function EnhancedDiscoverPage() {
   useEffect(() => {
     const getMapboxToken = async () => {
       try {
+        console.log('Fetching Mapbox token...');
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        if (error) throw error;
-        setMapboxToken(data.token);
+        console.log('Mapbox token response:', data, error);
+        
+        if (error) {
+          console.error('Error from Mapbox function:', error);
+          throw error;
+        }
+        
+        if (data?.token) {
+          console.log('Mapbox token retrieved successfully');
+          setMapboxToken(data.token);
+        } else {
+          console.error('No token in response:', data);
+        }
       } catch (err) {
         console.error('Error getting Mapbox token:', err);
+        // Show user-friendly error
+        setMapboxToken('error');
       }
     };
     getMapboxToken();
@@ -138,10 +152,21 @@ export default function EnhancedDiscoverPage() {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || !position || viewMode !== 'map') return;
+    if (!mapContainer.current || !position || viewMode !== 'map') return;
+
+    if (mapboxToken === 'error') {
+      console.error('Cannot initialize map: Mapbox token error');
+      return;
+    }
+
+    if (!mapboxToken) {
+      console.log('Waiting for Mapbox token...');
+      return;
+    }
 
     if (map.current) return; // Map already initialized
 
+    console.log('Initializing map with token:', mapboxToken.substring(0, 10) + '...');
     mapboxgl.accessToken = mapboxToken;
     
     map.current = new mapboxgl.Map({
@@ -516,7 +541,30 @@ export default function EnhancedDiscoverPage() {
         <div className="flex-1 relative">
           {viewMode === 'map' ? (
             <div className="h-full relative">
-              <div ref={mapContainer} className="absolute inset-0" />
+              {mapboxToken === 'error' ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <div className="text-center space-y-2">
+                    <AlertTriangle className="w-8 h-8 text-destructive mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Erro ao carregar o mapa
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Configure a chave da API do Mapbox
+                    </p>
+                  </div>
+                </div>
+              ) : !mapboxToken ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Carregando mapa...
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div ref={mapContainer} className="absolute inset-0" />
+              )}
               
               {/* Route details overlay */}
               {selectedJob && showRouteDetails && (
