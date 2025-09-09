@@ -94,6 +94,15 @@ export const ImprovedDocumentsPage = () => {
     !doc.providerOnly || userRole === 'provider'
   );
 
+  const getDocumentStatus = (docType: string) => {
+    const doc = documents.find(d => d.document_type === docType);
+    if (!doc) return { status: 'missing', doc: null };
+    
+    if (doc.is_verified) return { status: 'approved', doc };
+    if (doc.notes && !doc.is_verified) return { status: 'rejected', doc };
+    return { status: 'pending', doc };
+  };
+
   const requiredDocsCount = filteredDocuments.filter(doc => doc.required).length;
   
   // Calculate approved docs from KYC status for more accurate count
@@ -191,14 +200,6 @@ export const ImprovedDocumentsPage = () => {
     }
   };
 
-  const getDocumentStatus = (docType: string) => {
-    const doc = documents.find(d => d.document_type === docType);
-    if (!doc) return { status: 'missing', doc: null };
-    
-    if (doc.is_verified) return { status: 'approved', doc };
-    if (doc.notes && !doc.is_verified) return { status: 'rejected', doc };
-    return { status: 'pending', doc };
-  };
 
   const getStatusBadge = (status: string, doc: any) => {
     switch (status) {
