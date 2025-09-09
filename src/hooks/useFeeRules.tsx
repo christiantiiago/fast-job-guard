@@ -161,15 +161,15 @@ export const useFeeRules = () => {
     let feePercentage = 0;
     if (userRole === 'client') {
       feePercentage = isPremium ? feeRules.client_fee_premium : feeRules.client_fee_standard;
-      const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
+      const planType = isPremium ? 'Premium (5%)' : 'Padrão (7,5%)';
       return `Taxa da plataforma ${planType}: ${feePercentage}% (será adicionada ao valor final)`;
     } else if (userRole === 'provider') {
       feePercentage = isPremium ? feeRules.provider_fee_premium : feeRules.provider_fee_standard;
-      const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
+      const planType = isPremium ? 'Premium (5%)' : 'Padrão (7,5%)';
       return `Taxa da plataforma ${planType}: ${feePercentage}% (será descontada do valor que você recebe)`;
     }
 
-    const planType = isPremium ? 'Premium (3,5%)' : 'Padrão (5%)';
+    const planType = isPremium ? 'Premium (5%)' : 'Padrão (7,5%)';
     return `Taxa da plataforma ${planType}: ${feePercentage}%`;
   };
 

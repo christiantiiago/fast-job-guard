@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MapPin, Navigation, Layers, AlertTriangle, Loader2 } from 'lucide-react';
+import { MapPin, Navigation, Layers, AlertTriangle, Loader2, Eye, Clock, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
 import { supabase } from '@/integrations/supabase/client';
+import { useJobs } from '@/hooks/useJobs';
 
 interface JobMapData {
   id: string;
@@ -30,14 +31,17 @@ interface JobMapData {
     state?: string;
   };
   distance?: number;
+  routeDistance?: number;
+  routeDuration?: number;
 }
 
 interface JobsMapProps {
-  jobs: JobMapData[];
+  jobs?: JobMapData[];
   className?: string;
 }
 
-const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
+const JobsMap = ({ jobs: propJobs, className = '' }: JobsMapProps) => {
+  const { jobs: hookJobs, loading: jobsLoading, fetchAllPublicJobs } = useJobs();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -47,8 +51,20 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
   const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/light-v11');
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [jobsWithDistance, setJobsWithDistance] = useState<JobMapData[]>([]);
+  const [showRouteDetails, setShowRouteDetails] = useState(false);
+  const routeLayerId = 'route';
   
   const { position, error: geoError, loading: geoLoading } = useGeolocation();
+  
+  // Use either provided jobs or fetch all jobs
+  const jobs = propJobs || hookJobs;
+
+  // Fetch jobs if none provided
+  useEffect(() => {
+    if (!propJobs) {
+      fetchAllPublicJobs();
+    }
+  }, [propJobs]);
 
   // Get Mapbox token from Supabase
   useEffect(() => {
@@ -71,12 +87,12 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
     console.log('Jobs with coordinates:', jobs.filter(job => job.latitude && job.longitude));
     
     if (!position || !jobs.length) {
-      setJobsWithDistance(jobs);
+      setJobsWithDistance(jobs.filter(job => job.status === 'open'));
       return;
     }
 
     const jobsWithDist = jobs
-      .filter(job => job.latitude && job.longitude)
+      .filter(job => job.status === 'open' && job.latitude && job.longitude)
       .map(job => ({
         ...job,
         distance: calculateDistance(
@@ -197,38 +213,51 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         // Create custom marker element
         const markerEl = document.createElement('div');
         markerEl.className = 'job-marker';
-        markerEl.style.cssText = `
-          width: 42px;
-          height: 42px;
-          border-radius: 50%;
-          background: ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
-          border: 3px solid white;
-          cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 600;
-          font-size: 10px;
-          transition: all 0.2s ease;
-          z-index: ${1000 - index};
-        `;
         
-        // Add distance indicator
-        if (job.distance !== undefined) {
-          const distance = formatDistance(job.distance);
-          markerEl.textContent = distance;
-          if (distance.length > 4) {
-            markerEl.style.fontSize = '8px';
-          }
-        } else {
-          markerEl.innerHTML = '<div style="width: 10px; height: 10px; background: white; border-radius: 50%;"></div>';
-        }
+        const price = formatCurrency(job.budget_min, job.budget_max, job.final_price);
+        const distance = job.distance ? formatDistance(job.distance) : '';
+        
+        markerEl.innerHTML = `
+          <div style="
+            background: white;
+            border-radius: 12px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 2px solid ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            min-width: 80px;
+            text-align: center;
+            z-index: ${1000 - index};
+          ">
+            <div style="
+              font-size: 12px;
+              font-weight: 600;
+              color: ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
+              margin-bottom: 2px;
+            ">${price}</div>
+            <div style="
+              font-size: 10px;
+              color: #6b7280;
+            ">${distance}</div>
+            <div style="
+              position: absolute;
+              bottom: -6px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 6px solid ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
+            "></div>
+          </div>
+        `;
 
         // Enhanced hover effects
         const handleMouseEnter = () => {
-          markerEl.style.transform = 'scale(1.3)';
+          markerEl.style.transform = 'scale(1.1)';
           markerEl.style.zIndex = '10000';
           markerEl.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
         };
@@ -236,12 +265,13 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         const handleMouseLeave = () => {
           markerEl.style.transform = 'scale(1)';
           markerEl.style.zIndex = `${1000 - index}`;
-          markerEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+          markerEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
         };
 
         const handleClick = (e: Event) => {
           e.stopPropagation();
           setSelectedJob(job);
+          calculateRoute(job);
           
           // Smooth fly to job location
           map.current?.flyTo({
@@ -256,23 +286,9 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
         markerEl.addEventListener('mouseleave', handleMouseLeave);
         markerEl.addEventListener('click', handleClick);
 
-        // Create marker with popup
-        const popup = new mapboxgl.Popup({
-          offset: 25,
-          closeButton: false,
-          className: 'job-popup'
-        }).setHTML(`
-          <div class="p-3 min-w-[200px]">
-            <h4 class="font-semibold text-sm mb-1 line-clamp-2">${job.title}</h4>
-            <p class="text-xs text-gray-600 mb-2 line-clamp-1">${job.service_categories?.name || 'Serviço'}</p>
-            <p class="text-xs font-medium text-blue-600">${formatCurrency(job.budget_min, job.budget_max, job.final_price)}</p>
-            ${job.distance ? `<p class="text-xs text-gray-500 mt-1">${formatDistance(job.distance)} de distância</p>` : ''}
-          </div>
-        `);
-
+        // Create marker
         const marker = new mapboxgl.Marker(markerEl)
           .setLngLat([job.longitude, job.latitude])
-          .setPopup(popup)
           .addTo(map.current!);
 
         // Store cleanup functions
@@ -336,6 +352,85 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
       markersRef.current = [];
     };
   }, [jobsWithDistance, position, selectedJob]);
+
+  const calculateRoute = async (job: JobMapData) => {
+    if (!position || !job.latitude || !job.longitude || !mapboxToken) return;
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${position.longitude},${position.latitude};${job.longitude},${job.latitude}?geometries=geojson&access_token=${mapboxToken}`
+      );
+      
+      const data = await response.json();
+      
+      if (data.routes && data.routes[0]) {
+        const route = data.routes[0];
+        const distance = route.distance;
+        const duration = route.duration;
+        
+        setSelectedJob(prev => prev ? {
+          ...prev,
+          routeDistance: distance,
+          routeDuration: duration
+        } : null);
+        
+        // Add route to map
+        if (map.current) {
+          // Remove existing route
+          if (map.current.getLayer(routeLayerId)) {
+            map.current.removeLayer(routeLayerId);
+            map.current.removeSource(routeLayerId);
+          }
+          
+          // Add new route
+          map.current.addSource(routeLayerId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: route.geometry
+            }
+          });
+          
+          map.current.addLayer({
+            id: routeLayerId,
+            type: 'line',
+            source: routeLayerId,
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round'
+            },
+            paint: {
+              'line-color': '#ef4444',
+              'line-width': 4,
+              'line-opacity': 0.8
+            }
+          });
+        }
+        
+        setShowRouteDetails(true);
+      }
+    } catch (error) {
+      console.error('Error calculating route:', error);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}min`;
+  };
+
+  const formatRouteDistance = (meters: number) => {
+    if (meters < 1000) {
+      return `${Math.round(meters)} m`;
+    }
+    return `${(meters / 1000).toFixed(1)} km`;
+  };
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
@@ -528,45 +623,49 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
                     {formatAddress(selectedJob.addresses)}
                   </span>
                 </div>
-                {selectedJob.distance !== undefined && (
+                
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-semibold text-primary">
+                    {formatCurrency(selectedJob.budget_min, selectedJob.budget_max, selectedJob.final_price)}
+                  </span>
+                </div>
+                
+                {selectedJob.distance && (
                   <div className="flex items-center gap-2">
-                    <Navigation className="w-4 h-4 text-blue-500" />
-                    <span className="text-blue-600 font-medium">
+                    <Navigation className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">
                       {formatDistance(selectedJob.distance)} de distância
                     </span>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-primary">
-                    {formatCurrency(
-                      selectedJob.budget_min, 
-                      selectedJob.budget_max, 
-                      selectedJob.final_price
-                    )}
-                  </span>
-                </div>
+                
+                {showRouteDetails && selectedJob.routeDistance && selectedJob.routeDuration && (
+                  <div className="border-t pt-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <span className="text-blue-600 font-medium">
+                        {formatDuration(selectedJob.routeDuration)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Navigation className="w-4 h-4 text-blue-500" />
+                      <span className="text-blue-600 font-medium">
+                        {formatRouteDistance(selectedJob.routeDistance)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-
+              
               <div className="flex gap-2 pt-2">
                 <Button 
                   size="sm" 
                   className="flex-1"
                   onClick={() => navigate(`/jobs/${selectedJob.id}`)}
                 >
+                  <Eye className="w-4 h-4 mr-2" />
                   Ver Detalhes
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    map.current?.flyTo({
-                      center: [selectedJob.longitude!, selectedJob.latitude!],
-                      zoom: 17,
-                      duration: 1000
-                    });
-                  }}
-                >
-                  <Navigation className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -575,46 +674,19 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
       )}
 
       {/* Map Container */}
-      <div ref={mapContainer} className="w-full h-full min-h-[400px] rounded-lg" />
-
-      {/* Jobs Counter */}
-      <div className="absolute top-4 right-4 z-10">
-        <Card className="p-3">
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4" />
-            <span className="font-medium">
-              {jobsWithDistance.length} trabalhos próximos
-            </span>
+      <div ref={mapContainer} className="w-full h-full rounded-lg" />
+      
+      {/* Loading/Error States */}
+      {(jobsLoading) && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-20">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Carregando trabalhos...
+            </p>
           </div>
-          {jobsWithDistance.length > 0 && (
-            <div className="text-xs text-muted-foreground mt-1">
-              Mais próximo: {formatDistance(jobsWithDistance[0]?.distance || 0)}
-            </div>
-          )}
-        </Card>
-      </div>
-
-      <style>{`
-        .job-marker:hover {
-          transform: scale(1.3) !important;
-          z-index: 10000 !important;
-        }
-        
-        .job-popup .mapboxgl-popup-content {
-          padding: 0;
-          border-radius: 8px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        
-        .job-popup .mapboxgl-popup-tip {
-          border-top-color: white;
-        }
-        
-        .mapboxgl-ctrl-group {
-          border-radius: 8px;
-          overflow: hidden;
-        }
-      `}</style>
+        </div>
+      )}
     </div>
   );
 };
