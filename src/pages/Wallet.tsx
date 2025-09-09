@@ -79,74 +79,128 @@ export default function Wallet() {
     try {
       setLoading(true);
 
-      // Fetch payments
-      if (userRole === 'client') {
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
-          .select(`
-            *,
-            jobs!inner(title)
-          `)
-          .eq('client_id', user.id)
-          .order('created_at', { ascending: false });
+        // Fetch real payments and escrow data
+        if (userRole === 'client') {
+          const { data: escrowPaymentsData, error: escrowError } = await supabase
+            .from('escrow_payments')
+            .select('*')
+            .eq('client_id', user.id)
+            .order('created_at', { ascending: false });
 
-        if (paymentsError) throw paymentsError;
-        setPayments(paymentsData || []);
+          if (escrowError) throw escrowError;
 
-        // Calculate client stats
-        const totalSpent = paymentsData?.reduce((sum, payment) => {
-          return payment.status === 'captured' ? sum + payment.amount : sum;
-        }, 0) || 0;
+          // Get job titles separately
+          const jobIds = escrowPaymentsData?.map(p => p.job_id).filter(Boolean) || [];
+          let jobTitles: Record<string, string> = {};
+          
+          if (jobIds.length > 0) {
+            const { data: jobsData } = await supabase
+              .from('jobs')
+              .select('id, title')
+              .in('id', jobIds);
+            
+            jobTitles = (jobsData || []).reduce((acc, job) => {
+              acc[job.id] = job.title;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+          
+          // Transform escrow payments to match Payment interface
+          const transformedPayments = escrowPaymentsData?.map(payment => ({
+            id: payment.id,
+            amount: payment.total_amount,
+            platform_fee: payment.platform_fee,
+            net_amount: payment.amount,
+            status: payment.status === 'released' ? 'captured' : payment.status,
+            created_at: payment.created_at,
+            job_id: payment.job_id,
+            jobs: {
+              title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
+            }
+          })) || [];
+          
+          setPayments(transformedPayments);
 
-        setStats(prev => ({
-          ...prev,
-          totalSpent
-        }));
-      }
+        } else if (userRole === 'provider') {
+          const { data: escrowPaymentsData, error: escrowError } = await supabase
+            .from('escrow_payments')
+            .select('*')
+            .eq('provider_id', user.id)
+            .order('created_at', { ascending: false });
 
-      // Fetch provider data
-      if (userRole === 'provider') {
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
-          .select(`
-            *,
-            jobs!inner(title)
-          `)
-          .eq('provider_id', user.id)
-          .order('created_at', { ascending: false });
+          if (escrowError) throw escrowError;
 
-        if (paymentsError) throw paymentsError;
-        setPayments(paymentsData || []);
+          // Get job titles separately
+          const jobIds = escrowPaymentsData?.map(p => p.job_id).filter(Boolean) || [];
+          let jobTitles: Record<string, string> = {};
+          
+          if (jobIds.length > 0) {
+            const { data: jobsData } = await supabase
+              .from('jobs')
+              .select('id, title')
+              .in('id', jobIds);
+            
+            jobTitles = (jobsData || []).reduce((acc, job) => {
+              acc[job.id] = job.title;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+          
+          // Transform escrow payments to match Payment interface for provider
+          const transformedPayments = escrowPaymentsData?.map(payment => ({
+            id: payment.id,
+            amount: payment.amount, // Provider gets the amount minus platform fee
+            platform_fee: payment.platform_fee,
+            net_amount: payment.amount,
+            status: payment.status === 'released' ? 'captured' : payment.status,
+            created_at: payment.created_at,
+            job_id: payment.job_id,
+            jobs: {
+              title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
+            }
+          })) || [];
+          
+          setPayments(transformedPayments);
 
-        const { data: payoutsData, error: payoutsError } = await supabase
-          .from('payouts')
-          .select('*')
-          .eq('provider_id', user.id)
-          .order('created_at', { ascending: false });
+          const { data: payoutsData, error: payoutsError } = await supabase
+            .from('payouts')
+            .select('*')
+            .eq('provider_id', user.id)
+            .order('created_at', { ascending: false });
 
-        if (payoutsError) throw payoutsError;
-        setPayouts(payoutsData || []);
+          if (payoutsError) throw payoutsError;
+          setPayouts(payoutsData || []);
+        }
+        // Update stats calculation for escrow system
+        if (userRole === 'client') {
+          const totalSpent = payments.reduce((sum, payment) => {
+            return payment.status === 'captured' || payment.status === 'held' ? sum + payment.amount : sum;
+          }, 0);
 
-        // Calculate provider stats
-        const totalEarnings = paymentsData?.reduce((sum, payment) => {
-          return payment.status === 'captured' ? sum + payment.net_amount : sum;
-        }, 0) || 0;
+          setStats(prev => ({
+            ...prev,
+            totalSpent
+          }));
+        } else if (userRole === 'provider') {
+          const totalEarnings = payments.reduce((sum, payment) => {
+            return payment.status === 'captured' ? sum + payment.net_amount : sum;
+          }, 0);
 
-        const pendingBalance = paymentsData?.reduce((sum, payment) => {
-          return payment.status === 'held' ? sum + payment.net_amount : sum;
-        }, 0) || 0;
+          const pendingBalance = payments.reduce((sum, payment) => {
+            return payment.status === 'held' ? sum + payment.net_amount : sum;
+          }, 0);
 
-        const withdrawnAmount = payoutsData?.reduce((sum, payout) => {
-          return payout.status === 'paid' ? sum + payout.amount : sum;
-        }, 0) || 0;
+          const withdrawnAmount = payouts.reduce((sum, payout) => {
+            return payout.status === 'paid' ? sum + payout.amount : sum;
+          }, 0);
 
-        setStats({
-          availableBalance: totalEarnings - withdrawnAmount - pendingBalance,
-          pendingBalance,
-          totalEarnings,
-          totalSpent: 0
-        });
-      }
+          setStats({
+            availableBalance: totalEarnings - withdrawnAmount - pendingBalance,
+            pendingBalance,
+            totalEarnings,
+            totalSpent: 0
+          });
+        }
     } catch (error) {
       console.error('Error fetching wallet data:', error);
       toast.error('Erro ao carregar dados da carteira');

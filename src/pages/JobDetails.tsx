@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Map from '@/components/ui/map';
 import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
 import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
+import { EscrowManager } from '@/components/escrow/EscrowManager';
 
 interface JobProfile {
   full_name?: string;
@@ -313,6 +314,45 @@ export default function JobDetails() {
     }
   };
 
+  const handleCompleteJob = async () => {
+    if (!job) return;
+
+    try {
+      // Release escrow payment
+      const { data, error } = await supabase.functions.invoke('release-escrow-payment', {
+        body: {
+          escrowPaymentId: job.id, // This should be the actual escrow payment ID
+          releaseType: 'manual'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Trabalho concluído!",
+        description: "O pagamento foi liberado para o prestador.",
+      });
+
+      // Update job status
+      const { error: updateError } = await supabase
+        .from('jobs')
+        .update({ status: 'completed' })
+        .eq('id', job.id);
+
+      if (updateError) throw updateError;
+
+      // Refresh job details
+      fetchJobDetails();
+    } catch (error) {
+      console.error('Error completing job:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível concluir o trabalho.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: 'bg-gray-100 text-gray-800',
@@ -407,38 +447,49 @@ export default function JobDetails() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto p-6 max-w-6xl">
+      <div className="container mx-auto p-4 md:p-6 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
           <Button variant="ghost" size="sm" onClick={() => navigate('/jobs')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
+          {job.status === 'in_progress' && userRole === 'client' && (
+            <Button 
+              onClick={handleCompleteJob}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Concluir Trabalho
+            </Button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-3 space-y-6">
             {/* Job Header */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <CardTitle className="text-2xl">{job.title}</CardTitle>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-background to-muted/20">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                  <div className="flex-1 space-y-3">
+                    <CardTitle className="text-2xl md:text-3xl font-bold leading-tight">{job.title}</CardTitle>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
-                        {new Date(job.created_at).toLocaleDateString('pt-BR')}
+                        <span>Publicado em {new Date(job.created_at).toLocaleDateString('pt-BR')}</span>
                       </div>
                       {job.deadline_at && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          Prazo: {new Date(job.deadline_at).toLocaleDateString('pt-BR')}
+                          <span>Prazo: {new Date(job.deadline_at).toLocaleDateString('pt-BR')}</span>
                         </div>
                       )}
                     </div>
                   </div>
-                  {getStatusBadge(job.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(job.status)}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -570,46 +621,145 @@ export default function JobDetails() {
               </Card>
             )}
 
-            {/* Received Proposals - Enhanced for Clients */}
+            {/* Enhanced Proposals Section for Clients */}
             {userRole === 'client' && proposals.length > 0 && (
               <div className="space-y-6">
-                <Card className="border-2 border-gradient-to-r from-blue-200 to-green-200 bg-gradient-to-r from-blue-50 to-green-50">
+                <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-50 via-white to-green-50">
                   <CardHeader className="bg-gradient-to-r from-blue-100 to-green-100 rounded-t-lg border-b border-blue-200">
-                    <CardTitle className="flex items-center gap-3 text-xl">
-                      <div className="p-2 bg-blue-200 rounded-lg">
-                        <MessageSquare className="h-6 w-6 text-blue-700" />
-                      </div>
-                      <span>Propostas Recebidas ({proposals.length})</span>
-                    </CardTitle>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <CardTitle className="flex items-center gap-3 text-xl">
+                        <div className="p-2 bg-blue-600 rounded-lg shadow-md">
+                          <MessageSquare className="h-6 w-6 text-white" />
+                        </div>
+                        <span>Propostas Recebidas ({proposals.length})</span>
+                      </CardTitle>
+                      {proposals.length > 10 && (
+                        <Button 
+                          onClick={() => navigate(`/jobs/${job.id}/proposals`)}
+                          variant="outline"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver Todas as Propostas
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-6 p-6">
                     <div className="grid gap-6">
-                      {proposals.map((proposal, index) => {
+                      {proposals.slice(0, 10).map((proposal, index) => {
                         const providerProfile = proposalProfiles[proposal.provider_id];
-                        const proposalCounterOffers = counterOffers.filter(co => co.proposal_id === proposal.id);
                         
                         return (
                           <div 
                             key={proposal.id}
-                            className="relative p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl border-2 border-blue-100 hover:border-blue-300 transition-all shadow-lg hover:shadow-xl"
+                            className="relative group"
                           >
-                            <div className="absolute top-4 right-4">
-                              <Badge className="bg-blue-600 text-white">
-                                Proposta #{index + 1}
+                            <div className="absolute top-4 right-4 z-10">
+                              <Badge className="bg-blue-600 text-white shadow-lg">
+                                #{index + 1}
                               </Badge>
                             </div>
                             
-                            <ProposalNegotiation
-                              proposal={proposal}
-                              providerProfile={providerProfile}
-                              jobId={job.id}
-                              isClient={true}
-                              onProposalUpdate={fetchProposals}
-                            />
+                            <div 
+                              className="cursor-pointer transform transition-all hover:scale-[1.02]"
+                              onClick={() => navigate(`/profile/${proposal.provider_id}`)}
+                            >
+                              <div className="p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl border-2 border-blue-100 hover:border-blue-300 transition-all shadow-lg hover:shadow-xl">
+                                {/* Provider Header */}
+                                <div className="flex items-center gap-4 mb-4">
+                                  <Avatar className="h-16 w-16 ring-2 ring-blue-200">
+                                    <AvatarImage src={providerProfile?.avatar_url} />
+                                    <AvatarFallback className="bg-blue-100 text-blue-700 text-lg">
+                                      {providerProfile?.full_name?.charAt(0) || 'P'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                                      {providerProfile?.full_name || 'Prestador Anônimo'}
+                                    </h3>
+                                    {providerProfile?.rating_avg && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex items-center gap-1">
+                                          {[1, 2, 3, 4, 5].map((star) => (
+                                            <Star 
+                                              key={star} 
+                                              className={`h-4 w-4 ${
+                                                star <= Math.round(providerProfile?.rating_avg || 0)
+                                                  ? 'fill-yellow-400 text-yellow-400'
+                                                  : 'text-gray-300'
+                                              }`} 
+                                            />
+                                          ))}
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-600">
+                                          {providerProfile?.rating_avg?.toFixed(1)} ({providerProfile?.rating_count} avaliações)
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Badge className="bg-green-100 text-green-800 text-lg px-3 py-1">
+                                    {formatCurrency(proposal.price)}
+                                  </Badge>
+                                </div>
+                                
+                                {/* Proposal Preview */}
+                                <div className="bg-white/80 p-4 rounded-lg border border-blue-100">
+                                  <p className="text-gray-700 line-clamp-2 mb-2">
+                                    {proposal.message}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                                    {proposal.estimated_hours && (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="h-4 w-4" />
+                                        {proposal.estimated_hours}h
+                                      </div>
+                                    )}
+                                    {proposal.delivery_date && (
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="h-4 w-4" />
+                                        {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1">
+                                      <MessageSquare className="h-4 w-4" />
+                                      Enviada em {new Date(proposal.created_at).toLocaleDateString('pt-BR')}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Full Proposal Details */}
+                            <div 
+                              className="mt-4"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ProposalNegotiation
+                                proposal={proposal}
+                                providerProfile={providerProfile}
+                                jobId={job.id}
+                                isClient={true}
+                                onProposalUpdate={fetchProposals}
+                              />
+                            </div>
                           </div>
                         );
                       })}
                     </div>
+                    
+                    {proposals.length > 10 && (
+                      <div className="text-center py-4">
+                        <Button 
+                          onClick={() => navigate(`/jobs/${job.id}/proposals`)}
+                          size="lg"
+                          className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+                        >
+                          Ver Todas as {proposals.length} Propostas
+                          <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+                        </Button>
+                      </div>
+                    )}
                     
                     <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl border border-blue-200">
                       <div className="flex items-start gap-3">
@@ -620,7 +770,7 @@ export default function JobDetails() {
                           <h4 className="font-medium text-blue-900 mb-1">💡 Dica para escolher a melhor proposta</h4>
                           <p className="text-sm text-blue-700">
                             Considere não apenas o preço, mas também a avaliação do prestador, tempo de entrega 
-                            e qualidade da proposta apresentada.
+                            e qualidade da proposta apresentada. Clique no nome do prestador para ver o perfil completo.
                           </p>
                         </div>
                       </div>
@@ -629,10 +779,15 @@ export default function JobDetails() {
                 </Card>
               </div>
             )}
+
+            {/* Escrow Manager - Show payment status and completion button */}
+            {job.status === 'in_progress' && (
+              <EscrowManager jobId={job.id} isClient={userRole === 'client'} />
+            )}
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="xl:col-span-1 space-y-6">
             {/* Enhanced Job Actions for Providers - Sidebar */}
             {userRole === 'provider' && job.status === 'open' && (
               <EnhancedJobActions 
@@ -642,29 +797,51 @@ export default function JobDetails() {
               />
             )}
             
-            {/* Client Info */}
-            <Card>
-              <CardHeader>
+            {/* Client Info - Enhanced */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Cliente
+                  Cliente do Projeto
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <Avatar>
+              <CardContent className="p-6">
+                <div 
+                  className="flex items-center gap-4 cursor-pointer group hover:bg-muted/30 p-2 rounded-lg transition-all"
+                  onClick={() => navigate(`/profile/${job.client_id}`)}
+                >
+                  <Avatar className="h-16 w-16 ring-2 ring-primary/20">
                     <AvatarImage src={clientProfile?.avatar_url} />
-                    <AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
                       {clientProfile?.full_name?.charAt(0) || 'C'}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <h4 className="font-medium">{clientProfile?.full_name || 'Cliente'}</h4>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      <span>{clientProfile?.rating_avg?.toFixed(1) || '0.0'}</span>
-                      <span>({clientProfile?.rating_count || 0})</span>
-                    </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-lg group-hover:text-primary transition-colors">
+                      {clientProfile?.full_name || 'Cliente'}
+                    </h4>
+                    {clientProfile?.rating_avg && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star 
+                              key={star} 
+                              className={`h-3 w-3 ${
+                                star <= Math.round(clientProfile?.rating_avg || 0)
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-300'
+                              }`} 
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {clientProfile?.rating_avg?.toFixed(1)} ({clientProfile?.rating_count} avaliações)
+                        </span>
+                      </div>
+                    )}
+                    <p className="text-sm text-muted-foreground mt-1 group-hover:text-primary/80 transition-colors">
+                      Clique para ver perfil completo
+                    </p>
                   </div>
                 </div>
               </CardContent>
