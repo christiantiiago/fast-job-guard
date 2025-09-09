@@ -95,144 +95,247 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken || !position) return;
-
-    mapboxgl.accessToken = mapboxToken;
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: mapStyle,
-      center: [position.longitude, position.latitude],
-      zoom: 12,
-      pitch: 45,
-      bearing: -10
-    });
+    // Prevent multiple map initialization
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
 
-    // Add user location marker
-    new mapboxgl.Marker({ color: '#3b82f6', scale: 1.2 })
-      .setLngLat([position.longitude, position.latitude])
-      .setPopup(new mapboxgl.Popup().setHTML('<div class="p-2"><strong>Sua localização</strong></div>'))
-      .addTo(map.current);
+    try {
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: mapStyle,
+        center: [position.longitude, position.latitude],
+        zoom: 12,
+        pitch: 45,
+        bearing: -10,
+        antialias: true
+      });
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      // Wait for map to load before adding markers and controls
+      map.current.on('load', () => {
+        if (!map.current) return;
 
-    // Add geolocate control
-    const geolocate = new mapboxgl.GeolocateControl({
-      positionOptions: {
-        enableHighAccuracy: true
-      },
-      trackUserLocation: true,
-      showUserHeading: true
-    });
-    map.current.addControl(geolocate, 'top-right');
+        // Add user location marker
+        const userMarker = new mapboxgl.Marker({ 
+          color: '#3b82f6', 
+          scale: 1.2,
+          draggable: false
+        })
+          .setLngLat([position.longitude, position.latitude])
+          .setPopup(
+            new mapboxgl.Popup({ closeOnClick: false })
+              .setHTML('<div class="p-2 text-center"><strong>Sua localização</strong><br/><small>Localização atual</small></div>')
+          )
+          .addTo(map.current!);
 
-    // Add fullscreen control
-    map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+        // Add navigation controls
+        map.current!.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+        // Add geolocate control
+        const geolocate = new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        });
+        map.current!.addControl(geolocate, 'top-right');
+
+        // Add fullscreen control
+        map.current!.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+      });
+
+      // Handle map errors
+      map.current.on('error', (e) => {
+        console.error('Map error:', e);
+      });
+
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
 
     return () => {
-      map.current?.remove();
+      // Clean up markers
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+      
+      // Remove map
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
     };
   }, [position, mapStyle, mapboxToken]);
 
   // Add job markers
   useEffect(() => {
-    if (!map.current || !position) return;
+    if (!map.current || !position || !jobsWithDistance.length) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-
-    // Add markers for jobs with location and distance
-    jobsWithDistance.forEach((job) => {
-      const statusColors = {
-        open: '#3b82f6',
-        in_progress: '#eab308',
-        completed: '#22c55e',
-        cancelled: '#ef4444'
-      };
-
-      // Create custom marker element
-      const markerEl = document.createElement('div');
-      markerEl.className = 'job-marker';
-      markerEl.style.cssText = `
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
-        border: 3px solid white;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 12px;
-        transition: all 0.3s ease;
-      `;
-      
-      // Add distance indicator
-      if (job.distance !== undefined) {
-        markerEl.textContent = formatDistance(job.distance);
-        markerEl.style.fontSize = '10px';
-      } else {
-        markerEl.innerHTML = '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>';
-      }
-
-      // Add hover effect
-      markerEl.addEventListener('mouseenter', () => {
-        markerEl.style.transform = 'scale(1.2)';
-        markerEl.style.zIndex = '1000';
+    // Wait for map to be loaded
+    const addMarkers = () => {
+      // Clear existing markers
+      markersRef.current.forEach(marker => {
+        marker.remove();
       });
+      markersRef.current = [];
 
-      markerEl.addEventListener('mouseleave', () => {
-        markerEl.style.transform = 'scale(1)';
-        markerEl.style.zIndex = '1';
-      });
+      // Add markers for jobs with location and distance
+      jobsWithDistance.forEach((job, index) => {
+        if (!job.longitude || !job.latitude) return;
 
-      // Create marker
-      const marker = new mapboxgl.Marker(markerEl)
-        .setLngLat([job.longitude!, job.latitude!])
-        .addTo(map.current!);
+        const statusColors = {
+          open: '#3b82f6',
+          in_progress: '#eab308',
+          completed: '#22c55e',
+          cancelled: '#ef4444'
+        };
 
-      // Add click handler
-      markerEl.addEventListener('click', () => {
-        setSelectedJob(job);
+        // Create custom marker element
+        const markerEl = document.createElement('div');
+        markerEl.className = 'job-marker';
+        markerEl.style.cssText = `
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: ${statusColors[job.status as keyof typeof statusColors] || '#6b7280'};
+          border: 3px solid white;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 600;
+          font-size: 10px;
+          transition: all 0.2s ease;
+          z-index: ${1000 - index};
+        `;
         
-        // Fly to job location
-        map.current?.flyTo({
-          center: [job.longitude!, job.latitude!],
-          zoom: 15,
-          duration: 1500
-        });
-      });
-
-      markersRef.current.push(marker);
-    });
-
-    // Fit map to show all jobs
-    if (jobsWithDistance.length > 0 && position) {
-      const bounds = new mapboxgl.LngLatBounds();
-      
-      // Include user position
-      bounds.extend([position.longitude, position.latitude]);
-      
-      // Include job positions
-      jobsWithDistance.forEach(job => {
-        if (job.longitude && job.latitude) {
-          bounds.extend([job.longitude, job.latitude]);
+        // Add distance indicator
+        if (job.distance !== undefined) {
+          const distance = formatDistance(job.distance);
+          markerEl.textContent = distance;
+          if (distance.length > 4) {
+            markerEl.style.fontSize = '8px';
+          }
+        } else {
+          markerEl.innerHTML = '<div style="width: 10px; height: 10px; background: white; border-radius: 50%;"></div>';
         }
+
+        // Enhanced hover effects
+        const handleMouseEnter = () => {
+          markerEl.style.transform = 'scale(1.3)';
+          markerEl.style.zIndex = '10000';
+          markerEl.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+        };
+
+        const handleMouseLeave = () => {
+          markerEl.style.transform = 'scale(1)';
+          markerEl.style.zIndex = `${1000 - index}`;
+          markerEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+        };
+
+        const handleClick = (e: Event) => {
+          e.stopPropagation();
+          setSelectedJob(job);
+          
+          // Smooth fly to job location
+          map.current?.flyTo({
+            center: [job.longitude!, job.latitude!],
+            zoom: 16,
+            duration: 1000,
+            essential: true
+          });
+        };
+
+        markerEl.addEventListener('mouseenter', handleMouseEnter);
+        markerEl.addEventListener('mouseleave', handleMouseLeave);
+        markerEl.addEventListener('click', handleClick);
+
+        // Create marker with popup
+        const popup = new mapboxgl.Popup({
+          offset: 25,
+          closeButton: false,
+          className: 'job-popup'
+        }).setHTML(`
+          <div class="p-3 min-w-[200px]">
+            <h4 class="font-semibold text-sm mb-1 line-clamp-2">${job.title}</h4>
+            <p class="text-xs text-gray-600 mb-2 line-clamp-1">${job.service_categories?.name || 'Serviço'}</p>
+            <p class="text-xs font-medium text-blue-600">${formatCurrency(job.budget_min, job.budget_max, job.final_price)}</p>
+            ${job.distance ? `<p class="text-xs text-gray-500 mt-1">${formatDistance(job.distance)} de distância</p>` : ''}
+          </div>
+        `);
+
+        const marker = new mapboxgl.Marker(markerEl)
+          .setLngLat([job.longitude, job.latitude])
+          .setPopup(popup)
+          .addTo(map.current!);
+
+        // Store cleanup functions
+        (marker as any).cleanup = () => {
+          markerEl.removeEventListener('mouseenter', handleMouseEnter);
+          markerEl.removeEventListener('mouseleave', handleMouseLeave);
+          markerEl.removeEventListener('click', handleClick);
+        };
+
+        markersRef.current.push(marker);
       });
-      
-      // Add padding and delay to ensure map is ready
-      setTimeout(() => {
-        map.current?.fitBounds(bounds, {
-          padding: { top: 80, bottom: 80, left: 80, right: 80 },
-          maxZoom: 15
+
+      // Fit map bounds with better logic
+      if (jobsWithDistance.length > 0 && position && map.current?.isStyleLoaded()) {
+        const bounds = new mapboxgl.LngLatBounds();
+        
+        // Include user position
+        bounds.extend([position.longitude, position.latitude]);
+        
+        // Include job positions
+        jobsWithDistance.forEach(job => {
+          if (job.longitude && job.latitude) {
+            bounds.extend([job.longitude, job.latitude]);
+          }
         });
-      }, 500);
+        
+        // Better bounds fitting
+        const boundsPadding = {
+          top: 100,
+          bottom: selectedJob ? 200 : 100,
+          left: 100,
+          right: 100
+        };
+
+        try {
+          map.current.fitBounds(bounds, {
+            padding: boundsPadding,
+            maxZoom: 14,
+            duration: 1000
+          });
+        } catch (error) {
+          console.warn('Error fitting bounds:', error);
+        }
+      }
+    };
+
+    if (map.current.isStyleLoaded()) {
+      addMarkers();
+    } else {
+      map.current.on('styledata', addMarkers);
     }
-  }, [jobsWithDistance, position]);
+
+    // Cleanup function
+    return () => {
+      markersRef.current.forEach(marker => {
+        if ((marker as any).cleanup) {
+          (marker as any).cleanup();
+        }
+        marker.remove();
+      });
+      markersRef.current = [];
+    };
+  }, [jobsWithDistance, position, selectedJob]);
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
@@ -493,7 +596,23 @@ const JobsMap = ({ jobs, className = '' }: JobsMapProps) => {
 
       <style>{`
         .job-marker:hover {
-          transform: scale(1.2) !important;
+          transform: scale(1.3) !important;
+          z-index: 10000 !important;
+        }
+        
+        .job-popup .mapboxgl-popup-content {
+          padding: 0;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .job-popup .mapboxgl-popup-tip {
+          border-top-color: white;
+        }
+        
+        .mapboxgl-ctrl-group {
+          border-radius: 8px;
+          overflow: hidden;
         }
       `}</style>
     </div>
