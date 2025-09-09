@@ -298,20 +298,29 @@ export default function FixedDiscoverPage() {
     };
   }, [mapboxToken, viewMode, position]);
 
+  // Filter jobs based on search and category
+  const filteredJobs = jobsWithDistance.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || 
+                           job.service_categories?.name === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   // Add job markers
   useEffect(() => {
-    if (!map.current || !mapInitialized || viewMode !== 'map') {
+    if (!map.current || !mapInitialized || viewMode !== 'map' || !mapboxglRef.current) {
       return;
     }
 
-    console.log('[MARKERS] Adding', jobsWithDistance.length, 'job markers');
+    console.log('[MARKERS] Adding', filteredJobs.length, 'filtered job markers');
     
     // Clear existing markers
     Object.values(markersRef.current).forEach((marker: any) => marker.remove());
     markersRef.current = {};
 
-    // Add markers for jobs
-    jobsWithDistance.forEach((job) => {
+    // Add markers for filtered jobs only
+    filteredJobs.forEach((job) => {
       if (!job.latitude || !job.longitude) return;
 
       const markerEl = document.createElement('div');
@@ -359,28 +368,43 @@ export default function FixedDiscoverPage() {
               border: 2px solid white;
             ">${job.proposal_count}</div>
           ` : ''}
+          <div style="
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid ${borderColor};
+          "></div>
         </div>
       `;
       
-      markerEl.addEventListener('click', () => {
+      markerEl.addEventListener('click', (e) => {
+        e.stopPropagation();
         console.log('[MARKER] Job clicked:', job.id);
         setSelectedJob(job);
         setShowRouteDetails(true);
       });
 
-      const marker = new mapboxglRef.current.Marker(markerEl)
+      const marker = new mapboxglRef.current.Marker({
+        element: markerEl,
+        anchor: 'bottom'
+      })
         .setLngLat([job.longitude, job.latitude])
         .addTo(map.current);
 
       markersRef.current[job.id] = marker;
     });
 
-    // Fit map to show all jobs
-    if (jobsWithDistance.length > 0 && position && mapboxglRef.current) {
+    // Fit map to show filtered jobs only if we have results
+    if (filteredJobs.length > 0 && position && mapboxglRef.current) {
       const bounds = new mapboxglRef.current.LngLatBounds();
       bounds.extend([position.longitude, position.latitude]);
       
-      jobsWithDistance.forEach(job => {
+      filteredJobs.forEach(job => {
         if (job.longitude && job.latitude) {
           bounds.extend([job.longitude, job.latitude]);
         }
@@ -392,7 +416,7 @@ export default function FixedDiscoverPage() {
         }
       }, 500);
     }
-  }, [jobsWithDistance, mapInitialized, position, viewMode]);
+  }, [filteredJobs, mapInitialized, position, viewMode]);
 
   // Auto-refresh to remove completed jobs after 2 minutes
   useEffect(() => {
@@ -435,14 +459,6 @@ export default function FixedDiscoverPage() {
       </Badge>
     );
   };
-
-  const filteredJobs = jobsWithDistance.filter(job => {
-    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || 
-                           job.service_categories?.name === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   const categories = Array.from(new Set(jobs.map(job => job.service_categories?.name).filter(Boolean)));
 
@@ -505,26 +521,26 @@ export default function FixedDiscoverPage() {
             </div>
           </div>
 
-          {/* Search and filters */}
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Buscar trabalhos..."
+                placeholder="Buscar por título ou descrição..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full sm:w-48">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories.map(category => (
-                  <SelectItem key={category} value={category!}>
+                  <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
                 ))}
@@ -533,198 +549,164 @@ export default function FixedDiscoverPage() {
           </div>
 
           <div className="text-sm text-muted-foreground">
-            {filteredJobs.length} trabalhos encontrados
+            {filteredJobs.length} trabalho(s) encontrado(s)
+            {position && ` • ${formatDistance(0)} da sua localização`}
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 relative">
           {viewMode === 'map' ? (
-            <div className="h-full relative">
+            <>
               {mapboxError ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="text-center space-y-4 p-6">
-                    <AlertTriangle className="w-12 h-12 text-destructive mx-auto" />
-                    <div>
-                      <p className="text-lg font-medium mb-2">
-                        Erro ao carregar o mapa
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {mapboxError}
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setViewMode('list')}
-                      >
-                        Ver em Lista
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : !mapboxToken ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="text-center space-y-4">
-                    <Loader2 className="w-8 w-8 animate-spin mx-auto" />
-                    <p className="text-sm font-medium">
-                      Carregando mapa...
-                    </p>
-                  </div>
+                <div className="p-4">
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Erro no mapa:</strong> {mapboxError}
+                    </AlertDescription>
+                  </Alert>
                 </div>
               ) : (
-                <>
-                  <div 
-                    ref={mapContainer} 
-                    className="absolute inset-0 w-full h-full"
-                    style={{ 
-                      minHeight: '400px',
-                      backgroundColor: '#f8f9fa',
-                      position: 'relative'
-                    }}
-                  />
-                  
-                  {/* Debug info */}
-                  <div className="absolute top-4 left-4 z-10 bg-white p-2 rounded shadow text-xs">
-                    <div>Token: {mapboxToken ? '✅' : '❌'}</div>
-                    <div>Map: {mapInitialized ? '✅' : '❌'}</div>
-                    <div>Jobs: {jobsWithDistance.length}</div>
-                  </div>
-                </>
+                <div ref={mapContainer} className="w-full h-full min-h-[500px]" />
               )}
-
-              {/* Stats overlay */}
-              <div className="absolute top-4 right-4 z-10">
-                <Card className="p-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="w-4 h-4" />
-                    <span className="font-medium">
-                      {jobsWithDistance.length} trabalhos
-                    </span>
-                  </div>
-                  {position && (
-                    <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      GPS Ativo
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              {/* Selected job details */}
+              
+              {/* Selected Job Details */}
               {selectedJob && showRouteDetails && (
-                <div className="absolute bottom-4 left-4 right-4 z-10 max-w-sm">
-                  <Card className="shadow-lg">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg line-clamp-1">{selectedJob.title}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getStatusBadge(selectedJob.status)}
-                            {selectedJob.proposal_count && selectedJob.proposal_count > 0 && (
-                              <Badge className="bg-red-100 text-red-800">
-                                <MessageSquare className="w-3 h-3 mr-1" />
-                                {selectedJob.proposal_count} proposta{selectedJob.proposal_count > 1 ? 's' : ''}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <button
+                <div className="absolute bottom-4 left-4 right-4 z-10">
+                  <Card className="bg-white/95 backdrop-blur-sm">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-lg">{selectedJob.title}</h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => {
                             setSelectedJob(null);
                             setShowRouteDetails(false);
                           }}
-                          className="text-muted-foreground hover:text-foreground p-1"
                         >
                           ×
-                        </button>
+                        </Button>
                       </div>
                       
-                      <div className="pt-2 border-t">
-                        <div className="text-lg font-bold text-primary mb-2">
-                          {formatCurrency(
-                            selectedJob.budget_min,
-                            selectedJob.budget_max,
-                            selectedJob.final_price
+                      <div className="flex items-center gap-2 mb-2">
+                        {getStatusBadge(selectedJob.status)}
+                        {selectedJob.proposal_count && selectedJob.proposal_count > 0 && (
+                          <Badge variant="secondary" className="bg-red-100 text-red-800">
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            {selectedJob.proposal_count} proposta(s)
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {selectedJob.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="font-semibold text-lg text-primary">
+                            {formatCurrency(selectedJob.budget_min, selectedJob.budget_max, selectedJob.final_price)}
+                          </div>
+                          {selectedJob.distance && (
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <MapPin className="w-3 h-3 mr-1" />
+                              {formatDistance(selectedJob.distance)}
+                            </div>
                           )}
                         </div>
                         
-                        <Button 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => navigate(`/jobs/${selectedJob.id}`)}
-                        >
-                          Ver Detalhes
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/jobs/${selectedJob.id}`)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Ver
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/jobs/${selectedJob.id}`)}
+                          >
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Propor
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="p-4 space-y-4">
-              {filteredJobs.map((job) => (
-                <Card key={job.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-2 mb-2">
-                          <h3 className="font-semibold text-lg flex-1">{job.title}</h3>
+            /* List View */
+            <div className="p-4 space-y-4 overflow-y-auto">
+              {filteredJobs.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="text-muted-foreground">
+                    <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">Nenhum trabalho encontrado</h3>
+                    <p>Tente ajustar seus filtros de busca</p>
+                  </div>
+                </div>
+              ) : (
+                filteredJobs.map((job) => (
+                  <Card key={job.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-lg line-clamp-1">{job.title}</h3>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(job.status)}
                           {job.proposal_count && job.proposal_count > 0 && (
-                            <Badge className="bg-red-100 text-red-800">
+                            <Badge variant="secondary" className="bg-red-100 text-red-800">
                               <MessageSquare className="w-3 h-3 mr-1" />
                               {job.proposal_count}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                          {job.description}
-                        </p>
-                        <div className="flex items-center gap-2 mb-2">
-                          {getStatusBadge(job.status)}
-                          <Badge variant="outline" className="text-xs">
-                            {job.service_categories?.name}
-                          </Badge>
+                      </div>
+                      
+                      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                        {job.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="font-semibold text-lg text-primary">
+                            {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
+                          </div>
                           {job.distance && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <MapPin className="w-3 h-3" />
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <MapPin className="w-3 h-3 mr-1" />
                               {formatDistance(job.distance)}
                             </div>
                           )}
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary">
-                          {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(job.created_at).toLocaleDateString('pt-BR')}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {job.addresses ? 
-                            `${job.addresses.neighborhood}, ${job.addresses.city}` : 
-                            'Localização não informada'
-                          }
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/jobs/${job.id}`)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Ver
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/jobs/${job.id}`)}
+                          >
+                            <MessageSquare className="w-4 h-4 mr-1" />
+                            Propor
+                          </Button>
                         </div>
                       </div>
-                      
-                      <Button 
-                        size="sm"
-                        onClick={() => navigate(`/jobs/${job.id}`)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ver Detalhes
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           )}
         </div>
