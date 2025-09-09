@@ -39,7 +39,7 @@ export function MobileHamburgerMenu() {
   const clientNavigation = [
     { name: 'Início', href: '/dashboard', icon: Home },
     { name: 'Trabalhos', href: '/jobs', icon: Briefcase },
-    { name: 'Descobrir', href: '/discover', icon: Search },
+    { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
     { name: 'Carteira', href: '/wallet', icon: Wallet },
     { name: 'Avaliações', href: '/reviews', icon: Star },
     { name: 'Documentos', href: '/kyc/documents', icon: FileText },
@@ -48,8 +48,7 @@ export function MobileHamburgerMenu() {
 
   const providerNavigation = [
     { name: 'Início', href: '/dashboard', icon: Home },
-    { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
-    { name: 'Descobrir Jobs', href: '/discover', icon: Search },
+    { name: 'Descobrir Trabalhos', href: '/discover', icon: Search },
     { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
     { name: 'Financeiro', href: '/provider/finance', icon: TrendingUp },
     { name: 'Avaliações', href: '/reviews', icon: Star },

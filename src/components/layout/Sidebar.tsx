@@ -26,6 +26,7 @@ import {
 const clientNavigation = [
   { name: 'Início', href: '/dashboard', icon: Home },
   { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
+  { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
   { name: 'Carteira', href: '/wallet', icon: Wallet },
@@ -35,8 +36,7 @@ const clientNavigation = [
 
 const providerNavigation = [
   { name: 'Início', href: '/dashboard', icon: Home },
-  { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
-  { name: 'Descobrir Jobs', href: '/discover', icon: Search },
+  { name: 'Descobrir Trabalhos', href: '/discover', icon: Search },
   { name: 'Meus Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
@@ -46,7 +46,7 @@ const providerNavigation = [
 ];
 
 const adminNavigation = [
-  { name: 'Dashboard', href: '/admin', icon: Shield },
+  { name: 'Dashboard Admin', href: '/admin', icon: Shield },
   { name: 'Admin Avançado', href: '/admin/enhanced', icon: Activity },
   { name: 'Usuários', href: '/admin/users', icon: User },
   { name: 'KYC', href: '/admin/kyc', icon: FileText },
@@ -55,6 +55,13 @@ const adminNavigation = [
   { name: 'Disputas', href: '/admin/disputes', icon: MessageCircle },
   { name: 'Pagamentos', href: '/admin/payments', icon: Wallet },
   { name: 'Configurações', href: '/admin/settings', icon: Settings },
+  { name: '--- PÁGINAS DE USUÁRIO ---', href: '', icon: Settings, isHeader: true },
+  { name: 'Dashboard Cliente', href: '/dashboard', icon: Home },
+  { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
+  { name: 'Descobrir Trabalhos', href: '/discover', icon: Search },
+  { name: 'Trabalhos', href: '/jobs', icon: Briefcase },
+  { name: 'Chat', href: '/chat', icon: MessageCircle },
+  { name: 'Financeiro Prestador', href: '/provider/finance', icon: Wallet },
 ];
 
 export const Sidebar = () => {
@@ -118,6 +125,17 @@ export const Sidebar = () => {
       {userRole === 'provider' && (
         <div className="space-y-2">
           <Button asChild variant="outline" className="w-full justify-start" size="sm">
+            <NavLink to="/discover">
+              <Search className="mr-2 h-4 w-4" />
+              Descobrir Trabalhos  
+            </NavLink>
+          </Button>
+        </div>
+      )}
+
+      {userRole === 'client' && (
+        <div className="space-y-2">
+          <Button asChild variant="outline" className="w-full justify-start" size="sm">
             <NavLink to="/providers/discover">
               <Search className="mr-2 h-4 w-4" />
               Descobrir Prestadores  
@@ -144,6 +162,19 @@ export const Sidebar = () => {
           <li>
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => {
+                // @ts-ignore
+                if (item.isHeader) {
+                  return (
+                    <li key={item.name} className="pt-4">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-1">
+                        {item.name}
+                      </div>
+                    </li>
+                  );
+                }
+                
+                if (!item.href) return null;
+                
                 const isActive = location.pathname === item.href;
                 return (
                   <li key={item.name}>

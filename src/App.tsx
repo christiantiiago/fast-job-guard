@@ -7,6 +7,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
+import { ProtectedClientRoute } from "@/components/layout/ProtectedClientRoute";
+import { ProtectedProviderRoute } from "@/components/layout/ProtectedProviderRoute";
 import { KYCGate } from "@/components/kyc/KYCGate";
 
 // Public pages
@@ -145,21 +147,21 @@ const App = () => (
             <Route
               path="/discover"
               element={
-                <ProtectedRoute>
+                <ProtectedProviderRoute>
                   <KYCGate>
                     <Discover />
                   </KYCGate>
-                </ProtectedRoute>
+                </ProtectedProviderRoute>
               }
             />
             <Route
               path="/providers/discover"
               element={
-                <ProtectedRoute>
+                <ProtectedClientRoute>
                   <KYCGate>
                     <ProvidersDiscover />
                   </KYCGate>
-                </ProtectedRoute>
+                </ProtectedClientRoute>
               }
             />
             <Route
@@ -229,21 +231,21 @@ const App = () => (
             <Route
               path="/provider/onboarding"
               element={
-                <ProtectedRoute>
+                <ProtectedProviderRoute>
                   <KYCGate>
                     <ProviderOnboarding />
                   </KYCGate>
-                </ProtectedRoute>
+                </ProtectedProviderRoute>
               }
             />
             <Route
               path="/provider/finance"
               element={
-                <ProtectedRoute>
+                <ProtectedProviderRoute>
                   <KYCGate>
                     <Finance />
                   </KYCGate>
-                </ProtectedRoute>
+                </ProtectedProviderRoute>
               }
             />
 
