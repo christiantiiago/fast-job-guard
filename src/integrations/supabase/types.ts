@@ -1665,6 +1665,14 @@ export type Database = {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
       }
+      calculate_provider_priority: {
+        Args: {
+          job_latitude?: number
+          job_longitude?: number
+          provider_user_id: string
+        }
+        Returns: number
+      }
       can_use_platform: {
         Args: { user_id_input: string }
         Returns: boolean

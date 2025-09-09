@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useFeeRules } from '@/hooks/useFeeRules';
 import { 
   Wallet,
   TrendingUp,
@@ -30,8 +31,6 @@ import {
   Smartphone,
   QrCode,
   Crown,
-  Zap,
-  Shield,
   Plus,
   Edit2
 } from 'lucide-react';
@@ -59,7 +58,6 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 
 export default function EnhancedFinance() {
   const [showBalance, setShowBalance] = useState(true);
-  const [isPremium, setIsPremium] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([
     {
       id: '1',
@@ -72,14 +70,18 @@ export default function EnhancedFinance() {
   ]);
   const [newGoal, setNewGoal] = useState<{ name: string; target: number; period: 'weekly' | 'monthly' | 'yearly' }>({ name: '', target: 0, period: 'monthly' });
   const [showGoalDialog, setShowGoalDialog] = useState(false);
+  
+  const { calculateFees, getFeeDescription, isPremiumUser } = useFeeRules();
 
   // Mock data
   const balance = 15750.80;
   const availableForWithdrawal = 12340.50;
   const pendingPayments = 3410.30;
-  const standardFee = 0.049; // 4.9%
-  const premiumFee = 0.035; // 3.5%
-  const currentFee = isPremium ? premiumFee : standardFee;
+  
+  // Calcular taxa real baseada no sistema
+  const sampleAmount = 1000;
+  const feeCalculation = calculateFees(sampleAmount);
+  const currentFeeRate = feeCalculation.feePercentage;
 
   const earningsData = [
     { month: 'Jan', earnings: 8500, jobs: 12 },
@@ -182,10 +184,9 @@ export default function EnhancedFinance() {
               <div>
                 <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
                   Carteira Digital
-                  {isPremium && <Crown className="h-8 w-8 text-yellow-400" />}
                 </h1>
                 <p className="text-primary-foreground/80">
-                  {isPremium ? 'Conta Premium - Taxa de 3,5%' : 'Conta Padrão - Taxa de 4,9%'}
+                  {getFeeDescription()}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -227,16 +228,14 @@ export default function EnhancedFinance() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-primary-foreground/80 text-sm">Taxa Atual</p>
+                <p className="text-primary-foreground/80 text-sm">Sua Taxa Atual</p>
                 <p className="text-2xl font-semibold">
-                  {(currentFee * 100).toFixed(1)}%
+                  {currentFeeRate.toFixed(1)}%
                 </p>
                 <div className="text-sm">
-                  {!isPremium && (
-                    <span className="text-primary-foreground/80">
-                      Economize 1,4% sendo Premium
-                    </span>
-                  )}
+                  <span className="text-primary-foreground/80">
+                    {isPremiumUser ? 'Taxa Premium Ativa' : 'Saques instantâneos via PIX'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -255,56 +254,10 @@ export default function EnhancedFinance() {
                 <Download className="h-5 w-5 mr-2" />
                 Extrato
               </Button>
-              {!isPremium && (
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 hover:from-yellow-500 hover:to-yellow-600"
-                  onClick={() => setIsPremium(true)}
-                >
-                  <Crown className="h-5 w-5 mr-2" />
-                  Ser Premium
-                </Button>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Premium Benefits Card */}
-        {!isPremium && (
-          <Card className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950 dark:to-orange-950">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                <Crown className="h-5 w-5" />
-                Torne-se Premium
-              </CardTitle>
-              <CardDescription className="text-yellow-700 dark:text-yellow-300">
-                Desbloqueie benefícios exclusivos e economize nas taxas
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-3 gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm">Taxa reduzida: 3,5%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm">Suporte prioritário</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm">Badge Premium</span>
-                </div>
-              </div>
-              <Button 
-                className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 hover:from-yellow-500 hover:to-yellow-600"
-                onClick={() => setIsPremium(true)}
-              >
-                Upgrade para Premium - R$ 29,90/mês
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Goals Section */}
         <Card>
@@ -466,12 +419,12 @@ export default function EnhancedFinance() {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{(currentFee * 100).toFixed(1)}%</div>
+                  <div className="text-2xl font-bold">{currentFeeRate.toFixed(1)}%</div>
                   <p className="text-xs text-muted-foreground">
-                    {isPremium ? (
+                    {isPremiumUser ? (
                       <span className="text-green-600">Premium ativo</span>
                     ) : (
-                      <span className="text-yellow-600">Upgrade disponível</span>
+                      <span className="text-yellow-600">Taxa padrão</span>
                     )}
                   </p>
                 </CardContent>
@@ -597,22 +550,13 @@ export default function EnhancedFinance() {
                   
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      Economia mensal estimada:
+                      Sistema de taxas atualizado:
                     </p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency((balance * (standardFee - premiumFee)))}
+                    <p className="text-lg font-semibold text-primary">
+                      Prestadores Premium têm prioridade nas buscas!
                     </p>
                   </div>
 
-                  {!isPremium && (
-                    <Button 
-                      className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 hover:from-yellow-500 hover:to-yellow-600"
-                      onClick={() => setIsPremium(true)}
-                    >
-                      <Crown className="h-4 w-4 mr-2" />
-                      Ativar Premium
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
             </div>

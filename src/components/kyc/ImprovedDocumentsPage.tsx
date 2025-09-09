@@ -106,6 +106,12 @@ export const ImprovedDocumentsPage = () => {
     return { status: 'pending', doc };
   };
 
+  const canUploadDocument = (docType: string) => {
+    const { status } = getDocumentStatus(docType);
+    // Só permite upload se: não tem documento (missing) ou foi rejeitado (rejected)
+    return status === 'missing' || status === 'rejected';
+  };
+
   const requiredDocsCount = filteredDocuments.filter(doc => doc.required).length;
   
   // Calculate approved docs from KYC status for more accurate count
@@ -281,8 +287,7 @@ export const ImprovedDocumentsPage = () => {
 
   const hasSelectedFiles = Object.keys(selectedFiles).length > 0;
   const pendingUploads = Object.entries(selectedFiles).filter(([docType]) => {
-    const { status: docStatus } = getDocumentStatus(docType);
-    return docStatus !== 'approved';
+    return canUploadDocument(docType);
   });
 
   return (
