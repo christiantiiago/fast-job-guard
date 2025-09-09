@@ -1,3 +1,3 @@
-import DiscoverJobsPage from '@/components/home/DiscoverJobsPage';
+import EnhancedDiscoverPage from '@/components/home/EnhancedDiscoverPage';
 
-export default DiscoverJobsPage;
+export default EnhancedDiscoverPage;

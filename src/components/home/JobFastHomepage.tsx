@@ -1,4 +1,4 @@
-import { PromoBanner } from './PromoBanner';
+import { PromoCarousel } from './PromoCarousel';
 import { HighlightSection } from './HighlightSection';
 import { JobCard } from './JobCard';
 import { 
@@ -36,14 +36,8 @@ export function JobFastHomepage({ userRole }: JobFastHomepageProps) {
   if (userRole === 'provider') {
     return (
       <div className="p-4 space-y-6 pb-24">
-        {/* Promo Banner */}
-        <PromoBanner
-          title="Vale Gasolina"
-          subtitle="Rode com a Job Fast durante o mês"
-          description="Trabalhe conosco durante o mês de dezembro e você poderá ganhar um Vale Gasolina de R$200,00, nossa mais nova parceria."
-          buttonText="Clique e saiba mais"
-          isNew={true}
-        />
+        {/* Promo Carousel */}
+        <PromoCarousel userRole={userRole} />
 
         {/* Highlights */}
         <HighlightSection
@@ -117,16 +111,10 @@ export function JobFastHomepage({ userRole }: JobFastHomepageProps) {
   }
 
   // Client homepage
-  return (
-    <div className="p-4 space-y-6 pb-24">
-      {/* Promo Banner */}
-      <PromoBanner
-        title="Job Fast Premium"
-        subtitle="Publique jobs sem limites"
-        description="Assine o Job Fast Premium e publique quantos jobs quiser, com prioridade na busca e suporte exclusivo."
-        buttonText="Assinar Premium"
-        isNew={true}
-      />
+    return (
+      <div className="p-4 space-y-6 pb-24">
+        {/* Promo Carousel */}
+        <PromoCarousel userRole={userRole} />
 
       {/* Highlights */}
       <HighlightSection
