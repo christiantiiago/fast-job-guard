@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, 
   Smartphone, 
@@ -34,6 +35,7 @@ interface Job {
   agreed_price: number;
   estimated_hours: number;
   delivery_date: string;
+  provider_id: string;
 }
 
 export default function Checkout() {
@@ -65,7 +67,8 @@ export default function Checkout() {
         address: 'Rua das Flores, 123 - São Paulo, SP',
         agreed_price: 450.00,
         estimated_hours: 4,
-        delivery_date: '2024-01-25'
+        delivery_date: '2024-01-25',
+        provider_id: 'provider-123'
       });
       
       setLoading(false);
@@ -90,23 +93,39 @@ export default function Checkout() {
   };
 
   const handlePayment = async () => {
-    if (!job) return;
+    if (!job || !user) return;
     
     setProcessing(true);
     
     try {
-      // Simular processamento de pagamento
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Criar pagamento escrow via edge function
+      const { data, error } = await supabase.functions.invoke('create-escrow-payment', {
+        body: {
+          jobId: jobId,
+          providerId: job.provider_id,
+          amount: job.agreed_price,
+          platformFee: calculateFees(job.agreed_price).clientFee
+        }
+      });
+
+      if (error) throw error;
+
+      // Redirecionar para Stripe Checkout
+      if (data.clientSecret) {
+        // Se usando Stripe Elements
+        window.location.href = `https://checkout.stripe.com/pay/${data.clientSecret}`;
+      } else if (data.url) {
+        // Se usando Stripe Checkout Session
+        window.open(data.url, '_blank');
+      }
       
       toast({
-        title: "Pagamento Processado!",
-        description: "O valor foi colocado em escrow. O prestador foi notificado.",
+        title: "Redirecionando para Pagamento",
+        description: "Você será redirecionado para completar o pagamento seguro.",
       });
       
-      // Redirecionar para o job detail
-      navigate(`/jobs/${jobId}`);
-      
     } catch (error) {
+      console.error('Erro no pagamento:', error);
       toast({
         variant: "destructive",
         title: "Erro no Pagamento",
@@ -173,7 +192,7 @@ export default function Checkout() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <div className="container mx-auto px-4 py-6 max-w-4xl h-full overflow-y-auto">
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">Checkout</h1>
             <p className="text-muted-foreground">Confirme os detalhes e escolha a forma de pagamento</p>

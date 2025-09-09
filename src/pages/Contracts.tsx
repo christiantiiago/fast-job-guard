@@ -1,0 +1,370 @@
+import { useState, useEffect } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  FileText, 
+  Download, 
+  Eye, 
+  Calendar, 
+  DollarSign, 
+  User, 
+  MapPin,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  XCircle
+} from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface Contract {
+  id: string;
+  job_title: string;
+  client_name: string;
+  provider_name: string;
+  agreed_price: number;
+  agreed_deadline: string;
+  status: string;
+  created_at: string;
+  client_signed: boolean;
+  provider_signed: boolean;
+  terms_and_conditions: string;
+  escrow_amount: number;
+  job_address: string;
+}
+
+export default function Contracts() {
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchContracts();
+  }, [user]);
+
+  const fetchContracts = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
+          id,
+          agreed_price,
+          agreed_deadline,
+          status,
+          created_at,
+          client_signed,
+          provider_signed,
+          terms_and_conditions,
+          escrow_amount,
+          jobs!inner(
+            title,
+            addresses(
+              street,
+              number,
+              neighborhood,
+              city,
+              state
+            )
+          ),
+          client:profiles!contracts_client_id_fkey(
+            full_name
+          ),
+          provider:profiles!contracts_provider_id_fkey(
+            full_name
+          )
+        `)
+        .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedContracts = data?.map(contract => {
+        const job = Array.isArray(contract.jobs) ? contract.jobs[0] : contract.jobs;
+        const client = Array.isArray(contract.client) ? contract.client[0] : contract.client;
+        const provider = Array.isArray(contract.provider) ? contract.provider[0] : contract.provider;
+        const address = job?.addresses?.[0];
+
+        return {
+          id: contract.id,
+          job_title: job?.title || 'Título não disponível',
+          client_name: client?.full_name || 'Cliente',
+          provider_name: provider?.full_name || 'Prestador',
+          agreed_price: contract.agreed_price,
+          agreed_deadline: contract.agreed_deadline,
+          status: contract.status,
+          created_at: contract.created_at,
+          client_signed: contract.client_signed,
+          provider_signed: contract.provider_signed,
+          terms_and_conditions: contract.terms_and_conditions,
+          escrow_amount: contract.escrow_amount,
+          job_address: address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}` : 'Endereço não disponível'
+        };
+      }) || [];
+
+      setContracts(formattedContracts);
+    } catch (error) {
+      console.error('Erro ao buscar contratos:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível carregar os contratos.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status: string, clientSigned: boolean, providerSigned: boolean) => {
+    if (status === 'cancelled') {
+      return <Badge variant="destructive">Cancelado</Badge>;
+    }
+    
+    if (!clientSigned || !providerSigned) {
+      return <Badge variant="secondary">Aguardando Assinatura</Badge>;
+    }
+    
+    switch (status) {
+      case 'pending':
+        return <Badge variant="secondary">Pendente</Badge>;
+      case 'active':
+        return <Badge className="bg-green-500">Ativo</Badge>;
+      case 'completed':
+        return <Badge className="bg-blue-500">Concluído</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-48" />
+            <div className="grid gap-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Meus Contratos</h1>
+            <p className="text-muted-foreground">
+              Gerencie e visualize todos os seus contratos de serviço
+            </p>
+          </div>
+
+          {contracts.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum contrato encontrado</h3>
+                <p className="text-muted-foreground">
+                  Você ainda não possui contratos. Eles são criados automaticamente quando uma proposta é aceita.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6">
+              {contracts.map((contract) => (
+                <Card key={contract.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl">{contract.job_title}</CardTitle>
+                        <CardDescription>
+                          Contrato #{contract.id.slice(0, 8)}
+                        </CardDescription>
+                      </div>
+                      {getStatusBadge(contract.status, contract.client_signed, contract.provider_signed)}
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    {/* Contract Details */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Cliente:</strong> {contract.client_name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Prestador:</strong> {contract.provider_name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Local:</strong> {contract.job_address}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Valor:</strong> {formatCurrency(contract.agreed_price)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Prazo:</strong> {formatDate(contract.agreed_deadline)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            <strong>Criado em:</strong> {formatDate(contract.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Signature Status */}
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-medium mb-3">Status das Assinaturas</h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2">
+                          {contract.client_signed ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">
+                            Cliente {contract.client_signed ? 'assinou' : 'não assinou'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {contract.provider_signed ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="text-sm">
+                            Prestador {contract.provider_signed ? 'assinou' : 'não assinou'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Escrow Information */}
+                    {contract.escrow_amount > 0 && (
+                      <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-900 dark:text-blue-100">
+                            Valor em Escrow
+                          </span>
+                        </div>
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                          {formatCurrency(contract.escrow_amount)} está protegido em nossa garantia e será liberado após a conclusão do serviço.
+                        </p>
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedContract(contract)}
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Visualizar Completo
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Download className="mr-2 h-4 w-4" />
+                        Baixar PDF
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Contract Detail Modal would go here */}
+          {selectedContract && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Detalhes do Contrato</CardTitle>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setSelectedContract(null)}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">{selectedContract.job_title}</h3>
+                    <div className="whitespace-pre-wrap text-sm bg-muted p-4 rounded-lg">
+                      {selectedContract.terms_and_conditions}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
+    </AppLayout>
+  );
+}

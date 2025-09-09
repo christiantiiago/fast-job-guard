@@ -20,7 +20,8 @@ import {
   Activity,
   BarChart,
   FileText,
-  Crown
+  Crown,
+  HelpCircle
 } from 'lucide-react';
 
 const clientNavigation = [
@@ -28,9 +29,11 @@ const clientNavigation = [
   { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
   { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
+  { name: 'Contratos', href: '/contracts', icon: FileText },
   { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
   { name: 'Carteira', href: '/wallet', icon: Wallet },
   { name: 'Reviews', href: '/reviews', icon: Star },
+  { name: 'Ajuda e Suporte', href: '/help', icon: HelpCircle },
   { name: 'Perfil', href: '/profile', icon: User },
 ];
 
@@ -39,9 +42,11 @@ const providerNavigation = [
   { name: 'Descobrir Trabalhos', href: '/discover', icon: Search },
   { name: 'Meus Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
+  { name: 'Contratos', href: '/contracts', icon: FileText },
   { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
   { name: 'Financeiro', href: '/provider/finance', icon: Wallet },
   { name: 'Reviews', href: '/reviews', icon: Star },
+  { name: 'Ajuda e Suporte', href: '/help', icon: HelpCircle },
   { name: 'Perfil', href: '/profile', icon: User },
 ];
 

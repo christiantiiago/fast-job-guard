@@ -36,7 +36,7 @@ serve(async (req) => {
 
     logStep("Search parameters", { category, latitude, longitude, maxDistance, minRating, limit });
 
-    // Build the query to get providers with their online status
+    // Build the query to get providers with addresses instead of online status
     let query = supabaseClient
       .from('profiles')
       .select(`
@@ -49,12 +49,6 @@ serve(async (req) => {
         created_at,
         verified_at,
         kyc_status,
-        provider_status!inner(
-          is_online,
-          location_lat,
-          location_lng,
-          last_seen
-        ),
         subscriptions!left(
           status
         ),
@@ -67,6 +61,17 @@ serve(async (req) => {
             name,
             slug
           )
+        ),
+        addresses!left(
+          id,
+          street,
+          number,
+          neighborhood,
+          city,
+          state,
+          latitude,
+          longitude,
+          is_primary
         )
       `)
       .eq('kyc_status', 'approved')
@@ -88,24 +93,24 @@ serve(async (req) => {
 
     // Process and enhance the data
     const providers = rawProviders?.map(provider => {
-      const providerStatus = Array.isArray(provider.provider_status) 
-        ? provider.provider_status[0] 
-        : provider.provider_status;
-      
       const subscription = Array.isArray(provider.subscriptions) 
         ? provider.subscriptions[0] 
         : provider.subscriptions;
+
+      const primaryAddress = Array.isArray(provider.addresses) 
+        ? provider.addresses.find(addr => addr.is_primary) || provider.addresses[0]
+        : provider.addresses;
 
       let distance_km = 999999;
       let priority_score = 0;
 
       // Calculate distance if coordinates are provided
-      if (latitude && longitude && providerStatus?.location_lat && providerStatus?.location_lng) {
+      if (latitude && longitude && primaryAddress?.latitude && primaryAddress?.longitude) {
         const R = 6371; // Earth's radius in km
-        const dLat = (providerStatus.location_lat - latitude) * Math.PI / 180;
-        const dLon = (providerStatus.location_lng - longitude) * Math.PI / 180;
+        const dLat = (primaryAddress.latitude - latitude) * Math.PI / 180;
+        const dLon = (primaryAddress.longitude - longitude) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-          Math.cos(latitude * Math.PI / 180) * Math.cos(providerStatus.location_lat * Math.PI / 180) *
+          Math.cos(latitude * Math.PI / 180) * Math.cos(primaryAddress.latitude * Math.PI / 180) *
           Math.sin(dLon/2) * Math.sin(dLon/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         distance_km = R * c;
@@ -118,7 +123,6 @@ serve(async (req) => {
       if (distance_km < 999999) {
         priority_score += Math.max(0, 500 - Math.floor(distance_km * 10));
       }
-      if (providerStatus?.is_online) priority_score += 200;
 
       return {
         id: provider.id,
@@ -128,10 +132,15 @@ serve(async (req) => {
         rating_avg: provider.rating_avg || 0,
         rating_count: provider.rating_count || 0,
         is_premium: isPremium,
-        is_online: providerStatus?.is_online || false,
-        location_lat: providerStatus?.location_lat,
-        location_lng: providerStatus?.location_lng,
-        last_seen: providerStatus?.last_seen,
+        address: primaryAddress ? {
+          street: primaryAddress.street,
+          number: primaryAddress.number,
+          neighborhood: primaryAddress.neighborhood,
+          city: primaryAddress.city,
+          state: primaryAddress.state,
+          latitude: primaryAddress.latitude,
+          longitude: primaryAddress.longitude
+        } : null,
         distance_km,
         priority_score,
         services: Array.isArray(provider.services) ? provider.services : [provider.services].filter(Boolean),
@@ -143,12 +152,12 @@ serve(async (req) => {
 
     // Filter by distance and sort by priority
     const filteredProviders = providers
-      .filter(provider => distance_km === 999999 || provider.distance_km <= maxDistance)
+      .filter(provider => provider.distance_km <= maxDistance)
       .sort((a, b) => {
         // Premium first
         if (a.is_premium !== b.is_premium) return b.is_premium ? 1 : -1;
-        // Online first
-        if (a.is_online !== b.is_online) return b.is_online ? 1 : -1;
+        // Then by distance (closer first)
+        if (a.distance_km !== b.distance_km) return a.distance_km - b.distance_km;
         // Then by priority score
         if (a.priority_score !== b.priority_score) return b.priority_score - a.priority_score;
         // Then by rating

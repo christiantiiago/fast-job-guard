@@ -33,6 +33,8 @@ import Reviews from "./pages/Reviews";
 import Finance from "./pages/provider/Finance";
 import Premium from "./pages/Premium";
 import ProviderOnboarding from "./pages/provider/Onboarding";
+import HelpSupport from "./pages/HelpSupport";
+import Contracts from "./pages/Contracts";
 
 // KYC pages
 import KYCVerify from "./pages/kyc/KYCVerify";
@@ -222,6 +224,26 @@ const App = () => (
                 <ProtectedRoute>
                   <KYCGate>
                     <Premium />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <HelpSupport />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contracts"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <Contracts />
                   </KYCGate>
                 </ProtectedRoute>
               }
