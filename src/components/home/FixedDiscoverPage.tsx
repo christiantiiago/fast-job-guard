@@ -100,33 +100,40 @@ export default function FixedDiscoverPage() {
     getMapboxToken();
   }, []);
 
-  // Fetch jobs and calculate proposal counts
+  // Fetch jobs and calculate proposal counts - otimizado para evitar loops
   useEffect(() => {
     const fetchJobsWithProposals = async () => {
-      await fetchAllPublicJobs();
-      
-      // Get proposal counts for each job
-      const { data: proposalCounts, error } = await supabase
-        .from('proposals')
-        .select('job_id')
-        .eq('status', 'sent');
+      try {
+        await fetchAllPublicJobs();
         
-      if (!error && proposalCounts) {
-        const countMap = proposalCounts.reduce((acc, proposal) => {
-          acc[proposal.job_id] = (acc[proposal.job_id] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-        
-        // Update jobs with proposal counts
-        setJobsWithDistance(prev => prev.map(job => ({
-          ...job,
-          proposal_count: countMap[job.id] || 0
-        })));
+        // Get proposal counts for each job
+        const { data: proposalCounts, error } = await supabase
+          .from('proposals')
+          .select('job_id')
+          .eq('status', 'sent');
+          
+        if (!error && proposalCounts) {
+          const countMap = proposalCounts.reduce((acc, proposal) => {
+            acc[proposal.job_id] = (acc[proposal.job_id] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          // Update jobs with proposal counts only if data changed
+          setJobsWithDistance(prev => {
+            const updated = prev.map(job => ({
+              ...job,
+              proposal_count: countMap[job.id] || 0
+            }));
+            return updated.length !== prev.length ? updated : prev;
+          });
+        }
+      } catch (error) {
+        console.error('[JOBS] Error fetching:', error);
       }
     };
 
     fetchJobsWithProposals();
-  }, []);
+  }, []); // Remove dependency to prevent loops
 
   // Filter jobs by completion time (completed jobs only show for 2 minutes)
   const filterJobsByTime = (jobsList: any[]) => {
@@ -179,28 +186,20 @@ export default function FixedDiscoverPage() {
     setJobsWithDistance(jobsWithDist);
   }, [position, jobs]);
 
-  // Initialize Mapbox dynamically
+  // Initialize Mapbox dynamically - versão simplificada
   useEffect(() => {
-    if (!mapboxToken || viewMode !== 'map' || !mapContainer.current) {
-      console.log('[MAP] Skipping init:', { token: !!mapboxToken, viewMode, container: !!mapContainer.current });
+    if (!mapboxToken || viewMode !== 'map' || !mapContainer.current || mapInitialized) {
+      console.log('[MAP] Skipping init:', { token: !!mapboxToken, viewMode, container: !!mapContainer.current, initialized: mapInitialized });
       return;
     }
 
-    // Dynamic import to avoid SSR issues
+    let isMounted = true;
+
     const initializeMap = async () => {
       try {
-        console.log('[MAP] 🚀 Starting dynamic initialization...');
+        console.log('[MAP] 🚀 Starting initialization...');
         
-        // Import mapbox dynamically
-        const mapboxgl = await import('mapbox-gl');
-        await import('mapbox-gl/dist/mapbox-gl.css');
-        
-        // Store reference for later use
-        mapboxglRef.current = mapboxgl.default || mapboxgl;
-        
-        console.log('[MAP] ✅ Mapbox modules loaded');
-        
-        // Clean up existing map
+        // Clean up existing map first
         if (map.current) {
           console.log('[MAP] 🧹 Cleaning existing map');
           map.current.remove();
@@ -211,57 +210,58 @@ export default function FixedDiscoverPage() {
         Object.values(markersRef.current).forEach((marker: any) => marker.remove());
         markersRef.current = {};
         
-        // Set access token
-        mapboxglRef.current.accessToken = mapboxToken;
-        console.log('[MAP] 🔑 Token set');
+        // Import mapbox dynamically
+        const mapboxgl = await import('mapbox-gl');
+        await import('mapbox-gl/dist/mapbox-gl.css');
         
-        // Ensure container is ready
+        if (!isMounted) return;
+        
+        // Store reference
+        mapboxglRef.current = mapboxgl.default || mapboxgl;
+        mapboxglRef.current.accessToken = mapboxToken;
+        
+        // Setup container with proper CSS
         if (mapContainer.current) {
-          mapContainer.current.style.width = '100%';
-          mapContainer.current.style.height = '100%';
-          mapContainer.current.style.position = 'relative';
-          mapContainer.current.innerHTML = ''; // Clear any existing content
+          mapContainer.current.innerHTML = '';
+          mapContainer.current.style.cssText = `
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            position: relative;
+            background: #f0f0f0;
+          `;
         }
         
         const initialCenter: [number, number] = position 
           ? [position.longitude, position.latitude]
           : [-46.6333, -23.5505];
         
-        console.log('[MAP] 🗺️ Creating map at:', initialCenter);
-        
         // Create map
         map.current = new mapboxglRef.current.Map({
           container: mapContainer.current!,
           style: 'mapbox://styles/mapbox/streets-v12',
           center: initialCenter,
-          zoom: position ? 13 : 10,
+          zoom: position ? 12 : 10,
           antialias: true
         });
         
         // Add controls
         map.current.addControl(new mapboxglRef.current.NavigationControl(), 'top-right');
         
-        // Handle load event
+        // Handle successful load
         map.current.on('load', () => {
+          if (!isMounted) return;
+          
           console.log('[MAP] ✅ Map loaded successfully!');
           setMapboxError(null);
           setMapInitialized(true);
           
-          // Force resize
-          setTimeout(() => {
-            if (map.current) {
-              map.current.resize();
-              console.log('[MAP] 📏 Map resized');
-            }
-          }, 100);
-          
-          // Add user marker if position available
-          if (position) {
-            console.log('[MAP] 📍 Adding user marker');
+          // Add user marker
+          if (position && mapboxglRef.current) {
             const userEl = document.createElement('div');
             userEl.style.cssText = `
-              width: 20px;
-              height: 20px;
+              width: 16px;
+              height: 16px;
               border-radius: 50%;
               background: #3b82f6;
               border: 3px solid white;
@@ -272,28 +272,38 @@ export default function FixedDiscoverPage() {
               .setLngLat([position.longitude, position.latitude])
               .addTo(map.current);
           }
+          
+          // Force resize after load
+          setTimeout(() => {
+            if (map.current && isMounted) {
+              map.current.resize();
+            }
+          }, 100);
         });
         
+        // Handle errors
         map.current.on('error', (e: any) => {
+          if (!isMounted) return;
           console.error('[MAP] ❌ Error:', e);
           setMapboxError('Erro no mapa: ' + (e.error?.message || 'Desconhecido'));
         });
         
-        console.log('[MAP] ✅ Map initialization complete');
-        
       } catch (error) {
+        if (!isMounted) return;
         console.error('[MAP] ❌ Failed to initialize:', error);
-        setMapboxError('Falha ao carregar mapa: ' + (error.message || 'Erro desconhecido'));
+        setMapboxError('Falha ao carregar mapa');
       }
     };
 
     initializeMap();
     
     return () => {
+      isMounted = false;
       if (map.current) {
         console.log('[MAP] 🧹 Cleanup on unmount');
         map.current.remove();
         map.current = null;
+        setMapInitialized(false);
       }
     };
   }, [mapboxToken, viewMode, position]);
@@ -559,16 +569,35 @@ export default function FixedDiscoverPage() {
           {viewMode === 'map' ? (
             <>
               {mapboxError ? (
-                <div className="p-4">
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Erro no mapa:</strong> {mapboxError}
-                    </AlertDescription>
-                  </Alert>
+                <div className="flex items-center justify-center h-full min-h-[500px] bg-gray-100">
+                  <div className="text-center p-8">
+                    <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Erro no Mapa</h3>
+                    <p className="text-muted-foreground">{mapboxError}</p>
+                  </div>
                 </div>
               ) : (
-                <div ref={mapContainer} className="w-full h-full min-h-[500px]" />
+                <>
+                  <div 
+                    ref={mapContainer} 
+                    className="w-full h-full min-h-[500px] bg-gray-100" 
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      height: '100%',
+                      minHeight: '500px'
+                    }}
+                  />
+                  
+                  {!mapInitialized && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100/90">
+                      <div className="text-center">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Inicializando mapa...</p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
               
               {/* Selected Job Details */}
