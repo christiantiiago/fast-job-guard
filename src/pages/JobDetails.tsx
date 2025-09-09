@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2, Edit3, Send } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,8 @@ import Map from '@/components/ui/map';
 import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
 import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
 import { EscrowManager } from '@/components/escrow/EscrowManager';
+import { useProposalCooldown } from '@/hooks/useProposalCooldown';
+import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
 
 interface JobProfile {
   full_name?: string;
@@ -91,6 +93,8 @@ export default function JobDetails() {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const { calculateFees, formatCurrency, getFeeDescription, isPremiumUser } = useFeeRules();
+  const { canPropose, cooldownEnd, getCooldownTimeRemaining, recordRejection } = useProposalCooldown(id || '');
+  const { sendNotification } = useRealTimeNotifications();
   
   const [job, setJob] = useState<JobData | null>(null);
   const [clientProfile, setClientProfile] = useState<JobProfile | null>(null);
@@ -99,6 +103,7 @@ export default function JobDetails() {
   const [counterOffers, setCounterOffers] = useState<CounterOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [showProposalForm, setShowProposalForm] = useState(false);
   
   // Proposal form state
   const [proposalPrice, setProposalPrice] = useState('');
@@ -261,11 +266,75 @@ export default function JobDetails() {
     }
   };
 
+  const handleDirectAccept = async () => {
+    if (!job || !user) return;
+
+    try {
+      setSubmittingProposal(true);
+
+      const proposalData = {
+        job_id: job.id,
+        provider_id: user.id,
+        price: job.budget_max || job.budget_min || 0,
+        message: `Aceito realizar este trabalho pelo valor proposto de ${formatCurrency(job.budget_max || job.budget_min || 0)}.`,
+        proposal_type: 'direct_accept',
+        auto_accepted: false,
+        status: 'sent' as const
+      };
+
+      const { data: proposalResult, error } = await supabase
+        .from('proposals')
+        .insert([proposalData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Enviar notificação para o cliente
+      await sendNotification(
+        job.client_id,
+        'job_proposal',
+        'Nova Aceitação Direta!',
+        `${user.email} aceitou seu trabalho "${job.title}" pelo valor de ${formatCurrency(job.budget_max || job.budget_min || 0)}. Clique para avaliar.`,
+        { jobId: job.id, proposalId: proposalResult.id, type: 'direct_accept' },
+        3
+      );
+
+      toast({
+        title: "Aceitação enviada!",
+        description: "O cliente foi notificado e pode aprovar sua participação.",
+      });
+
+    } catch (error) {
+      console.error('Error submitting direct accept:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível enviar a aceitação.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingProposal(false);
+    }
+  };
+
   const handleSubmitProposal = async () => {
     if (!job || !user || !proposalPrice || !proposalMessage) {
       toast({
         title: "Campos obrigatórios",
         description: "Preencha o preço e a mensagem da proposta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar cooldown
+    if (!canPropose) {
+      const timeLeft = getCooldownTimeRemaining();
+      toast({
+        title: "Aguarde para propor novamente",
+        description: timeLeft 
+          ? `Você pode fazer uma nova proposta em ${timeLeft.hours}h ${timeLeft.minutes}m`
+          : "Você precisa aguardar antes de fazer uma nova proposta.",
         variant: "destructive",
       });
       return;
@@ -281,21 +350,26 @@ export default function JobDetails() {
         message: proposalMessage,
         estimated_hours: estimatedHours ? parseInt(estimatedHours) : null,
         delivery_date: deliveryDate ? new Date(deliveryDate).toISOString() : null,
+        proposal_type: 'custom'
       };
 
-      const { error } = await supabase
+      const { data: proposalResult, error } = await supabase
         .from('proposals')
-        .insert([proposalData]);
+        .insert([proposalData])
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Error submitting proposal:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível enviar a proposta. Tente novamente.",
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
+
+      // Enviar notificação para o cliente
+      await sendNotification(
+        job.client_id,
+        'job_proposal',
+        'Nova Proposta Recebida!',
+        `${user.email} enviou uma proposta para "${job.title}" por ${formatCurrency(parseFloat(proposalPrice))}.`,
+        { jobId: job.id, proposalId: proposalResult.id, type: 'custom' },
+        2
+      );
 
       toast({
         title: "Proposta enviada",
