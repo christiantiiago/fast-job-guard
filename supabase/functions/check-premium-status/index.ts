@@ -20,21 +20,27 @@ serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
 
-    // Create Supabase client with service role for DB updates
+    // Create Supabase client for authentication with anon key
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
+    // Create service role client for database operations
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
 
-    // Get authenticated user
+    // Get authenticated user using anon key client
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization required");
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseService.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
     if (userError || !userData.user?.email) {
       throw new Error("User authentication failed");
     }
@@ -53,13 +59,14 @@ serve(async (req) => {
     if (customers.data.length === 0) {
       console.log("[PREMIUM-STATUS] No customer found, user is not premium");
       
-      // Update database to reflect non-premium status
+      // Update database to reflect non-premium status using service role
       await supabaseService.from("subscriptions").upsert({
         user_id: user.id,
         provider: 'stripe',
         plan_name: 'Free',
         plan_price: 0,
         status: 'inactive',
+        external_subscription_id: '',
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
 
@@ -98,7 +105,7 @@ serve(async (req) => {
 
       console.log("[PREMIUM-STATUS] Active subscription found:", subscription.id);
 
-      // Update database with current subscription status
+      // Update database with current subscription status using service role
       await supabaseService.from("subscriptions").upsert({
         user_id: user.id,
         external_subscription_id: subscription.id,
@@ -115,13 +122,14 @@ serve(async (req) => {
     } else {
       console.log("[PREMIUM-STATUS] No active subscription found");
       
-      // Update database to reflect non-premium status
+      // Update database to reflect non-premium status using service role
       await supabaseService.from("subscriptions").upsert({
         user_id: user.id,
         provider: 'stripe',
         plan_name: 'Free',
         plan_price: 0,
         status: 'inactive',
+        external_subscription_id: '',
         updated_at: new Date().toISOString()
       }, { onConflict: 'user_id' });
     }

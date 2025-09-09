@@ -28,7 +28,9 @@ import {
   AlertCircle,
   Camera,
   Home,
-  Receipt
+  Receipt,
+  Crown,
+  CreditCard
 } from 'lucide-react';
 
 interface KYCDocument {
@@ -54,8 +56,16 @@ export function ComprehensiveAdminDashboard() {
   const { events: activities, loading: activitiesLoading } = useRealTimeActivity();
   const [activeTab, setActiveTab] = useState('overview');
 
-  const pendingDocuments = documents?.filter(doc => !doc.is_verified && !doc.notes) || [];
-  const recentDocuments = documents?.slice(0, 5) || [];
+  const pendingDocs = documents?.filter(doc => !doc.is_verified && !doc.notes) || [];
+  const recentDocs = documents?.slice(0, 5) || [];
+
+  // Mock data para premium stats (em produção, isso viria de uma query real)
+  const premiumStats = {
+    totalPremiumUsers: 45,
+    premiumRevenue: 3105.50,
+    conversionRate: 12.5,
+    churnRate: 3.2
+  };
 
   const handleApproveDocument = async (docId: string) => {
     try {
@@ -96,7 +106,7 @@ export function ComprehensiveAdminDashboard() {
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Painel Administrativo</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Gerencie usuários, documentos KYC e monitore a plataforma
+            Gerencie usuários, documentos KYC, premium e monitore a plataforma
           </p>
         </div>
         <Button
@@ -115,11 +125,15 @@ export function ComprehensiveAdminDashboard() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
           <TabsTrigger value="overview" className="text-xs sm:text-sm p-2 sm:p-3">
             <Home className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
             <span className="sm:hidden">Home</span>
+          </TabsTrigger>
+          <TabsTrigger value="premium" className="text-xs sm:text-sm p-2 sm:p-3">
+            <Crown className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 text-accent" />
+            Premium
           </TabsTrigger>
           <TabsTrigger value="kyc" className="text-xs sm:text-sm p-2 sm:p-3">
             <FileText className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
@@ -139,6 +153,36 @@ export function ComprehensiveAdminDashboard() {
 
         <TabsContent value="overview" className="space-y-4 sm:space-y-6">
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+            {/* Premium Overview Card */}
+            <Card className="border-accent/20">
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-accent" />
+                  Status Premium
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 border border-accent/20 rounded-lg text-center bg-accent/5">
+                    <div className="text-lg sm:text-xl font-bold text-accent">{premiumStats.totalPremiumUsers}</div>
+                    <p className="text-xs text-muted-foreground">Assinantes</p>
+                  </div>
+                  <div className="p-3 border border-green-200 dark:border-green-800 rounded-lg text-center bg-green-50 dark:bg-green-950/20">
+                    <div className="text-lg sm:text-xl font-bold text-green-600">R$ {premiumStats.premiumRevenue.toFixed(0)}</div>
+                    <p className="text-xs text-muted-foreground">Receita/mês</p>
+                  </div>
+                  <div className="p-3 border rounded-lg text-center">
+                    <div className="text-lg sm:text-xl font-bold">{premiumStats.conversionRate}%</div>
+                    <p className="text-xs text-muted-foreground">Conversão</p>
+                  </div>
+                  <div className="p-3 border border-orange-200 dark:border-orange-800 rounded-lg text-center bg-orange-50 dark:bg-orange-950/20">
+                    <div className="text-lg sm:text-xl font-bold text-orange-600">{premiumStats.churnRate}%</div>
+                    <p className="text-xs text-muted-foreground">Churn</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Recent KYC Documents */}
             <Card>
               <CardHeader className="pb-3 sm:pb-4">
@@ -154,8 +198,8 @@ export function ComprehensiveAdminDashboard() {
                       <div key={i} className="h-12 bg-muted rounded animate-pulse" />
                     ))}
                   </div>
-                ) : recentDocuments.length > 0 ? (
-                  recentDocuments.map((doc) => (
+                ) : recentDocs.length > 0 ? (
+                  recentDocs.map((doc) => (
                     <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center">
@@ -194,12 +238,12 @@ export function ComprehensiveAdminDashboard() {
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-3">
-                  {pendingDocuments.length > 0 && (
+                  {pendingDocs.length > 0 && (
                     <div className="p-3 border border-orange-200 bg-orange-50 rounded-lg">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-orange-600" />
                         <span className="text-sm font-medium text-orange-700">
-                          {pendingDocuments.length} documento(s) KYC pendente(s)
+                          {pendingDocs.length} documento(s) KYC pendente(s)
                         </span>
                       </div>
                     </div>
@@ -218,6 +262,132 @@ export function ComprehensiveAdminDashboard() {
           </div>
         </TabsContent>
 
+        <TabsContent value="premium" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-accent/20 bg-accent/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Usuários Premium</CardTitle>
+                <Crown className="h-4 w-4 text-accent" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-accent">{premiumStats.totalPremiumUsers}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total de assinantes ativos
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  R$ {premiumStats.premiumRevenue.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Receita recorrente mensal
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{premiumStats.conversionRate}%</div>
+                <p className="text-xs text-muted-foreground">
+                  Gratuito para Premium
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Taxa de Churn</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-500">{premiumStats.churnRate}%</div>
+                <p className="text-xs text-muted-foreground">
+                  Cancelamentos mensais
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-accent" />
+                Gestão de Assinaturas Premium
+              </CardTitle>
+              <CardDescription>
+                Monitore e gerencie assinaturas premium da plataforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Benefícios Premium Ativos</h4>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Taxas reduzidas (3,5%)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Metas personalizadas</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Prioridade nos jobs</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm">Suporte premium</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Métricas de Performance</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Assinaturas ativas</span>
+                        <Badge variant="secondary">{premiumStats.totalPremiumUsers}</Badge>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Receita por usuário</span>
+                        <Badge variant="secondary">
+                          R$ {(premiumStats.premiumRevenue / premiumStats.totalPremiumUsers).toFixed(2)}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Crescimento mensal</span>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200">
+                          +{Math.floor(premiumStats.conversionRate / 2)}%
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button className="w-full sm:w-auto" onClick={() => window.open('/premium', '_blank')}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Ver Página Premium
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="kyc" className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader className="pb-3 sm:pb-4">
@@ -226,7 +396,7 @@ export function ComprehensiveAdminDashboard() {
                 Documentos KYC Pendentes
               </CardTitle>
               <CardDescription className="text-sm">
-                {pendingDocuments.length} documento(s) aguardando análise
+                {pendingDocs.length} documento(s) aguardando análise
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pt-0">
@@ -236,8 +406,8 @@ export function ComprehensiveAdminDashboard() {
                     <div key={i} className="h-24 bg-muted rounded animate-pulse" />
                   ))}
                 </div>
-              ) : pendingDocuments.length > 0 ? (
-                pendingDocuments.map((doc) => (
+              ) : pendingDocs.length > 0 ? (
+                pendingDocs.map((doc) => (
                   <div key={doc.id} className="p-3 sm:p-4 border rounded-lg space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -405,8 +575,8 @@ export function ComprehensiveAdminDashboard() {
                     <p className="text-xs text-muted-foreground">Ativos</p>
                   </div>
                   <div className="p-3 border rounded-lg text-center">
-                    <div className="text-lg sm:text-xl font-bold text-red-600">{stats?.openDisputes || 0}</div>
-                    <p className="text-xs text-muted-foreground">Disputas</p>
+                    <div className="text-lg sm:text-xl font-bold">R$ 0</div>
+                    <p className="text-xs text-muted-foreground">Volume</p>
                   </div>
                 </div>
               </CardContent>
