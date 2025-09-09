@@ -21,7 +21,25 @@ import {
   Activity
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/useAuth';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { ProviderDashboard } from '@/components/provider/ProviderDashboard';
+
 export default function Dashboard() {
+  const { userRole } = useAuth();
+
+  if (userRole === 'provider') {
+    return (
+      <AppLayout>
+        <ProviderDashboard />
+      </AppLayout>
+    );
+  }
+
+  return <OriginalDashboard />;
+}
+
+function OriginalDashboard() {
   const { user, userRole } = useAuth();
   const { stats, loading: statsLoading } = useJobStats();
 

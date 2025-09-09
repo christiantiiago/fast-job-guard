@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
 import { KYCGate } from "@/components/kyc/KYCGate";
@@ -27,7 +28,7 @@ import Discover from "./pages/Discover";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
-import ProviderFinance from "./pages/provider/Finance";
+import FinanceRevolutionary from "./provider/FinanceRevolutionary";
 import ProviderOnboarding from "./pages/provider/Onboarding";
 
 // KYC pages
@@ -52,10 +53,11 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <ThemeProvider defaultTheme="system" storageKey="shipfy-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Index />} />
@@ -235,7 +237,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <ProviderFinance />
+                    <FinanceRevolutionary />
                   </KYCGate>
                 </ProtectedRoute>
               }
@@ -318,8 +320,9 @@ const App = () => (
             {/* Catch all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

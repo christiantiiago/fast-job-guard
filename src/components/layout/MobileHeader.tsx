@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Menu, Bell, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobileHamburgerMenu } from "./MobileHamburgerMenu";
+import { ChatHeaderButton } from "./ChatHeaderButton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface MobileHeaderProps {
   title?: string;
@@ -57,16 +60,7 @@ const MobileHeader = ({
               </Button>
             )}
             
-            {showMenu && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onMenu}
-                className="w-10 h-10"
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-            )}
+            {showMenu && <MobileHamburgerMenu />}
             
             {title && (
               <h1 className="text-lg font-semibold text-foreground truncate">
@@ -84,6 +78,8 @@ const MobileHeader = ({
 
           {/* Right side */}
           <div className="flex items-center gap-1">
+            <ChatHeaderButton />
+            
             {showSearch && (
               <Button
                 variant="ghost"
@@ -112,6 +108,8 @@ const MobileHeader = ({
                 )}
               </Button>
             )}
+            
+            <ThemeToggle />
           </div>
         </div>
       </div>
