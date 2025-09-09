@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useFeeRules } from '@/hooks/useFeeRules';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, 
@@ -43,6 +44,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { calculateFees, formatCurrency } = useFeeRules();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('credit-card');
@@ -127,20 +129,6 @@ export default function Checkout() {
     fetchJob();
   }, [jobId, user, toast]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const calculateFees = (amount: number, isSubscriber = false) => {
-    const clientFeeRate = isSubscriber ? 0.05 : 0.075; // 5% premium, 7.5% standard
-    const clientFee = amount * clientFeeRate;
-    const total = amount + clientFee;
-    
-    return { clientFee, total };
-  };
 
   const handlePayment = async () => {
     if (!job || !user) return;
@@ -154,7 +142,8 @@ export default function Checkout() {
           jobId: jobId,
           providerId: job.provider_id,
           amount: job.agreed_price,
-          platformFee: calculateFees(job.agreed_price).clientFee
+          platformFee: calculateFees(job.agreed_price).platformFee,
+          paymentMethod: paymentMethod === 'credit-card' ? 'card' : 'pix'
         }
       });
 
@@ -237,7 +226,7 @@ export default function Checkout() {
     );
   }
 
-  const { clientFee, total } = calculateFees(job.agreed_price);
+  const fees = calculateFees(job.agreed_price);
 
   return (
     <AppLayout>
@@ -344,15 +333,20 @@ export default function Checkout() {
                 </div>
                 
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Taxa da plataforma (7,5%)</span>
-                  <span>{formatCurrency(clientFee)}</span>
+                  <span>Taxa da plataforma ({fees.feePercentage}%)</span>
+                  <span>{formatCurrency(fees.platformFee)}</span>
+                </div>
+
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Taxa do gateway de pagamento</span>
+                  <span>{formatCurrency(fees.processingFee)}</span>
                 </div>
                 
                 <Separator />
                 
                 <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span>Total a pagar</span>
+                  <span className="text-primary">{formatCurrency(fees.total)}</span>
                 </div>
                 
                 <Alert>
@@ -376,7 +370,7 @@ export default function Checkout() {
                     className="w-full"
                     size="lg"
                   >
-                    {processing ? 'Processando...' : `Pagar ${formatCurrency(total)}`}
+                    {processing ? 'Processando...' : `Pagar ${formatCurrency(fees.total)}`}
                   </Button>
                 </div>
                 
@@ -397,8 +391,8 @@ export default function Checkout() {
                 </p>
                 <div className="text-sm">
                   <div className="flex justify-between">
-                    <span className="line-through text-muted-foreground">Taxa atual (7,5%):</span>
-                    <span className="line-through text-muted-foreground">{formatCurrency(clientFee)}</span>
+                    <span className="line-through text-muted-foreground">Taxa atual ({fees.feePercentage}%):</span>
+                    <span className="line-through text-muted-foreground">{formatCurrency(fees.platformFee)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
                     <span>Taxa Premium (5%):</span>
@@ -406,7 +400,7 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between font-semibold text-green-600">
                     <span>Economia:</span>
-                    <span>{formatCurrency(clientFee - (job.agreed_price * 0.05))}</span>
+                    <span>{formatCurrency(fees.platformFee - (job.agreed_price * 0.05))}</span>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="w-full mt-3">
