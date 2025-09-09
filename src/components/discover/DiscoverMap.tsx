@@ -21,6 +21,7 @@ interface JobWithDistance {
   service_categories?: {
     name: string;
     color?: string;
+    icon_name?: string;
   };
   addresses?: {
     neighborhood?: string;
@@ -29,6 +30,8 @@ interface JobWithDistance {
   };
   distance?: number;
   proposal_count?: number;
+  routeDistance?: number;
+  routeDuration?: number;
 }
 
 interface DiscoverMapProps {

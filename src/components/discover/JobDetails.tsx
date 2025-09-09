@@ -18,6 +18,11 @@ interface JobWithDistance {
   completed_at?: string;
   routeDistance?: number;
   routeDuration?: number;
+  service_categories?: {
+    name: string;
+    color?: string;
+    icon_name?: string;
+  };
 }
 
 interface JobDetailsProps {
@@ -33,8 +38,12 @@ export function JobDetails({ job, onClose, formatCurrency, formatDistance, forma
   const navigate = useNavigate();
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-10">
-      <Card className="bg-white/98 backdrop-blur-md border-0 shadow-2xl">
+    <div className="absolute bottom-4 left-4 right-4 z-50 pointer-events-auto">
+      <Card className="bg-white/98 backdrop-blur-md border-0 shadow-2xl"
+            style={{ 
+              position: 'sticky',
+              zIndex: 1000
+            }}>
         <CardContent className="p-5">
           <div className="flex items-start justify-between mb-3">
             <h3 className="font-bold text-lg text-gray-900 leading-tight">{job.title}</h3>

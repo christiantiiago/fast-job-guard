@@ -37,6 +37,7 @@ interface JobWithDistance {
   service_categories?: {
     name: string;
     color?: string;
+    icon_name?: string;
   };
   addresses?: {
     neighborhood?: string;

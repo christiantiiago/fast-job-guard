@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { getCategoryIcon } from '@/utils/categoryIcons';
 
 interface JobWithDistance {
   id: string;
@@ -15,6 +16,7 @@ interface JobWithDistance {
   service_categories?: {
     name: string;
     color?: string;
+    icon_name?: string;
   };
   addresses?: {
     neighborhood?: string;
@@ -48,51 +50,118 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
     const distance = job.routeDistance ? formatDistance(job.routeDistance) : '';
     const duration = job.routeDuration ? formatDuration(job.routeDuration) : '';
     
-    // Choose gradient colors based on job status
-    let bgGradient = 'linear-gradient(135deg, #ef4444, #dc2626)'; // red gradient for open
-    let textColor = '#ffffff';
-    let shadowColor = 'rgba(239, 68, 68, 0.3)';
+    // Get category icon
+    const CategoryIcon = getCategoryIcon(job.service_categories?.icon_name);
+    
+    // Choose colors based on job status
+    let bgGradient, avatarBg, shadowColor;
     
     if (job.status === 'in_progress') {
-      bgGradient = 'linear-gradient(135deg, #f59e0b, #d97706)'; // amber gradient for in progress
-      textColor = '#ffffff';
-      shadowColor = 'rgba(245, 158, 11, 0.3)';
+      bgGradient = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      avatarBg = '#f59e0b';
+      shadowColor = 'rgba(245, 158, 11, 0.4)';
     } else if (job.status === 'completed') {
-      bgGradient = 'linear-gradient(135deg, #10b981, #059669)'; // emerald gradient for completed
-      textColor = '#ffffff';
-      shadowColor = 'rgba(16, 185, 129, 0.3)';
+      bgGradient = 'linear-gradient(135deg, #10b981, #059669)';
+      avatarBg = '#10b981';
+      shadowColor = 'rgba(16, 185, 129, 0.4)';
+    } else {
+      bgGradient = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+      avatarBg = '#3b82f6';
+      shadowColor = 'rgba(59, 130, 246, 0.4)';
     }
     
+    // Create category icon SVG
+    const createIconSVG = (iconName: string) => {
+      const iconMap: Record<string, string> = {
+        'zap': '<path d="m9.69 7.17 2.74-2.74.01-.01 2.74-2.74h-3.06v-1.44L16.26 4l-1.44 1.44v1.44h-3.06L14.5 9.62l-1.44 1.44H9v-3.89Z"/>',
+        'droplets': '<path d="M7 16.5C7 20.09 9.91 23 13.5 23s6.5-2.91 6.5-6.5c0-2.1-1.31-4.35-2.95-6.53C16.5 8.9 15.5 7.7 14.5 6.5c-.86-1.03-1.5-1.75-1.5-2.5C13 2.91 12.09 2 11 2S9 2.91 9 4c0 .75-.64 1.47-1.5 2.5-1 1.2-2 2.4-2.55 3.47C3.31 12.15 2 14.4 2 16.5 2 20.09 4.91 23 8.5 23s6.5-2.91 6.5-6.5"/>',
+        'brush': '<path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/>',
+        'leaf': '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>',
+        'sparkles': '<path d="M9 3l1 4 4 1-4 1-1 4-1-4-4-1 4-1 1-4Z"/>',
+        'wrench': '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+        'car': '<path d="M8 6v6h8V6"/><path d="M4 6h16l-2 12H6L4 6Z"/>',
+        'home': '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+        'camera': '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>',
+        'monitor': '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>'
+      };
+      
+      const iconPath = iconMap[iconName] || iconMap['wrench'];
+      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
+    };
+
     markerEl.innerHTML = `
-      <div style="
-        background: ${bgGradient};
-        color: ${textColor};
-        padding: 10px 14px;
-        border-radius: 16px;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1.3;
-        text-align: center;
-        cursor: pointer;
-        box-shadow: 0 6px 20px ${shadowColor}, 0 2px 8px rgba(0,0,0,0.1);
-        border: 2px solid rgba(255,255,255,0.2);
-        backdrop-filter: blur(10px);
-        min-width: 90px;
-        transform: translateX(-50%) translateY(-100%);
+      <div class="worker-marker" style="
         position: relative;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        transform-origin: center bottom;
       ">
-        <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-          ${price}
+        <!-- Worker Avatar -->
+        <div style="
+          width: 48px;
+          height: 48px;
+          background: ${avatarBg};
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4px 12px ${shadowColor}, 0 2px 6px rgba(0,0,0,0.1);
+          border: 3px solid white;
+          margin: 0 auto 8px auto;
+          position: relative;
+          z-index: 2;
+        ">
+          ${createIconSVG(job.service_categories?.icon_name || 'wrench')}
         </div>
-        <div style="font-size: 10px; opacity: 0.95; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-          ${distance}${duration ? `<br/>${duration}` : ''}
-        </div>
-        ${job.proposal_count && job.proposal_count > 0 ? `
+        
+        <!-- Info Card -->
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 8px 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          border: 1px solid rgba(0,0,0,0.1);
+          min-width: 120px;
+          text-align: center;
+          position: relative;
+          z-index: 1;
+        ">
+          <div style="
+            font-size: 13px; 
+            font-weight: 700; 
+            color: #1f2937;
+            margin-bottom: 2px;
+          ">
+            ${price}
+          </div>
+          <div style="
+            font-size: 10px; 
+            color: #6b7280;
+            line-height: 1.2;
+          ">
+            ${distance}${duration ? ` • ${duration}` : ''}
+          </div>
+          
+          <!-- Arrow pointing to avatar -->
           <div style="
             position: absolute;
             top: -6px;
-            right: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid white;
+          "></div>
+        </div>
+
+        <!-- Proposal count badge -->
+        ${job.proposal_count && job.proposal_count > 0 ? `
+          <div style="
+            position: absolute;
+            top: -4px;
+            right: -4px;
             background: linear-gradient(135deg, #ef4444, #dc2626);
             color: white;
             border-radius: 50%;
@@ -105,37 +174,29 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
             justify-content: center;
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
             border: 2px solid white;
+            z-index: 3;
           ">
             ${job.proposal_count}
           </div>
         ` : ''}
-        <div style="
-          position: absolute;
-          bottom: -8px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 0;
-          height: 0;
-          border-left: 8px solid transparent;
-          border-right: 8px solid transparent;
-          border-top: 8px solid;
-          border-top-color: ${job.status === 'in_progress' ? '#d97706' : job.status === 'completed' ? '#059669' : '#dc2626'};
-          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        "></div>
       </div>
     `;
 
-    // Add hover effects
+    // Add smooth hover effects (sem mudança de posição)
+    const workerMarker = markerEl.querySelector('.worker-marker') as HTMLElement;
+    
     markerEl.addEventListener('mouseenter', () => {
-      markerEl.style.transform = 'translateX(-50%) translateY(-100%) scale(1.08)';
-      markerEl.style.zIndex = '1000';
-      markerEl.querySelector('div').style.boxShadow = `0 8px 30px ${shadowColor}, 0 4px 12px rgba(0,0,0,0.15)`;
+      if (workerMarker) {
+        workerMarker.style.transform = 'scale(1.1)';
+        workerMarker.style.zIndex = '1000';
+      }
     });
     
     markerEl.addEventListener('mouseleave', () => {
-      markerEl.style.transform = 'translateX(-50%) translateY(-100%) scale(1)';
-      markerEl.style.zIndex = '999';
-      markerEl.querySelector('div').style.boxShadow = `0 6px 20px ${shadowColor}, 0 2px 8px rgba(0,0,0,0.1)`;
+      if (workerMarker) {
+        workerMarker.style.transform = 'scale(1)';
+        workerMarker.style.zIndex = '999';
+      }
     });
 
     // Add click handler with smooth zoom functionality
@@ -147,27 +208,29 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
         map.easeTo({
           center: [job.longitude, job.latitude],
           zoom: 16,
-          duration: 1200,
+          duration: 1000,
           easing: (t) => t * (2 - t) // easeOutQuad
         });
       }
       
-      // Add click animation
-      markerEl.style.transform = 'translateX(-50%) translateY(-100%) scale(0.95)';
-      setTimeout(() => {
-        markerEl.style.transform = 'translateX(-50%) translateY(-100%) scale(1)';
-      }, 150);
+      // Add click animation (sem alterar posição do marker)
+      if (workerMarker) {
+        workerMarker.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          workerMarker.style.transform = 'scale(1)';
+        }, 150);
+      }
       
       // Call the job click handler after zoom starts
       setTimeout(() => {
         onJobClick(job);
-      }, 600);
+      }, 400);
     });
 
-    // Create marker and add to map
+    // Create marker and add to map (posição fixa e precisa)
     markerRef.current = new mapboxgl.Marker(markerEl, { 
       anchor: 'bottom',
-      offset: [0, 8]
+      offset: [0, 0]
     })
       .setLngLat([job.longitude, job.latitude])
       .addTo(map);
