@@ -48,34 +48,84 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState('credit-card');
   const [processing, setProcessing] = useState(false);
 
-  // Mock data - em produção seria uma consulta real
   useEffect(() => {
     const fetchJob = async () => {
+      if (!jobId) return;
+      
       setLoading(true);
-      // Simular carregamento
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock job data
-      setJob({
-        id: jobId || '1',
-        title: 'Instalação Elétrica Residencial',
-        description: 'Instalação de novos pontos elétricos na sala e cozinha',
-        category: 'Elétrica',
-        client_name: 'João Silva',
-        provider_name: 'Carlos Eletricista',
-        provider_rating: 4.8,
-        address: 'Rua das Flores, 123 - São Paulo, SP',
-        agreed_price: 450.00,
-        estimated_hours: 4,
-        delivery_date: '2024-01-25',
-        provider_id: 'provider-123'
-      });
-      
-      setLoading(false);
+      try {
+        // Buscar job com dados relacionados
+        const { data: jobData, error: jobError } = await supabase
+          .from('jobs')
+          .select(`
+            id,
+            title,
+            description,
+            final_price,
+            deadline_at,
+            provider_id,
+            service_categories!inner(name),
+            addresses!inner(
+              street,
+              number,
+              neighborhood,
+              city,
+              state
+            )
+          `)
+          .eq('id', jobId)
+          .single();
+
+        if (jobError) throw jobError;
+
+        if (jobData && jobData.provider_id) {
+          // Buscar dados do prestador
+          const { data: providerData } = await supabase
+            .from('profiles')
+            .select('full_name, rating_avg')
+            .eq('user_id', jobData.provider_id)
+            .single();
+
+          // Buscar proposta aceita para obter detalhes adicionais
+          const { data: proposalData } = await supabase
+            .from('proposals')
+            .select('price, estimated_hours, delivery_date')
+            .eq('job_id', jobId)
+            .eq('status', 'accepted')
+            .single();
+
+          const address = jobData.addresses;
+          
+          setJob({
+            id: jobData.id,
+            title: jobData.title,
+            description: jobData.description,
+            category: jobData.service_categories?.name || 'Serviço',
+            client_name: user?.user_metadata?.full_name || 'Cliente',
+            provider_name: providerData?.full_name || 'Prestador',
+            provider_rating: providerData?.rating_avg || 0,
+            address: `${address?.street}, ${address?.number} - ${address?.neighborhood}, ${address?.city}/${address?.state}`,
+            agreed_price: proposalData?.price || jobData.final_price || 0,
+            estimated_hours: proposalData?.estimated_hours || 4,
+            delivery_date: proposalData?.delivery_date || jobData.deadline_at || new Date().toISOString(),
+            provider_id: jobData.provider_id
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar job:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar os dados do serviço.",
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchJob();
-  }, [jobId]);
+  }, [jobId, user, toast]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
