@@ -216,23 +216,15 @@ export function DirectProposalCard({ proposal }: DirectProposalCardProps) {
               </div>
             )}
 
-            {isClient && proposal.status === 'accepted' && (
+            {isClient && proposal.status === 'waiting_client_approval' && (
               <div className="space-y-3">
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Proposta aceita!</strong> O prestador aceitou sua proposta. 
-                    Confirme para iniciar o trabalho.
+                    <strong>Proposta aceita!</strong> {proposal.provider_profile?.full_name || 'O prestador'} aceitou sua proposta. 
+                    Você receberá uma notificação para aprovar e prosseguir com o pagamento.
                   </AlertDescription>
                 </Alert>
-                <Button
-                  onClick={handleConfirmStart}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  Confirmar e Iniciar Trabalho
-                </Button>
               </div>
             )}
 
@@ -250,11 +242,20 @@ export function DirectProposalCard({ proposal }: DirectProposalCardProps) {
               </Alert>
             )}
 
-            {isProvider && proposal.status === 'accepted' && (
+            {isProvider && proposal.status === 'waiting_client_approval' && (
               <Alert>
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
-                  Proposta aceita! Aguardando o cliente confirmar o início do trabalho.
+                  Proposta aceita! Aguardando o cliente aprovar e efetuar o pagamento.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {proposal.status === 'confirmed' && (
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Trabalho confirmado!</strong> O pagamento foi efetuado e o trabalho pode ser iniciado.
                 </AlertDescription>
               </Alert>
             )}

@@ -1,12 +1,15 @@
-import { useState } from 'react';
-import { Bell, Check, CheckCheck, X, AlertCircle, Info, Star, Zap, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bell, X, Trash2, AlertCircle, Info, Star, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
+import { ProposalApprovalCard } from './ProposalApprovalCard';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export const NotificationCenter = () => {
   const {
@@ -56,140 +59,125 @@ export const NotificationCenter = () => {
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      
-      <PopoverContent className="w-80 p-0" align="end">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Notificações</CardTitle>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
+    <div className="fixed top-4 right-4 z-50">
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="relative"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <Badge 
+            variant="destructive" 
+            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Badge>
+        )}
+      </Button>
+
+      {isOpen && (
+        <div className="absolute top-12 right-0 w-80 max-h-96 overflow-hidden">
+          <Card className="border shadow-lg">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Notificações</CardTitle>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={markAllAsRead}
+                      className="text-xs"
+                    >
+                      Marcar todas
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={markAllAsRead}
-                    className="text-xs"
+                    size="icon"
+                    onClick={() => setIsOpen(false)}
+                    className="h-6 w-6"
                   >
-                    <CheckCheck className="h-3 w-3 mr-1" />
-                    Marcar todas
+                    <X className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                  className="h-6 w-6"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          
-          <Separator />
-          
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                Carregando notificações...
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                Nenhuma notificação
-              </div>
-            ) : (
-              <ScrollArea className="h-80">
-                <div className="space-y-1">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
-                        !notification.is_read ? 'bg-blue-50/50 border-l-2 border-l-blue-500' : ''
-                      }`}
-                      onClick={() => markAsRead(notification.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 mt-0.5">
-                          {getPriorityIcon(notification.priority)}
+            </CardHeader>
+            
+            <Separator />
+            
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Carregando notificações...
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  Nenhuma notificação
+                </div>
+              ) : (
+                <ScrollArea className="h-80">
+                  <div className="space-y-1">
+                    {notifications.map((notification) => 
+                      notification.type === 'proposal_accepted_for_approval' ? (
+                        <div key={notification.id} className="p-3">
+                          <ProposalApprovalCard 
+                            data={notification.data as any}
+                            onClose={() => {
+                              markAsRead(notification.id);
+                              deleteNotification(notification.id);
+                              setIsOpen(false);
+                            }}
+                          />
                         </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className={`text-sm font-medium truncate ${
-                              !notification.is_read ? 'text-foreground' : 'text-muted-foreground'
-                            }`}>
-                              {notification.title}
-                            </p>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${getNotificationTypeColor(notification.type)}`}
-                            >
-                              {notification.type.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          
-                          <p className={`text-xs mt-1 line-clamp-2 ${
-                            !notification.is_read ? 'text-muted-foreground' : 'text-muted-foreground/70'
-                          }`}>
-                            {notification.message}
-                          </p>
-                          
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-muted-foreground">
-                              {formatTimeAgo(notification.created_at)}
-                            </span>
-                            
-                            <div className="flex items-center gap-1">
-                              {!notification.is_read && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    markAsRead(notification.id);
-                                  }}
-                                >
-                                  <Check className="h-3 w-3" />
-                                </Button>
-                              )}
+                      ) : (
+                        <Card key={notification.id} className={cn(
+                          "m-2 transition-colors hover:bg-muted/50",
+                          !notification.is_read && "border-l-4 border-l-primary"
+                        )}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-sm">{notification.title}</h4>
+                                  {!notification.is_read && (
+                                    <Badge variant="secondary" className="h-5 px-2 text-xs">
+                                      Nova
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDistanceToNow(new Date(notification.created_at), { 
+                                    addSuffix: true,
+                                    locale: ptBR 
+                                  })}
+                                </p>
+                              </div>
                               <Button
-                                variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteNotification(notification.id);
-                                }}
+                                variant="ghost"
+                                onClick={() => deleteNotification(notification.id)}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
-      </PopoverContent>
-    </Popover>
+                          </CardContent>
+                        </Card>
+                      )
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 };

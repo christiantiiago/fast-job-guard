@@ -68,10 +68,10 @@ export const useDirectProposals = () => {
 
   const acceptProposal = async (proposalId: string) => {
     try {
-      // Update proposal status to accepted
+      // Update proposal status to waiting_client_approval
       const { error: updateError } = await supabase
         .from('direct_proposals')
-        .update({ status: 'accepted' })
+        .update({ status: 'waiting_client_approval' })
         .eq('id', proposalId);
 
       if (updateError) throw updateError;
@@ -80,20 +80,25 @@ export const useDirectProposals = () => {
       const proposal = proposals.find(p => p.id === proposalId);
       if (!proposal) return false;
 
-      // Send notification to client
+      // Send notification to client with detailed info
       const { error: notificationError } = await supabase
         .from('real_time_notifications')
         .insert([{
           user_id: proposal.client_id,
-          type: 'direct_proposal_accepted',
-          title: 'Proposta Aceita!',
-          message: `${proposal.provider_profile?.full_name} aceitou sua proposta direta.`,
+          type: 'proposal_accepted_for_approval',
+          title: 'Prestador Aceitou sua Proposta!',
+          message: `${proposal.provider_profile?.full_name || 'Prestador'} aceitou sua proposta "${proposal.title}". Revise e confirme para prosseguir com o pagamento.`,
           data: {
             proposal_id: proposalId,
-            provider_name: proposal.provider_profile?.full_name,
-            title: proposal.title
+            provider_id: proposal.provider_id,
+            provider_name: proposal.provider_profile?.full_name || 'Prestador',
+            provider_avatar: proposal.provider_profile?.avatar_url,
+            title: proposal.title,
+            proposed_price: proposal.proposed_price,
+            estimated_hours: proposal.estimated_hours,
+            deadline: proposal.deadline
           },
-          priority: 2
+          priority: 3
         }]);
 
       if (notificationError) {
@@ -102,7 +107,7 @@ export const useDirectProposals = () => {
 
       toast({
         title: "Proposta aceita!",
-        description: "A proposta foi aceita. O cliente foi notificado e deve confirmar para iniciar o trabalho.",
+        description: "O cliente foi notificado e deve confirmar para prosseguir com o pagamento.",
       });
 
       await fetchProposals();
@@ -192,6 +197,36 @@ export const useDirectProposals = () => {
     }
   };
 
+  const approveAndCheckout = async (proposalId: string) => {
+    try {
+      const proposal = proposals.find(p => p.id === proposalId);
+      if (!proposal) return { success: false };
+
+      // Redirect to checkout with proposal data
+      return { 
+        success: true, 
+        checkoutData: {
+          proposalId,
+          providerId: proposal.provider_id,
+          providerName: proposal.provider_profile?.full_name || 'Prestador',
+          title: proposal.title,
+          description: proposal.description,
+          price: proposal.proposed_price,
+          estimatedHours: proposal.estimated_hours,
+          deadline: proposal.deadline
+        }
+      };
+    } catch (error) {
+      console.error('Error preparing checkout:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível prosseguir com o pagamento.",
+        variant: "destructive",
+      });
+      return { success: false };
+    }
+  };
+
   const confirmStart = async (proposalId: string) => {
     try {
       // Create a new job based on the direct proposal
@@ -217,7 +252,7 @@ export const useDirectProposals = () => {
       // Update direct proposal status
       const { error: updateError } = await supabase
         .from('direct_proposals')
-        .update({ status: 'accepted' })
+        .update({ status: 'confirmed' })
         .eq('id', proposalId);
 
       if (updateError) throw updateError;
@@ -267,6 +302,7 @@ export const useDirectProposals = () => {
     fetchProposals,
     acceptProposal,
     rejectProposal,
+    approveAndCheckout,
     confirmStart
   };
 };

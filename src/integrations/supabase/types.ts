@@ -1125,6 +1125,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           birth_date: string | null
           created_at: string | null
           criminal_background_expires_at: string | null
@@ -1139,15 +1140,18 @@ export type Database = {
           kyc_status: Database["public"]["Enums"]["kyc_status"] | null
           last_facial_verification_at: string | null
           phone: string | null
+          portfolio_description: string | null
           rating_avg: number | null
           rating_count: number | null
           stripe_account_id: string | null
           updated_at: string | null
           user_id: string
           verified_at: string | null
+          work_photos: string[] | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           criminal_background_expires_at?: string | null
@@ -1162,15 +1166,18 @@ export type Database = {
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           last_facial_verification_at?: string | null
           phone?: string | null
+          portfolio_description?: string | null
           rating_avg?: number | null
           rating_count?: number | null
           stripe_account_id?: string | null
           updated_at?: string | null
           user_id: string
           verified_at?: string | null
+          work_photos?: string[] | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           criminal_background_expires_at?: string | null
@@ -1185,12 +1192,14 @@ export type Database = {
           kyc_status?: Database["public"]["Enums"]["kyc_status"] | null
           last_facial_verification_at?: string | null
           phone?: string | null
+          portfolio_description?: string | null
           rating_avg?: number | null
           rating_count?: number | null
           stripe_account_id?: string | null
           updated_at?: string | null
           user_id?: string
           verified_at?: string | null
+          work_photos?: string[] | null
         }
         Relationships: []
       }

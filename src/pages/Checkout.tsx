@@ -1,272 +1,163 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { useFeeRules } from '@/hooks/useFeeRules';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   CreditCard, 
-  Smartphone, 
   Shield, 
-  AlertCircle, 
+  DollarSign, 
+  Clock, 
+  Calendar, 
+  User,
+  ArrowLeft,
   CheckCircle,
-  Star,
-  Clock,
-  MapPin
+  Lock
 } from 'lucide-react';
-
-interface Job {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  client_name: string;
-  provider_name: string;
-  provider_rating: number;
-  address: string;
-  agreed_price: number;
-  estimated_hours: number;
-  delivery_date: string;
-  provider_id: string;
-}
+import { useToast } from '@/hooks/use-toast';
+import { useDirectProposals } from '@/hooks/useDirectProposals';
+import { UserLink } from '@/components/ui/user-link';
 
 export default function Checkout() {
-  const { jobId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const { calculateFees, formatCurrency } = useFeeRules();
-  const [job, setJob] = useState<Job | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState('credit-card');
-  const [processing, setProcessing] = useState(false);
+  const { confirmStart } = useDirectProposals();
+  const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'pix'>('credit_card');
+
+  const proposalData = location.state?.proposalData;
 
   useEffect(() => {
-    const fetchJob = async () => {
-      if (!jobId) return;
-      
-      setLoading(true);
-      
-      try {
-        // Buscar job com dados relacionados
-        const { data: jobData, error: jobError } = await supabase
-          .from('jobs')
-          .select(`
-            id,
-            title,
-            description,
-            final_price,
-            deadline_at,
-            provider_id,
-            service_categories!inner(name),
-            addresses!inner(
-              street,
-              number,
-              neighborhood,
-              city,
-              state
-            )
-          `)
-          .eq('id', jobId)
-          .single();
+    if (!proposalData) {
+      navigate('/');
+      return;
+    }
+  }, [proposalData, navigate]);
 
-        if (jobError) throw jobError;
+  if (!proposalData) {
+    return null;
+  }
 
-        if (jobData && jobData.provider_id) {
-          // Buscar dados do prestador
-          const { data: providerData } = await supabase
-            .from('profiles')
-            .select('full_name, rating_avg')
-            .eq('user_id', jobData.provider_id)
-            .single();
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
 
-          // Buscar proposta aceita para obter detalhes adicionais
-          const { data: proposalData } = await supabase
-            .from('proposals')
-            .select('price, estimated_hours, delivery_date')
-            .eq('job_id', jobId)
-            .eq('status', 'accepted')
-            .single();
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'A combinar';
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
 
-          const address = jobData.addresses;
-          
-          setJob({
-            id: jobData.id,
-            title: jobData.title,
-            description: jobData.description,
-            category: jobData.service_categories?.name || 'Serviço',
-            client_name: user?.user_metadata?.full_name || 'Cliente',
-            provider_name: providerData?.full_name || 'Prestador',
-            provider_rating: providerData?.rating_avg || 0,
-            address: `${address?.street}, ${address?.number} - ${address?.neighborhood}, ${address?.city}/${address?.state}`,
-            agreed_price: proposalData?.price || jobData.final_price || 0,
-            estimated_hours: proposalData?.estimated_hours || 4,
-            delivery_date: proposalData?.delivery_date || jobData.deadline_at || new Date().toISOString(),
-            provider_id: jobData.provider_id
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao buscar job:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível carregar os dados do serviço.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchJob();
-  }, [jobId, user, toast]);
-
+  const platformFee = proposalData.price * 0.05; // 5% platform fee
+  const totalAmount = proposalData.price + platformFee;
 
   const handlePayment = async () => {
-    if (!job || !user) return;
-    
-    setProcessing(true);
-    
+    setLoading(true);
     try {
-      // Criar pagamento escrow via edge function
-      const { data, error } = await supabase.functions.invoke('create-escrow-payment', {
-        body: {
-          jobId: jobId,
-          providerId: job.provider_id,
-          amount: job.agreed_price,
-          platformFee: calculateFees(job.agreed_price).platformFee,
-          paymentMethod: paymentMethod === 'credit-card' ? 'card' : 'pix'
-        }
-      });
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      if (error) throw error;
-
-      // Redirecionar para Stripe Checkout
-      if (data.clientSecret) {
-        // Se usando Stripe Elements
-        window.location.href = `https://checkout.stripe.com/pay/${data.clientSecret}`;
-      } else if (data.url) {
-        // Se usando Stripe Checkout Session
-        window.open(data.url, '_blank');
+      // Confirm the job start
+      const success = await confirmStart(proposalData.proposalId);
+      
+      if (success) {
+        toast({
+          title: "Pagamento realizado com sucesso!",
+          description: "O trabalho foi iniciado e o prestador foi notificado.",
+        });
+        navigate('/contracts');
       }
-      
-      toast({
-        title: "Redirecionando para Pagamento",
-        description: "Você será redirecionado para completar o pagamento seguro.",
-      });
-      
     } catch (error) {
-      console.error('Erro no pagamento:', error);
+      console.error('Payment error:', error);
       toast({
-        variant: "destructive",
-        title: "Erro no Pagamento",
+        title: "Erro no pagamento",
         description: "Não foi possível processar o pagamento. Tente novamente.",
+        variant: "destructive",
       });
     } finally {
-      setProcessing(false);
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <Skeleton className="h-8 w-48" />
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-32" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardContent>
-              </Card>
-            </div>
-            <div>
-              <Card>
-                <CardHeader>
-                  <Skeleton className="h-6 w-32" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!job) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Job não encontrado. Verifique o link e tente novamente.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  const fees = calculateFees(job.agreed_price);
-
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
-          <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold">Checkout</h1>
-            <p className="text-muted-foreground">Confirme os detalhes e escolha a forma de pagamento</p>
+      <div className="container max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Finalizar Pagamento</h1>
+            <p className="text-muted-foreground">Complete o pagamento para iniciar o trabalho</p>
           </div>
+        </div>
 
-          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Job Details */}
-          <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Service Summary */}
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  Detalhes do Serviço
-                </CardTitle>
+                <CardTitle>Resumo do Serviço</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-semibold text-lg">{job.title}</h3>
-                  <Badge variant="secondary">{job.category}</Badge>
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarFallback>
+                      {proposalData.providerName?.charAt(0) || <User className="h-6 w-6" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{proposalData.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Prestador: <UserLink userId={proposalData.providerId} name={proposalData.providerName} />
+                    </p>
+                  </div>
                 </div>
-                
-                <p className="text-muted-foreground">{job.description}</p>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4" />
-                    {job.address}
+
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {proposalData.description}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {proposalData.estimatedHours && (
+                    <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Duração</p>
+                        <p className="font-medium">{proposalData.estimatedHours}h</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                    <Calendar className="h-4 w-4 text-purple-600" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Prazo</p>
+                      <p className="font-medium">{formatDate(proposalData.deadline)}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4" />
-                    Estimativa: {job.estimated_hours}h
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    {job.provider_rating} - {job.provider_name}
+
+                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Valor</p>
+                      <p className="font-medium text-green-600">{formatCurrency(proposalData.price)}</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -275,47 +166,44 @@ export default function Checkout() {
             {/* Payment Method */}
             <Card>
               <CardHeader>
-                <CardTitle>Forma de Pagamento</CardTitle>
-                <CardDescription>
-                  Escolha como deseja pagar pelo serviço
-                </CardDescription>
+                <CardTitle>Método de Pagamento</CardTitle>
               </CardHeader>
-              <CardContent>
-                <RadioGroup 
-                  value={paymentMethod} 
-                  onValueChange={setPaymentMethod}
-                  className="space-y-4"
-                >
-                  <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                    <RadioGroupItem value="credit-card" id="credit-card" />
-                    <Label htmlFor="credit-card" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-5 w-5" />
-                        <div>
-                          <div className="font-medium">Cartão de Crédito</div>
-                          <div className="text-sm text-muted-foreground">
-                            Visa, Mastercard, American Express
-                          </div>
-                        </div>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('credit_card')}
+                    className={`p-4 border rounded-lg text-left transition-colors ${
+                      paymentMethod === 'credit_card' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5" />
+                      <div>
+                        <p className="font-medium">Cartão de Crédito</p>
+                        <p className="text-sm text-muted-foreground">Pagamento seguro via Stripe</p>
                       </div>
-                    </Label>
-                  </div>
+                    </div>
+                  </button>
 
-                  <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                    <RadioGroupItem value="pix" id="pix" />
-                    <Label htmlFor="pix" className="flex-1 cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <Smartphone className="h-5 w-5" />
-                        <div>
-                          <div className="font-medium">PIX</div>
-                          <div className="text-sm text-muted-foreground">
-                            Pagamento instantâneo
-                          </div>
-                        </div>
+                  <button
+                    onClick={() => setPaymentMethod('pix')}
+                    className={`p-4 border rounded-lg text-left transition-colors ${
+                      paymentMethod === 'pix' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-500 rounded" />
+                      <div>
+                        <p className="font-medium">PIX</p>
+                        <p className="text-sm text-muted-foreground">Pagamento instantâneo</p>
                       </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
+                    </div>
+                  </button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -327,89 +215,63 @@ export default function Checkout() {
                 <CardTitle>Resumo do Pagamento</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Valor do serviço</span>
-                  <span>{formatCurrency(job.agreed_price)}</span>
-                </div>
-                
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Taxa da plataforma ({fees.feePercentage}%)</span>
-                  <span>{formatCurrency(fees.platformFee)}</span>
-                </div>
-
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Taxa do gateway de pagamento</span>
-                  <span>{formatCurrency(fees.processingFee)}</span>
-                </div>
-                
-                <Separator />
-                
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Total a pagar</span>
-                  <span className="text-primary">{formatCurrency(fees.total)}</span>
-                </div>
-                
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Pagamento Seguro e Protegido:</strong>
-                    <ul className="list-disc list-inside text-sm mt-2 space-y-1">
-                      <li>Valor fica em garantia até a conclusão do serviço</li>
-                      <li>Contrato automático entre cliente e prestador</li>
-                      <li>Chat liberado para comunicação direta</li>
-                      <li>Sistema de disputas disponível se necessário</li>
-                      <li>Pagamento liberado em 7 dias ou quando sinalizado</li>
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="pt-4">
-                  <Button 
-                    onClick={handlePayment}
-                    disabled={processing}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {processing ? 'Processando...' : `Pagar ${formatCurrency(fees.total)}`}
-                  </Button>
-                </div>
-                
-                <p className="text-xs text-muted-foreground text-center">
-                  Ao confirmar, você concorda com nossos Termos de Serviço
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Benefits */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">💎 Quer economizar?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Com o plano Premium, você pagaria apenas 5% de taxa (ao invés de 7,5%)
-                </p>
-                <div className="text-sm">
+                <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="line-through text-muted-foreground">Taxa atual ({fees.feePercentage}%):</span>
-                    <span className="line-through text-muted-foreground">{formatCurrency(fees.platformFee)}</span>
+                    <span>Valor do serviço</span>
+                    <span>{formatCurrency(proposalData.price)}</span>
                   </div>
-                  <div className="flex justify-between text-green-600">
-                    <span>Taxa Premium (5%):</span>
-                    <span>{formatCurrency(job.agreed_price * 0.05)}</span>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Taxa da plataforma (5%)</span>
+                    <span>{formatCurrency(platformFee)}</span>
                   </div>
-                  <div className="flex justify-between font-semibold text-green-600">
-                    <span>Economia:</span>
-                    <span>{formatCurrency(fees.platformFee - (job.agreed_price * 0.05))}</span>
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total</span>
+                    <span className="text-primary">{formatCurrency(totalAmount)}</span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-3">
-                  Assinar Premium
+
+                <Button
+                  onClick={handlePayment}
+                  disabled={loading}
+                  className="w-full"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4 mr-2" />
+                      Pagar {formatCurrency(totalAmount)}
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Security Notice */}
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Pagamento Seguro</strong>
+                <br />
+                Seus dados são protegidos com criptografia SSL de 256 bits.
+              </AlertDescription>
+            </Alert>
+
+            {/* Contract Notice */}
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Contrato Automático</strong>
+                <br />
+                Um contrato será gerado automaticamente após o pagamento.
+              </AlertDescription>
+            </Alert>
           </div>
-        </div>
         </div>
       </div>
     </AppLayout>

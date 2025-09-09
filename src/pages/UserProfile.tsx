@@ -142,18 +142,32 @@ export default function UserProfile() {
     if (!userId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          id,
-          title,
-          status,
-          final_price,
-          created_at,
-          service_categories(name)
-        `)
-        .eq('provider_id', userId)
-        .eq('status', 'completed')
+      // Verificar o papel do usuário para determinar que trabalhos mostrar
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      const userRole = roleData?.role;
+      let query = supabase.from('jobs').select(`
+        id,
+        title,
+        status,
+        final_price,
+        created_at,
+        service_categories(name)
+      `);
+
+      if (userRole === 'provider') {
+        // Para prestadores: mostrar trabalhos que prestaram
+        query = query.eq('provider_id', userId).eq('status', 'completed');
+      } else {
+        // Para clientes: mostrar trabalhos que contrataram
+        query = query.eq('client_id', userId).in('status', ['completed', 'in_progress', 'open']);
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -388,7 +402,9 @@ export default function UserProfile() {
         {/* Tabs com Trabalhos e Avaliações */}
         <Tabs defaultValue="jobs" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="jobs">Trabalhos Realizados ({jobs.length})</TabsTrigger>
+            <TabsTrigger value="jobs">
+              {currentUser?.id === userId ? 'Meus Trabalhos' : 'Trabalhos'} ({jobs.length})
+            </TabsTrigger>
             <TabsTrigger value="reviews">Avaliações ({reviews.length})</TabsTrigger>
           </TabsList>
 
@@ -397,7 +413,9 @@ export default function UserProfile() {
               <Card>
                 <CardContent className="py-8 text-center">
                   <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Nenhum trabalho concluído ainda</p>
+                  <p className="text-muted-foreground">
+                    {currentUser?.id === userId ? 'Você ainda não tem trabalhos' : 'Nenhum trabalho disponível'}
+                  </p>
                 </CardContent>
               </Card>
             ) : (
@@ -410,10 +428,24 @@ export default function UserProfile() {
                           <h3 className="font-medium">{job.title}</h3>
                           <div className="flex items-center gap-4 mt-2">
                             <Badge variant="outline">{job.category_name}</Badge>
-                            <Badge className="bg-success/10 text-success">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Concluído
-                            </Badge>
+                            {job.status === 'completed' && (
+                              <Badge className="bg-success/10 text-success">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Concluído
+                              </Badge>
+                            )}
+                            {job.status === 'in_progress' && (
+                              <Badge className="bg-blue-100 text-blue-800">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Em Andamento
+                              </Badge>
+                            )}
+                            {job.status === 'open' && (
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Aguardando
+                              </Badge>
+                            )}
                             {job.final_price && (
                               <span className="text-sm font-medium text-success">
                                 {formatCurrency(job.final_price)}
@@ -421,7 +453,7 @@ export default function UserProfile() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Concluído em {new Date(job.created_at).toLocaleDateString('pt-BR')}
+                            {job.status === 'completed' ? 'Concluído' : 'Criado'} em {new Date(job.created_at).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
