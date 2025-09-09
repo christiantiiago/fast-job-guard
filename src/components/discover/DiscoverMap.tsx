@@ -137,7 +137,7 @@ export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: 
           setMapboxError(null);
           setMapInitialized(true);
           
-          // Add user marker (bonequinho estilo Waze)
+          // Add user marker (operário/trabalhador)
           if (position && mapboxglRef.current) {
             const userEl = document.createElement('div');
             userEl.innerHTML = `
@@ -147,34 +147,25 @@ export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: 
                 align-items: center;
                 position: relative;
               ">
-                <!-- Bonequinho Avatar -->
+                <!-- Operário Avatar -->
                 <div style="
-                  width: 50px;
-                  height: 50px;
-                  background: linear-gradient(135deg, #00d4aa, #00b894);
-                  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                  width: 44px;
+                  height: 44px;
+                  background: linear-gradient(135deg, #1e40af, #3b82f6);
+                  border-radius: 50%;
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  box-shadow: 0 8px 25px rgba(0, 212, 170, 0.4), 0 3px 10px rgba(0,0,0,0.15);
+                  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), 0 2px 8px rgba(0,0,0,0.1);
                   border: 4px solid white;
                   position: relative;
                   z-index: 2;
-                  transform: rotate(-5deg);
                 ">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="transform: rotate(5deg);">
-                    <!-- Rosto -->
-                    <circle cx="12" cy="10" r="3" fill="white" opacity="0.9"/>
-                    <!-- Olhos -->
-                    <circle cx="10.5" cy="9" r="0.8" fill="#2d3748"/>
-                    <circle cx="13.5" cy="9" r="0.8" fill="#2d3748"/>
-                    <!-- Boca sorrindo -->
-                    <path d="M10 11.5 Q12 13 14 11.5" stroke="#2d3748" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-                    <!-- Corpo -->
-                    <rect x="10" y="13" width="4" height="5" rx="2" fill="white" opacity="0.8"/>
-                    <!-- Braços -->
-                    <circle cx="8.5" cy="15" r="1" fill="white" opacity="0.7"/>
-                    <circle cx="15.5" cy="15" r="1" fill="white" opacity="0.7"/>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                 </div>
                 
@@ -184,61 +175,46 @@ export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: 
                   top: 0;
                   left: 50%;
                   transform: translateX(-50%);
-                  width: 50px;
-                  height: 50px;
+                  width: 44px;
+                  height: 44px;
                   border-radius: 50%;
-                  background: rgba(0, 212, 170, 0.3);
-                  animation: wazePulse 2.5s infinite;
+                  background: rgba(59, 130, 246, 0.3);
+                  animation: pulse 2s infinite;
                   z-index: 1;
-                "></div>
-                
-                <!-- Shadow -->
-                <div style="
-                  position: absolute;
-                  bottom: -5px;
-                  left: 50%;
-                  transform: translateX(-50%);
-                  width: 30px;
-                  height: 8px;
-                  background: rgba(0,0,0,0.2);
-                  border-radius: 50%;
-                  filter: blur(3px);
-                  z-index: 0;
                 "></div>
                 
                 <!-- Label -->
                 <div style="
-                  background: linear-gradient(135deg, #00d4aa, #00b894);
-                  color: white;
-                  padding: 4px 10px;
-                  border-radius: 15px;
+                  background: white;
+                  padding: 4px 8px;
+                  border-radius: 12px;
                   font-size: 10px;
-                  font-weight: 700;
-                  margin-top: 12px;
-                  box-shadow: 0 3px 12px rgba(0, 212, 170, 0.3);
-                  border: 2px solid white;
+                  font-weight: 600;
+                  color: #1e40af;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                  border: 1px solid rgba(59, 130, 246, 0.2);
                   white-space: nowrap;
-                  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
                 ">
-                  👋 Você
+                  Você
                 </div>
               </div>
             `;
             
-            // Add CSS animation for Waze-style pulse effect
+            // Add CSS animation for pulse effect
             const style = document.createElement('style');
             style.textContent = `
-              @keyframes wazePulse {
+              @keyframes pulse {
                 0% {
                   transform: translateX(-50%) scale(1);
-                  opacity: 0.7;
+                  opacity: 1;
                 }
-                50% {
-                  transform: translateX(-50%) scale(1.3);
-                  opacity: 0.3;
+                70% {
+                  transform: translateX(-50%) scale(1.4);
+                  opacity: 0;
                 }
                 100% {
-                  transform: translateX(-50%) scale(1.6);
+                  transform: translateX(-50%) scale(1.4);
                   opacity: 0;
                 }
               }
@@ -247,7 +223,7 @@ export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: 
             
             new mapboxglRef.current.Marker(userEl, { 
               anchor: 'bottom',
-              offset: [0, 5]
+              offset: [0, 0]
             })
               .setLngLat([position.longitude, position.latitude])
               .addTo(map.current);
