@@ -184,27 +184,31 @@ export function DiscoverMap({ jobs, position, formatDistance }: DiscoverMapProps
     };
   }, [mapboxToken, position]);
 
-  // Fit map to jobs
+  // Fit map to jobs - simplified to avoid re-renders
   useEffect(() => {
     if (!map.current || !mapInitialized || !jobs.length || !position || !mapboxglRef.current) {
       return;
     }
 
-    const bounds = new mapboxglRef.current.LngLatBounds();
-    bounds.extend([position.longitude, position.latitude]);
-    
-    jobs.forEach(job => {
-      if (job.longitude && job.latitude) {
-        bounds.extend([job.longitude, job.latitude]);
-      }
-    });
-    
-    setTimeout(() => {
-      if (map.current && !bounds.isEmpty()) {
+    const timer = setTimeout(() => {
+      if (!map.current) return;
+      
+      const bounds = new mapboxglRef.current.LngLatBounds();
+      bounds.extend([position.longitude, position.latitude]);
+      
+      jobs.forEach(job => {
+        if (job.longitude && job.latitude) {
+          bounds.extend([job.longitude, job.latitude]);
+        }
+      });
+      
+      if (!bounds.isEmpty()) {
         map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
       }
     }, 500);
-  }, [jobs, mapInitialized, position]);
+    
+    return () => clearTimeout(timer);
+  }, [jobs.length, mapInitialized, position?.latitude, position?.longitude]);
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
@@ -273,17 +277,19 @@ export function DiscoverMap({ jobs, position, formatDistance }: DiscoverMapProps
         </div>
       )}
 
-      {/* Job Markers */}
+      {/* Job Markers - Render only when map is ready */}
       {mapInitialized && mapboxglRef.current && map.current && jobs.map((job) => (
-        <JobMarker
-          key={job.id}
-          job={job}
-          mapboxgl={mapboxglRef.current}
-          map={map.current}
-          onJobClick={(job) => setSelectedJob(job)}
-          formatCurrency={formatCurrency}
-          formatDistance={formatDistance}
-        />
+        job.latitude && job.longitude && (
+          <JobMarker
+            key={job.id}
+            job={job}
+            mapboxgl={mapboxglRef.current}
+            map={map.current}
+            onJobClick={(job) => setSelectedJob(job)}
+            formatCurrency={formatCurrency}
+            formatDistance={formatDistance}
+          />
+        )
       ))}
 
       {/* Selected Job Details */}

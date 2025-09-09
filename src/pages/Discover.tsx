@@ -49,7 +49,7 @@ interface JobWithDistance {
 }
 
 export default function Discover() {
-  const { jobs, loading, fetchAllPublicJobs } = useJobs();
+  const { loading } = useJobs();
   const { position, error: geoError, loading: geoLoading } = useGeolocation();
   const navigate = useNavigate();
   
@@ -62,37 +62,33 @@ export default function Discover() {
   useEffect(() => {
     const fetchJobsWithProposals = async () => {
       try {
-        await fetchAllPublicJobs();
+        const { data: allJobs, error } = await supabase
+          .from('jobs')
+          .select('*, service_categories(name, icon_name), addresses(street, city, state, neighborhood), proposals(id, price, message, status, provider_id)')
+          .in('status', ['open', 'in_progress', 'completed'])
+          .order('created_at', { ascending: false });
         
-        // Get proposal counts for each job
-        const { data: proposalCounts } = await supabase
-          .from('proposals')
-          .select('job_id')
-          .eq('status', 'sent');
-          
-        if (proposalCounts) {
-          const countMap = proposalCounts.reduce((acc, proposal) => {
-            acc[proposal.job_id] = (acc[proposal.job_id] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-          
-          // Update jobs with proposal counts
-          const updatedJobs = jobs.map(job => ({
+        if (error) {
+          console.error('[JOBS] Error fetching:', error);
+          return;
+        }
+
+        if (allJobs) {
+          // Process jobs with proposal counts
+          const processedJobs = allJobs.map(job => ({
             ...job,
-            proposal_count: countMap[job.id] || 0
+            proposal_count: job.proposals?.filter(p => p.status === 'sent').length || 0
           }));
           
-          setJobsWithDistance(updatedJobs as JobWithDistance[]);
+          setJobsWithDistance(processedJobs as JobWithDistance[]);
         }
       } catch (error) {
         console.error('[JOBS] Error fetching:', error);
       }
     };
 
-    if (jobs.length > 0) {
-      fetchJobsWithProposals();
-    }
-  }, [jobs, fetchAllPublicJobs]);
+    fetchJobsWithProposals();
+  }, []); // Empty dependency array to prevent infinite loop
 
   // Filter jobs by completion time (completed jobs only show for 2 minutes)
   const filterJobsByTime = (jobsList: JobWithDistance[]) => {
@@ -115,17 +111,12 @@ export default function Discover() {
     });
   };
 
-  // Calculate distances when position or jobs change
+  // Calculate distances when position changes
   useEffect(() => {
-    if (!jobsWithDistance.length) return;
+    if (!jobsWithDistance.length || !position) return;
 
     const filteredJobs = filterJobsByTime(jobsWithDistance);
     
-    if (!position) {
-      setJobsWithDistance(filteredJobs);
-      return;
-    }
-
     const jobsWithDist = filteredJobs
       .filter(job => job.latitude && job.longitude)
       .map(job => ({
@@ -139,8 +130,10 @@ export default function Discover() {
       }))
       .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
-    setJobsWithDistance(jobsWithDist);
-  }, [position, jobsWithDistance]);
+    if (JSON.stringify(jobsWithDist) !== JSON.stringify(jobsWithDistance)) {
+      setJobsWithDistance(jobsWithDist);
+    }
+  }, [position]); // Only depend on position to prevent loops
 
   // Auto-refresh to remove completed jobs after 2 minutes
   useEffect(() => {
@@ -160,7 +153,11 @@ export default function Discover() {
     return matchesSearch && matchesCategory;
   });
 
-  const categories = Array.from(new Set(jobs.map(job => job.service_categories?.name).filter(Boolean)));
+  const categories = Array.from(new Set(
+    jobsWithDistance
+      .map(job => job.service_categories?.name)
+      .filter(Boolean)
+  )) as string[];
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
