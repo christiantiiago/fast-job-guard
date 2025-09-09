@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { PaymentModal } from '@/components/payment/PaymentModal';
 import { 
   MessageSquare, 
   DollarSign, 
@@ -26,7 +27,8 @@ import {
   Send,
   Edit3,
   TrendingUp,
-  Shield
+  Shield,
+  CreditCard
 } from 'lucide-react';
 
 interface ProposalData {
@@ -77,6 +79,7 @@ const ProposalNegotiation = ({
 }: ProposalNegotiationProps) => {
   const { toast } = useToast();
   const [showCounterOffer, setShowCounterOffer] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Counter offer form
@@ -96,48 +99,9 @@ const ProposalNegotiation = ({
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const handleAcceptProposal = async () => {
+  const handleAcceptProposal = () => {
     if (!isClient) return;
-
-    try {
-      setLoading(true);
-      
-      // Update proposal status to accepted
-      const { error } = await supabase
-        .from('proposals')
-        .update({ status: 'accepted' })
-        .eq('id', proposal.id);
-
-      if (error) throw error;
-
-      // Update job to assign provider and set status
-      const { error: jobError } = await supabase
-        .from('jobs')
-        .update({ 
-          provider_id: proposal.provider_id,
-          status: 'in_progress',
-          final_price: proposal.price
-        })
-        .eq('id', jobId);
-
-      if (jobError) throw jobError;
-
-      toast({
-        title: "Proposta aceita!",
-        description: "O prestador foi contratado e o trabalho está agora em andamento.",
-      });
-
-      onProposalUpdate();
-    } catch (error) {
-      console.error('Error accepting proposal:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível aceitar a proposta.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    setShowPaymentModal(true);
   };
 
   const handleRejectProposal = async () => {
@@ -345,8 +309,8 @@ const ProposalNegotiation = ({
                   disabled={loading}
                   className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Aceitar Proposta
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  Contratar Serviço
                 </Button>
                 
                 <Dialog open={showCounterOffer} onOpenChange={setShowCounterOffer}>
@@ -497,6 +461,25 @@ const ProposalNegotiation = ({
             </Alert>
           )}
         </div>
+
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            proposal={proposal}
+            providerProfile={providerProfile}
+            jobId={jobId}
+            jobTitle="Trabalho" // This should come from props in real implementation
+            onPaymentSuccess={() => {
+              onProposalUpdate();
+              toast({
+                title: "Contratação realizada!",
+                description: "Contrato gerado e chat liberado para comunicação.",
+              });
+            }}
+          />
+        )}
       </CardContent>
     </Card>
   );

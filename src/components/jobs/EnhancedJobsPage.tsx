@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useJobs, Job } from '@/hooks/useJobs';
+import { ProposalNotifications } from '@/components/jobs/ProposalNotifications';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -215,6 +216,9 @@ export function EnhancedJobsPage() {
             </Button>
           )}
         </div>
+
+        {/* Proposal Notifications */}
+        <ProposalNotifications />
 
         {/* Search */}
         <div className="relative flex-1 max-w-md">

@@ -351,21 +351,25 @@ export default function Chat() {
                   sendMessage();
                 }
               }}
-              disabled={sending || job.status === 'completed' || job.status === 'cancelled'}
+              disabled={sending || job.status === 'completed' || job.status === 'cancelled' || job.status === 'open'}
             />
             <Button 
               onClick={sendMessage}
-              disabled={!newMessage.trim() || sending || job.status === 'completed' || job.status === 'cancelled'}
+              disabled={!newMessage.trim() || sending || job.status === 'completed' || job.status === 'cancelled' || job.status === 'open'}
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
           
-          {(job.status === 'completed' || job.status === 'cancelled') && (
+          {job.status === 'open' ? (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              O chat será liberado após a contratação do prestador
+            </p>
+          ) : (job.status === 'completed' || job.status === 'cancelled') ? (
             <p className="text-xs text-muted-foreground mt-2 text-center">
               Este chat foi finalizado pois o trabalho está {job.status === 'completed' ? 'concluído' : 'cancelado'}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
     </AppLayout>
