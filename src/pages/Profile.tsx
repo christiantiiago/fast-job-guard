@@ -2,6 +2,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,13 +22,16 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Loader2
+  Loader2,
+  Crown,
+  Settings
 } from 'lucide-react';
 
 export default function Profile() {
   const { user, userRole } = useAuth();
   const { profile, stats, loading, updating } = useProfile();
   const { status: kycStatus } = useKYCStatus();
+  const { premiumStatus } = usePremiumStatus();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -154,20 +158,23 @@ export default function Profile() {
                          : user?.email?.[0].toUpperCase() || '?'}
                      </AvatarFallback>
                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-medium">
-                          {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
-                        </h3>
-                        {kycStatus?.canUsePlatform && (
-                          <VerificationBadge 
-                            isVerified={true} 
-                            verifiedAt={kycStatus?.verifiedAt}
-                            size="md"
-                          />
-                        )}
-                      </div>
-                      <p className="text-muted-foreground capitalize">{userRole}</p>
+                     <div>
+                       <div className="flex items-center gap-2">
+                         <h3 className="text-lg font-medium">
+                           {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                         </h3>
+                         {premiumStatus.is_premium && (
+                           <Crown className="h-4 w-4 text-accent" />
+                         )}
+                         {kycStatus?.canUsePlatform && (
+                           <VerificationBadge 
+                             isVerified={true} 
+                             verifiedAt={kycStatus?.verifiedAt}
+                             size="md"
+                           />
+                         )}
+                       </div>
+                       <p className="text-muted-foreground capitalize">{userRole}</p>
                      {userRole === 'provider' && stats && (
                        <div className="flex items-center mt-1">
                          <Star className="w-4 h-4 text-warning fill-current" />
@@ -307,34 +314,74 @@ export default function Profile() {
                </CardContent>
             </Card>
 
-            {/* Subscription Status */}
-            <Card>
+            {/* Premium Status */}
+            <Card className={premiumStatus.is_premium ? 'border-accent/20' : ''}>
               <CardHeader>
-                <CardTitle>Assinatura</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-accent" />
+                  Premium
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Status</span>
-                    <Badge variant="default" className="bg-success/10 text-success border-success/20">Ativo</Badge>
+                    <Badge variant={premiumStatus.is_premium ? "default" : "outline"} 
+                           className={premiumStatus.is_premium ? "bg-accent/10 text-accent border-accent/20" : ""}>
+                      {premiumStatus.is_premium ? 'ATIVO' : 'INATIVO'}
+                    </Badge>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Plano</span>
-                    <span className="text-sm font-medium">Premium</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Taxa reduzida</span>
-                    <span className="text-sm font-medium text-success">3.5%</span>
-                  </div>
-                  <div className="pt-3 border-t">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Economia acumulada com taxa reduzida:
-                    </p>
-                    <p className="text-lg font-bold text-success">R$ 127,50</p>
-                  </div>
-                  <Button variant="outline" className="w-full" size="sm">
-                    Gerenciar Assinatura
-                  </Button>
+                  {premiumStatus.is_premium ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Plano</span>
+                        <span className="text-sm font-medium">Premium</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Taxa reduzida</span>
+                        <span className="text-sm font-medium text-success">3.5%</span>
+                      </div>
+                      {premiumStatus.subscription?.current_period_end && (
+                        <div className="pt-3 border-t">
+                          <p className="text-xs text-muted-foreground mb-1">
+                            Próxima cobrança:
+                          </p>
+                          <p className="text-sm font-medium">
+                            {new Date(premiumStatus.subscription.current_period_end).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        size="sm"
+                        asChild
+                      >
+                        <Link to="/premium">
+                          <Settings className="mr-2 h-4 w-4" />
+                          Gerenciar Premium
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-center py-2">
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Desbloqueie recursos exclusivos
+                        </p>
+                        <Button 
+                          className="w-full bg-gradient-to-r from-accent to-accent/80 text-white" 
+                          size="sm"
+                          asChild
+                        >
+                          <Link to="/premium">
+                            <Crown className="mr-2 h-4 w-4" />
+                            Tornar-se Premium
+                          </Link>
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -358,7 +405,7 @@ export default function Profile() {
                   </Link>
                 </Button>
                 <Button variant="outline" className="w-full justify-start" size="sm" asChild>
-                  <Link to="/documents">
+                  <Link to="/kyc/documents">
                     <FileText className="mr-2 h-4 w-4" />
                     Ver documentos
                   </Link>

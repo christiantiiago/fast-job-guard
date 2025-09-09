@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationCenter } from '@/components/admin/NotificationCenter';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import {
   Home, 
   Briefcase, 
@@ -26,7 +27,7 @@ const clientNavigation = [
   { name: 'Início', href: '/dashboard', icon: Home },
   { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
-  { name: 'Meus Documentos', href: '/documents', icon: FileText },
+  { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
   { name: 'Carteira', href: '/wallet', icon: Wallet },
   { name: 'Reviews', href: '/reviews', icon: Star },
   { name: 'Perfil', href: '/profile', icon: User },
@@ -37,7 +38,7 @@ const providerNavigation = [
   { name: 'Descobrir Jobs', href: '/discover', icon: Search },
   { name: 'Meus Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
-  { name: 'Meus Documentos', href: '/documents', icon: FileText },
+  { name: 'Meus Documentos', href: '/kyc/documents', icon: FileText },
   { name: 'Financeiro', href: '/provider/finance', icon: Wallet },
   { name: 'Reviews', href: '/reviews', icon: Star },
   { name: 'Perfil', href: '/profile', icon: User },
@@ -58,6 +59,7 @@ const adminNavigation = [
 export const Sidebar = () => {
   const { user, userRole, signOut } = useAuth();
   const location = useLocation();
+  const { premiumStatus } = usePremiumStatus();
 
   const navigation = userRole === 'admin' 
     ? adminNavigation 
@@ -86,9 +88,14 @@ export const Sidebar = () => {
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">
-            {user?.email}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-sm font-medium text-foreground truncate">
+              {user?.email}
+            </p>
+            {premiumStatus.is_premium && (
+              <Crown className="h-3 w-3 text-accent" />
+            )}
+          </div>
           <p className="text-xs text-muted-foreground capitalize">
             {userRole}
           </p>
@@ -113,6 +120,18 @@ export const Sidebar = () => {
             <NavLink to="/discover">
               <Search className="mr-2 h-4 w-4" />
               Procurar Jobs
+            </NavLink>
+          </Button>
+        </div>
+      )}
+
+      {/* Premium Button for non-premium users */}
+      {!premiumStatus.is_premium && userRole !== 'admin' && (
+        <div className="space-y-2">
+          <Button asChild className="w-full justify-start bg-gradient-to-r from-accent to-accent/80 text-white hover:from-accent/90 hover:to-accent/70" size="sm">
+            <NavLink to="/premium">
+              <Crown className="mr-2 h-4 w-4" />
+              Tornar-se Premium
             </NavLink>
           </Button>
         </div>

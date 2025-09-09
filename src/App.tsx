@@ -15,7 +15,6 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
 import ProfileEdit from "./pages/ProfileEdit";
-import { UnifiedDocumentsPage } from '@/components/kyc/UnifiedDocumentsPage';
 import NotFound from "./pages/NotFound";
 
 // Protected pages
@@ -34,8 +33,7 @@ import ProviderOnboarding from "./pages/provider/Onboarding";
 
 // KYC pages
 import KYCVerify from "./pages/kyc/KYCVerify";
-import KYCUpload from "./pages/kyc/KYCUpload";
-import KYCDocuments from "./pages/kyc/KYCDocuments";
+import { ImprovedDocumentsPage } from '@/components/kyc/ImprovedDocumentsPage';
 
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -79,33 +77,7 @@ const App = () => (
               path="/kyc/documents"
               element={
                 <ProtectedRoute>
-                  <KYCDocuments />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/kyc/upload/:type"
-              element={
-                <ProtectedRoute>
-                  <KYCUpload />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/documents"
-              element={
-                <ProtectedRoute>
-                  <UnifiedDocumentsPage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/my-documents"
-              element={
-                <ProtectedRoute>
-                  <UnifiedDocumentsPage />
+                  <ImprovedDocumentsPage />
                 </ProtectedRoute>
               }
             />
