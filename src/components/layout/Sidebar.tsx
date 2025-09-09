@@ -35,6 +35,7 @@ const clientNavigation = [
 
 const providerNavigation = [
   { name: 'Início', href: '/dashboard', icon: Home },
+  { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
   { name: 'Descobrir Jobs', href: '/discover', icon: Search },
   { name: 'Meus Jobs', href: '/jobs', icon: Briefcase },
   { name: 'Chat', href: '/chat', icon: MessageCircle },
@@ -116,12 +117,12 @@ export const Sidebar = () => {
 
       {userRole === 'provider' && (
         <div className="space-y-2">
-            <Button asChild variant="outline" className="w-full justify-start" size="sm">
-              <NavLink to="/providers/discover">
-                <Search className="mr-2 h-4 w-4" />
-                Procurar Jobs
-              </NavLink>
-            </Button>
+          <Button asChild variant="outline" className="w-full justify-start" size="sm">
+            <NavLink to="/providers/discover">
+              <Search className="mr-2 h-4 w-4" />
+              Descobrir Prestadores  
+            </NavLink>
+          </Button>
         </div>
       )}
 

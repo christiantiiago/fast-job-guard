@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { cn } from '@/lib/utils';
@@ -25,12 +26,14 @@ import {
   LogOut,
   TrendingUp,
   CreditCard,
-  UserCheck
+  UserCheck,
+  Crown
 } from 'lucide-react';
 
 export function MobileHamburgerMenu() {
   const [open, setOpen] = useState(false);
   const { user, userRole, signOut } = useAuth();
+  const { premiumStatus } = usePremiumStatus();
   const location = useLocation();
 
   const clientNavigation = [
@@ -38,20 +41,19 @@ export function MobileHamburgerMenu() {
     { name: 'Trabalhos', href: '/jobs', icon: Briefcase },
     { name: 'Descobrir', href: '/discover', icon: Search },
     { name: 'Carteira', href: '/wallet', icon: Wallet },
-    { name: 'Premium', href: '/premium', icon: Star },
     { name: 'Avaliações', href: '/reviews', icon: Star },
-    { name: 'Documentos', href: '/my-documents', icon: FileText },
+    { name: 'Documentos', href: '/kyc/documents', icon: FileText },
     { name: 'Perfil', href: '/profile', icon: User },
   ];
 
   const providerNavigation = [
     { name: 'Início', href: '/dashboard', icon: Home },
+    { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
     { name: 'Descobrir Jobs', href: '/discover', icon: Search },
     { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
     { name: 'Financeiro', href: '/provider/finance', icon: TrendingUp },
-    { name: 'Premium', href: '/premium', icon: Star },
     { name: 'Avaliações', href: '/reviews', icon: Star },
-    { name: 'Documentos', href: '/my-documents', icon: FileText },
+    { name: 'Documentos', href: '/kyc/documents', icon: FileText },
     { name: 'Perfil', href: '/profile', icon: User },
   ];
 
@@ -101,16 +103,37 @@ export function MobileHamburgerMenu() {
             </SheetTitle>
             
             {user && (
-              <div className="flex items-center gap-3 mt-4">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary" />
+              <div className="space-y-3 mt-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-sm">{user.email?.split('@')[0]}</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {userRole === 'client' ? 'Cliente' : userRole === 'provider' ? 'Prestador' : 'Admin'}
+                      </Badge>
+                      {premiumStatus.is_premium && (
+                        <Crown className="h-3 w-3 text-accent" />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-1 text-left">
-                  <p className="font-medium text-sm">{user.email?.split('@')[0]}</p>
-                  <Badge variant="outline" className="text-xs capitalize">
-                    {userRole === 'client' ? 'Cliente' : userRole === 'provider' ? 'Prestador' : 'Admin'}
-                  </Badge>
-                </div>
+                
+                {/* Botão Premium apenas para não-admin e não-premium */}
+                {!premiumStatus.is_premium && userRole !== 'admin' && (
+                  <Button
+                    asChild
+                    className="w-full justify-start bg-gradient-to-r from-accent to-accent/80 text-white hover:from-accent/90 hover:to-accent/70"
+                    size="sm"
+                  >
+                    <NavLink to="/premium" onClick={() => setOpen(false)}>
+                      <Crown className="mr-2 h-4 w-4" />
+                      Tornar-se Premium
+                    </NavLink>
+                  </Button>
+                )}
               </div>
             )}
           </SheetHeader>

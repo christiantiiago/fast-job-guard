@@ -11,7 +11,7 @@ import { Shield, Eye, EyeOff, ArrowLeft, AlertTriangle, Lock, CheckCircle2 } fro
 import { toast } from 'sonner';
 
 export default function AdminLogin() {
-  const { user, userRole, signIn, loading } = useAuth();
+  const { user, userRole, signIn, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,12 +85,16 @@ export default function AdminLogin() {
           });
         }
       } else {
-        // Verificar se o usuário tem permissão de admin
-        // O hook useAuth atualizará automaticamente o userRole
+        // Login bem-sucedido - aguardar o hook atualizar e verificar permissões
         setAttemptCount(0);
-        toast.success('Acesso administrativo autorizado!', {
-          description: 'Bem-vindo ao painel de administração'
+        toast.success('Login realizado!', {
+          description: 'Verificando permissões...'
         });
+        
+        // Aguardar o hook useAuth atualizar o userRole
+        setTimeout(() => {
+          // A verificação será feita no useEffect que monitora userRole
+        }, 1000);
       }
     } catch (err) {
       setError('Erro interno. Tente novamente.');
@@ -99,6 +103,22 @@ export default function AdminLogin() {
       setIsLoading(false);
     }
   };
+
+  // Verificar se o usuário logado tem permissão de admin
+  useEffect(() => {
+    if (user && !loading && userRole && userRole !== 'admin') {
+      toast.error('🚫 Acesso Negado', {
+        description: 'Esta conta não tem permissões administrativas.',
+        duration: 5000,
+      });
+      signOut();
+    } else if (user && !loading && userRole === 'admin') {
+      toast.success('Acesso administrativo autorizado!', {
+        description: 'Bem-vindo ao painel de administração'
+      });
+      navigate('/admin');
+    }
+  }, [user, userRole, loading]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
