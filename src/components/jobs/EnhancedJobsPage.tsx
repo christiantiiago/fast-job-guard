@@ -89,7 +89,7 @@ export function EnhancedJobsPage() {
         : jobs.filter(job => job.status === 'in_proposal');
     }
     if (status === 'negotiations') {
-      return jobs.filter(job => job.status === 'negotiating' || 
+      return jobs.filter(job => 
         (job.proposals && job.proposals.some((p: any) => p.status === 'countered')));
     }
     if (status === 'active') {

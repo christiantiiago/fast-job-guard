@@ -600,7 +600,7 @@ export default function JobDetails() {
                             </div>
                             
                             <ProposalNegotiation
-                              proposal={{...proposal, counter_offers: proposalCounterOffers}}
+                              proposal={proposal}
                               providerProfile={providerProfile}
                               jobId={job.id}
                               isClient={true}
@@ -789,11 +789,11 @@ export default function JobDetails() {
                           </div>
                         </div>
                       )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                   )}
+                </CardContent>
+             </Card>
 
             {/* Category */}
             {job.service_categories && (
