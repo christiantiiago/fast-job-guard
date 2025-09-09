@@ -22,7 +22,9 @@ import {
   XCircle,
   AlertCircle,
   FileCheck,
-  Lock
+  Lock,
+  Files,
+  Send
 } from 'lucide-react';
 
 interface DocumentType {
@@ -89,6 +91,7 @@ export const ImprovedDocumentsPage = () => {
 
   const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File }>({});
   const [documents, setDocuments] = useState<any[]>([]);
+  const [isUploadingAll, setIsUploadingAll] = useState(false);
 
   const filteredDocuments = documentTypes.filter(doc => 
     !doc.providerOnly || userRole === 'provider'
@@ -200,6 +203,55 @@ export const ImprovedDocumentsPage = () => {
     }
   };
 
+  const handleUploadAll = async () => {
+    const filesToUpload = Object.entries(selectedFiles).filter(([docType, file]) => {
+      const { status: docStatus } = getDocumentStatus(docType);
+      return file && docStatus !== 'approved';
+    });
+
+    if (filesToUpload.length === 0) {
+      toast({
+        title: "Nenhum arquivo selecionado",
+        description: "Selecione pelo menos um documento para enviar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const [docType, file] of filesToUpload) {
+      try {
+        await uploadDocument(file, docType as any);
+        successCount++;
+      } catch (error) {
+        console.error(`Erro no upload de ${docType}:`, error);
+        errorCount++;
+      }
+    }
+
+    // Clear all uploaded files
+    setSelectedFiles({});
+    await fetchDocuments();
+    refreshStatus();
+    setIsUploadingAll(false);
+
+    if (successCount > 0) {
+      toast({
+        title: "Upload realizado!",
+        description: `${successCount} documento(s) enviado(s) com sucesso. ${errorCount > 0 ? `${errorCount} documento(s) falharam.` : ''}`,
+      });
+    } else {
+      toast({
+        title: "Erro no upload",
+        description: "Não foi possível enviar nenhum documento. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   const getStatusBadge = (status: string, doc: any) => {
     switch (status) {
@@ -227,119 +279,190 @@ export const ImprovedDocumentsPage = () => {
     );
   }
 
+  const hasSelectedFiles = Object.keys(selectedFiles).length > 0;
+  const pendingUploads = Object.entries(selectedFiles).filter(([docType]) => {
+    const { status: docStatus } = getDocumentStatus(docType);
+    return docStatus !== 'approved';
+  });
+
   return (
     <AppLayout>
-      <div className="container mx-auto p-4 space-y-6">
+      <div className="container mx-auto p-4 space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">Verificação de Documentos</h1>
-          <p className="text-muted-foreground">
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-primary to-primary/80 text-white">
+            <Files className="w-8 h-8" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+            Verificação de Documentos
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {userRole === 'provider' 
-              ? 'Complete sua verificação enviando os documentos necessários para prestadores'
-              : 'Complete sua verificação enviando os documentos necessários'
+              ? 'Complete sua verificação enviando todos os documentos necessários para prestadores de serviço'
+              : 'Envie todos os seus documentos de uma só vez para completar sua verificação'
             }
           </p>
           {userRole === 'provider' && (
-            <p className="text-sm text-amber-600">
-              ⚠️ Prestadores precisam enviar certidão de antecedentes criminais
-            </p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-amber-700">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm font-medium">Prestadores precisam enviar certidão de antecedentes criminais</span>
+            </div>
           )}
         </div>
 
         {/* Progress Card */}
-        <Card>
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-background to-muted/30">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileCheck className="w-5 h-5" />
-              Progresso da Verificação
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FileCheck className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">Progresso da Verificação</div>
+                <div className="text-sm text-muted-foreground">
+                  {approvedDocsCount} de {requiredDocsCount} documentos aprovados
+                </div>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {approvedDocsCount} de {requiredDocsCount} documentos aprovados
-              </span>
-              <span className="font-semibold">{Math.round(progressPercentage)}%</span>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm font-medium">Progresso Atual</span>
+              </div>
+              <span className="text-2xl font-bold text-primary">{Math.round(progressPercentage)}%</span>
             </div>
-            <Progress value={progressPercentage} className="w-full" />
+            <Progress value={progressPercentage} className="h-3" />
           </CardContent>
         </Card>
 
+        {/* Upload All Section */}
+        {hasSelectedFiles && (
+          <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Send className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Documentos Selecionados</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {pendingUploads.length} documento(s) pronto(s) para envio
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleUploadAll}
+                  disabled={isUploadingAll || pendingUploads.length === 0}
+                  size="lg"
+                  className="px-8"
+                >
+                  {isUploadingAll ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Enviando Todos...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Enviar Todos os Documentos
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Documents Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredDocuments.map((docType) => {
             const { status: docStatus, doc } = getDocumentStatus(docType.type);
             const selectedFile = selectedFiles[docType.type];
             const Icon = docType.icon;
 
             return (
-              <Card key={docType.type} className="relative">
-                <CardHeader className="pb-3">
+              <Card key={docType.type} className={`
+                relative transition-all duration-200 hover:shadow-lg
+                ${docStatus === 'approved' ? 'border-green-200 bg-green-50/30' : ''}
+                ${docStatus === 'rejected' ? 'border-red-200 bg-red-50/30' : ''}
+                ${docStatus === 'pending' ? 'border-yellow-200 bg-yellow-50/30' : ''}
+                ${selectedFile ? 'border-primary/30 bg-primary/5' : ''}
+              `}>
+                <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-5 h-5 text-primary" />
-                      <CardTitle className="text-lg">{docType.label}</CardTitle>
+                    <div className="flex items-center gap-3">
+                      <div className={`
+                        w-10 h-10 rounded-lg flex items-center justify-center
+                        ${docStatus === 'approved' ? 'bg-green-100 text-green-600' :
+                          docStatus === 'rejected' ? 'bg-red-100 text-red-600' :
+                          docStatus === 'pending' ? 'bg-yellow-100 text-yellow-600' :
+                          selectedFile ? 'bg-primary/10 text-primary' :
+                          'bg-muted text-muted-foreground'}
+                      `}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{docType.label}</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {docType.description}
+                        </p>
+                      </div>
                     </div>
                     {getStatusBadge(docStatus, doc)}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {docType.description}
-                  </p>
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
                   {docStatus === 'rejected' && doc?.notes && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                      <p className="text-sm text-destructive">
-                        <strong>Motivo da rejeição:</strong> {doc.notes.replace('REJEITADO: ', '')}
-                      </p>
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-red-800">Motivo da rejeição:</p>
+                          <p className="text-sm text-red-700 mt-1">{doc.notes.replace('REJEITADO: ', '')}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   {docStatus !== 'approved' && (
                     <div className="space-y-3">
-                      <Input
-                        type="file"
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        onChange={(e) => handleFileSelect(docType.type, e.target.files?.[0] || null)}
-                        className="cursor-pointer"
-                      />
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          onChange={(e) => handleFileSelect(docType.type, e.target.files?.[0] || null)}
+                          className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                      </div>
                       
                       {selectedFile && (
-                        <div className="p-2 bg-muted rounded-md">
-                          <p className="text-sm truncate">{selectedFile.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+                        <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileCheck className="w-4 h-4 text-primary" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-primary">{selectedFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
-                      
-                      <Button
-                        onClick={() => handleUpload(docType.type)}
-                        disabled={!selectedFile || uploading}
-                        className="w-full"
-                        size="sm"
-                      >
-                        {uploading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                            Enviando...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Enviar Documento
-                          </>
-                        )}
-                      </Button>
                     </div>
                   )}
 
                   {docStatus === 'approved' && doc && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                      <p className="text-sm text-green-700">
-                        Documento aprovado em {new Date(doc.verified_at).toLocaleDateString('pt-BR')}
-                      </p>
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <p className="text-sm text-green-800 font-medium">
+                          Aprovado em {new Date(doc.verified_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </CardContent>
