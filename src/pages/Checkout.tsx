@@ -82,7 +82,7 @@ export default function Checkout() {
   };
 
   const calculateFees = (amount: number, isSubscriber = false) => {
-    const clientFeeRate = isSubscriber ? 0.035 : 0.05; // 3.5% premium, 5% standard
+    const clientFeeRate = isSubscriber ? 0.05 : 0.075; // 5% premium, 7.5% standard
     const clientFee = amount * clientFeeRate;
     const total = amount + clientFee;
     
@@ -274,7 +274,7 @@ export default function Checkout() {
                 </div>
                 
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Taxa da plataforma (5%)</span>
+                  <span>Taxa da plataforma (7,5%)</span>
                   <span>{formatCurrency(clientFee)}</span>
                 </div>
                 
@@ -316,20 +316,20 @@ export default function Checkout() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Com o plano Premium, você pagaria apenas 3,5% de taxa
+                  Com o plano Premium, você pagaria apenas 5% de taxa (ao invés de 7,5%)
                 </p>
                 <div className="text-sm">
                   <div className="flex justify-between">
-                    <span className="line-through text-muted-foreground">Taxa atual:</span>
+                    <span className="line-through text-muted-foreground">Taxa atual (7,5%):</span>
                     <span className="line-through text-muted-foreground">{formatCurrency(clientFee)}</span>
                   </div>
                   <div className="flex justify-between text-green-600">
-                    <span>Taxa Premium:</span>
-                    <span>{formatCurrency(job.agreed_price * 0.035)}</span>
+                    <span>Taxa Premium (5%):</span>
+                    <span>{formatCurrency(job.agreed_price * 0.05)}</span>
                   </div>
                   <div className="flex justify-between font-semibold text-green-600">
                     <span>Economia:</span>
-                    <span>{formatCurrency(clientFee - (job.agreed_price * 0.035))}</span>
+                    <span>{formatCurrency(clientFee - (job.agreed_price * 0.05))}</span>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="w-full mt-3">
