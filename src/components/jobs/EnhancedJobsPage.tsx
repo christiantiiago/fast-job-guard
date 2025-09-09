@@ -83,10 +83,22 @@ export function EnhancedJobsPage() {
 
   const filterJobsByStatus = (status: string) => {
     if (status === 'all') return jobs;
+    if (status === 'proposals') {
+      return userRole === 'client' 
+        ? jobs.filter(job => job.proposals && job.proposals.length > 0)
+        : jobs.filter(job => job.status === 'in_proposal');
+    }
+    if (status === 'negotiations') {
+      return jobs.filter(job => job.status === 'negotiating' || 
+        (job.proposals && job.proposals.some((p: any) => p.status === 'countered')));
+    }
+    if (status === 'active') {
+      return jobs.filter(job => job.status === 'in_progress');
+    }
     return jobs.filter(job => job.status === status);
   };
 
-  const filteredJobs = jobs.filter(job => {
+  const filteredJobs = filterJobsByStatus(activeTab).filter(job => {
     return searchQuery === '' || 
       job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -125,11 +137,6 @@ export function EnhancedJobsPage() {
               <div className="text-2xl font-bold text-primary">
                 {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
               </div>
-              {job.budget_min && job.budget_max && (
-                <div className="text-xs text-muted-foreground">
-                  Taxa: 7,5% (5% Premium)
-                </div>
-              )}
             </div>
           </div>
         </CardHeader>
@@ -264,7 +271,7 @@ export function EnhancedJobsPage() {
                       <div className="text-sm text-muted-foreground">Abertos</div>
                     </div>
                     <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                      <div className="text-2xl font-bold text-yellow-600">{filterJobsByStatus('in_progress').length}</div>
+                      <div className="text-2xl font-bold text-yellow-600">{filterJobsByStatus('active').length}</div>
                       <div className="text-sm text-muted-foreground">Ativo</div>
                     </div>
                     <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg p-4 border border-white/20">
@@ -347,7 +354,7 @@ export function EnhancedJobsPage() {
                   <Clock className="h-4 w-4" />
                   <span className="hidden sm:inline">Ativos</span>
                   <Badge variant="secondary" className="ml-1 bg-primary/20 text-primary border-0">
-                    {filterJobsByStatus('in_progress').length}
+                    {filterJobsByStatus('active').length}
                   </Badge>
                 </TabsTrigger>
                 <TabsTrigger 
@@ -379,38 +386,58 @@ export function EnhancedJobsPage() {
             </TabsContent>
 
             <TabsContent value="proposals" className="space-y-6">
-              <Card className="border-0 bg-white/50 backdrop-blur-sm">
-                <CardContent className="text-center py-16">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <FileText className="h-10 w-10 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Propostas Enviadas</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Aqui você verá todas as propostas que enviou para trabalhos. 
-                    Acompanhe o status e responda negociações.
-                  </p>
-                </CardContent>
-              </Card>
+              {filteredJobs.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredJobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="border-0 bg-white/50 backdrop-blur-sm">
+                  <CardContent className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <FileText className="h-10 w-10 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-3">
+                      {userRole === 'client' ? 'Nenhuma Proposta Recebida' : 'Nenhuma Proposta Enviada'}
+                    </h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      {userRole === 'client' 
+                        ? 'Quando prestadores enviarem propostas para seus trabalhos, elas aparecerão aqui.'
+                        : 'Propostas que você enviou para trabalhos aparecerão aqui.'
+                      }
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="negotiations" className="space-y-6">
-              <Card className="border-0 bg-white/50 backdrop-blur-sm">
-                <CardContent className="text-center py-16">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Handshake className="h-10 w-10 text-purple-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Negociações Ativas</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Contratos e negociações em andamento aparecerão aqui. 
-                    Gerencie contrapropostas e finalize acordos.
-                  </p>
-                </CardContent>
-              </Card>
+              {filteredJobs.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredJobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="border-0 bg-white/50 backdrop-blur-sm">
+                  <CardContent className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Handshake className="h-10 w-10 text-purple-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-3">Negociações Ativas</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Contrapropostas e negociações em andamento aparecem aqui. 
+                      Finalize as negociações para dar continuidade aos trabalhos.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="active" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filterJobsByStatus('in_progress').map((job) => (
+                {filteredJobs.map((job) => (
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
@@ -418,7 +445,7 @@ export function EnhancedJobsPage() {
 
             <TabsContent value="completed" className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filterJobsByStatus('completed').map((job) => (
+                {filteredJobs.map((job) => (
                   <JobCard key={job.id} job={job} />
                 ))}
               </div>
@@ -430,43 +457,15 @@ export function EnhancedJobsPage() {
                   <div className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
                     <Gavel className="h-10 w-10 text-red-600" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">Central de Disputas</h3>
+                  <h3 className="text-xl font-semibold mb-3">Disputas</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Disputas e conflitos serão exibidos aqui. 
-                    Nossa equipe mediará questões entre clientes e prestadores.
+                    Trabalhos em disputa aparecem aqui. Entre em contato com o suporte 
+                    para resolução de conflitos.
                   </p>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
-
-          {/* Empty State */}
-          {filteredJobs.length === 0 && (
-            <Card className="border-0 bg-gradient-to-br from-white via-white to-gray-50/50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800/50">
-              <CardContent className="text-center py-20">
-                <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
-                  <Briefcase className="h-12 w-12 text-primary" />
-                </div>
-                <h3 className="text-2xl font-semibold text-foreground mb-3">
-                  Nenhum trabalho encontrado
-                </h3>
-                <p className="text-muted-foreground mb-8 max-w-md mx-auto text-lg">
-                  {userRole === 'client' 
-                    ? 'Comece criando seu primeiro trabalho e conecte-se com prestadores qualificados.'
-                    : 'Você não tem trabalhos em andamento no momento. Continue buscando por oportunidades!'
-                  }
-                </p>
-                {userRole === 'client' && (
-                  <Button size="lg" asChild className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all">
-                    <Link to="/jobs/new">
-                      <Plus className="mr-2 h-5 w-5" />
-                      Criar Primeiro Trabalho
-                    </Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </AppLayout>

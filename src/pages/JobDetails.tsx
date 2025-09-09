@@ -72,6 +72,18 @@ interface Proposal {
   created_at: string;
 }
 
+interface CounterOffer {
+  id: string;
+  proposal_id: string;
+  offered_by: string;
+  price: number;
+  message: string;
+  delivery_date?: string;
+  estimated_hours?: number;
+  status: string;
+  created_at: string;
+}
+
 export default function JobDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -83,6 +95,7 @@ export default function JobDetails() {
   const [clientProfile, setClientProfile] = useState<JobProfile | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [proposalProfiles, setProposalProfiles] = useState<{[key: string]: JobProfile}>({});
+  const [counterOffers, setCounterOffers] = useState<CounterOffer[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingProposal, setSubmittingProposal] = useState(false);
   
@@ -97,6 +110,7 @@ export default function JobDetails() {
       fetchJobDetails();
       if (userRole === 'client') {
         fetchProposals();
+        fetchCounterOffers();
       }
     }
   }, [id, userRole]);
@@ -212,6 +226,30 @@ export default function JobDetails() {
     }
   };
 
+  const fetchCounterOffers = async () => {
+    if (!id || !proposals.length) return;
+
+    try {
+      const proposalIds = proposals.map(p => p.id);
+      const { data: counterOffersData, error } = await supabase
+        .from('counter_offers')
+        .select('*')
+        .in('proposal_id', proposalIds)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching counter offers:', error);
+        return;
+      }
+
+      if (counterOffersData) {
+        setCounterOffers(counterOffersData);
+      }
+    } catch (error) {
+      console.error('Error in fetchCounterOffers:', error);
+    }
+  };
+
   const handleSubmitProposal = async () => {
     if (!job || !user || !proposalPrice || !proposalMessage) {
       toast({
@@ -320,10 +358,19 @@ export default function JobDetails() {
     const minAmount = job.budget_min || job.budget_max || 0;
     const maxAmount = job.budget_max || job.budget_min || 0;
     
-    const minStandardFees = calculateFees(minAmount, true); // Force standard
+    // Standard plan - force 7.5% fee 
+    const minStandardFees = calculateFees(minAmount, true);
     const maxStandardFees = calculateFees(maxAmount, true);
-    const minPremiumFees = calculateFees(minAmount, false); // Use user's plan
-    const maxPremiumFees = calculateFees(maxAmount, false);
+    
+    // Premium plan - force 5% fee by NOT forcing standard
+    const minPremiumFees = { 
+      ...calculateFees(minAmount, false), 
+      platformFee: minAmount * 0.05 // Force 5% for premium simulation
+    };
+    const maxPremiumFees = { 
+      ...calculateFees(maxAmount, false), 
+      platformFee: maxAmount * 0.05 // Force 5% for premium simulation
+    };
     
     return {
       standard: { min: minStandardFees, max: maxStandardFees },
@@ -507,46 +554,14 @@ export default function JobDetails() {
                       id="message"
                       value={proposalMessage}
                       onChange={(e) => setProposalMessage(e.target.value)}
-                      placeholder="Descreva sua proposta, experiência e como vai executar o trabalho..."
-                      rows={4}
+                      placeholder="Descreva sua experiência, abordagem e por que você é a melhor escolha..."
+                      rows={6}
                     />
                   </div>
 
-                  {proposalPrice && (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">Cálculo de Taxas</h4>
-                      <div className="text-sm space-y-1">
-                        {(() => {
-                          const fees = calculateFees(parseFloat(proposalPrice));
-                          return (
-                            <>
-                              <div className="flex justify-between">
-                                <span>Valor do serviço:</span>
-                                <span>{formatCurrency(fees.subtotal)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>{getFeeDescription()}:</span>
-                                <span>{formatCurrency(fees.platformFee)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Taxa de processamento:</span>
-                                <span>{formatCurrency(fees.processingFee)}</span>
-                              </div>
-                              <Separator className="my-2" />
-                              <div className="flex justify-between font-medium">
-                                <span>Você receberá:</span>
-                                <span>{formatCurrency(fees.subtotal - fees.platformFee)}</span>
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
-
                   <Button 
-                    onClick={handleSubmitProposal}
-                    disabled={submittingProposal || !proposalPrice || !proposalMessage}
+                    onClick={handleSubmitProposal} 
+                    disabled={submittingProposal}
                     className="w-full"
                   >
                     {submittingProposal ? 'Enviando...' : 'Enviar Proposta'}
@@ -555,45 +570,42 @@ export default function JobDetails() {
               </Card>
             )}
 
-            {/* Enhanced Proposals with Negotiation */}
+            {/* Received Proposals - Enhanced for Clients */}
             {userRole === 'client' && proposals.length > 0 && (
               <div className="space-y-6">
-                <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-                  <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-3 text-xl">
-                        <div className="p-2 bg-primary/20 rounded-lg">
-                          <Handshake className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <span>Propostas Recebidas</span>
-                          <Badge variant="secondary" className="ml-3 bg-primary/20 text-primary">
-                            {proposals.length} proposta{proposals.length !== 1 ? 's' : ''}
-                          </Badge>
-                        </div>
-                      </CardTitle>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <TrendingUp className="h-4 w-4" />
-                        <span>Analise e negocie</span>
+                <Card className="border-2 border-gradient-to-r from-blue-200 to-green-200 bg-gradient-to-r from-blue-50 to-green-50">
+                  <CardHeader className="bg-gradient-to-r from-blue-100 to-green-100 rounded-t-lg border-b border-blue-200">
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                      <div className="p-2 bg-blue-200 rounded-lg">
+                        <MessageSquare className="h-6 w-6 text-blue-700" />
                       </div>
-                    </div>
+                      <span>Propostas Recebidas ({proposals.length})</span>
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-6">
+                  <CardContent className="space-y-6 p-6">
+                    <div className="grid gap-6">
                       {proposals.map((proposal, index) => {
                         const providerProfile = proposalProfiles[proposal.provider_id];
+                        const proposalCounterOffers = counterOffers.filter(co => co.proposal_id === proposal.id);
+                        
                         return (
-                          <div key={proposal.id} className="relative">
-                            {index > 0 && <Separator className="mb-6" />}
-                            <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-primary/10 p-1">
-                              <ProposalNegotiation
-                                proposal={proposal}
-                                providerProfile={providerProfile}
-                                jobId={job.id}
-                                isClient={true}
-                                onProposalUpdate={fetchProposals}
-                              />
+                          <div 
+                            key={proposal.id}
+                            className="relative p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl border-2 border-blue-100 hover:border-blue-300 transition-all shadow-lg hover:shadow-xl"
+                          >
+                            <div className="absolute top-4 right-4">
+                              <Badge className="bg-blue-600 text-white">
+                                Proposta #{index + 1}
+                              </Badge>
                             </div>
+                            
+                            <ProposalNegotiation
+                              proposal={{...proposal, counter_offers: proposalCounterOffers}}
+                              providerProfile={providerProfile}
+                              jobId={job.id}
+                              isClient={true}
+                              onProposalUpdate={fetchProposals}
+                            />
                           </div>
                         );
                       })}
@@ -629,6 +641,7 @@ export default function JobDetails() {
                 onUpdate={fetchJobDetails}
               />
             )}
+            
             {/* Client Info */}
             <Card>
               <CardHeader>
@@ -657,14 +670,14 @@ export default function JobDetails() {
               </CardContent>
             </Card>
 
-            {/* Budget */}
+            {/* Budget - Enhanced */}
             <Card className="border-2 border-gradient-to-br from-primary/20 to-accent/20 bg-gradient-to-br from-primary/5 to-accent/5">
               <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-lg border-b border-primary/10">
                 <CardTitle className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
                     <DollarSign className="h-6 w-6 text-green-600" />
                   </div>
-                  <span className="text-xl">Orçamento do Projeto</span>
+                  <span className="text-xl text-gray-900">Orçamento do Projeto</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6 p-6">
@@ -690,7 +703,7 @@ export default function JobDetails() {
                   <div className="space-y-4">
                     <Separator className="bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                     <div>
-                      <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                      <h4 className="font-semibold text-lg mb-4 flex items-center gap-2 text-gray-900">
                         <TrendingUp className="h-5 w-5 text-primary" />
                         Simulação de Taxas
                       </h4>
@@ -777,8 +790,8 @@ export default function JobDetails() {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -789,9 +802,10 @@ export default function JobDetails() {
                   <div className="text-center">
                     <Badge 
                       style={{ 
-                        backgroundColor: job.service_categories.color ? job.service_categories.color + '20' : '#e5e5e5',
-                        color: job.service_categories.color || '#666666'
+                        backgroundColor: job.service_categories.color || '#3b82f6',
+                        color: 'white'
                       }}
+                      className="text-lg px-4 py-2"
                     >
                       {job.service_categories.name}
                     </Badge>
