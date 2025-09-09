@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { MobileHamburgerMenu } from "./MobileHamburgerMenu";
 import { ChatHeaderButton } from "./ChatHeaderButton";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useRealTimeNotifications } from "@/hooks/useRealTimeNotifications";
 
 interface MobileHeaderProps {
   title?: string;
@@ -37,6 +39,8 @@ const MobileHeader = ({
   children,
   transparent = false
 }: MobileHeaderProps) => {
+  const { unreadCount } = useRealTimeNotifications();
+  
   return (
     <header className={cn(
       "sticky top-0 z-40 border-b border-border/50",
@@ -80,6 +84,8 @@ const MobileHeader = ({
           <div className="flex items-center gap-1">
             <ChatHeaderButton />
             
+            <NotificationCenter />
+            
             {showSearch && (
               <Button
                 variant="ghost"
@@ -88,24 +94,6 @@ const MobileHeader = ({
                 className="w-10 h-10"
               >
                 <Search className="w-5 h-5" />
-              </Button>
-            )}
-            
-            {showNotifications && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onNotifications}
-                className="w-10 h-10 relative"
-              >
-                <Bell className="w-5 h-5" />
-                {notificationCount > 0 && (
-                  <Badge 
-                    className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center text-xs primary-gradient text-white border-0"
-                  >
-                    {notificationCount > 9 ? '9+' : notificationCount}
-                  </Badge>
-                )}
               </Button>
             )}
             

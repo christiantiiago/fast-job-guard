@@ -68,6 +68,7 @@ interface ProposalNegotiationProps {
   jobId: string;
   isClient: boolean;
   onProposalUpdate: () => void;
+  onProposalReject?: (proposalId: string, reason?: string) => Promise<boolean>;
 }
 
 const ProposalNegotiation = ({ 
@@ -75,7 +76,8 @@ const ProposalNegotiation = ({
   providerProfile, 
   jobId, 
   isClient, 
-  onProposalUpdate 
+  onProposalUpdate,
+  onProposalReject
 }: ProposalNegotiationProps) => {
   const { toast } = useToast();
   const [showCounterOffer, setShowCounterOffer] = useState(false);

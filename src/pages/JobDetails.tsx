@@ -888,6 +888,7 @@ export default function JobDetails() {
                                 jobId={job.id}
                                 isClient={true}
                                 onProposalUpdate={fetchProposals}
+                                onProposalReject={rejectProposal}
                               />
                             </div>
                           </div>
