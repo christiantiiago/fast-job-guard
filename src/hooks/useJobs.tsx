@@ -259,6 +259,46 @@ export const useJobs = () => {
     }
   };
 
+  const deleteJob = async (jobId: string, reason?: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (error) throw error;
+      
+      // Refresh jobs list
+      fetchJobs();
+    } catch (err) {
+      console.error('Error deleting job:', err);
+      throw err;
+    }
+  };
+
+  const reactivateJob = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
+          status: 'open',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (error) throw error;
+      
+      // Refresh jobs list
+      fetchJobs();
+    } catch (err) {
+      console.error('Error reactivating job:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
     if (user && userRole) {
       fetchJobs();
@@ -275,6 +315,8 @@ export const useJobs = () => {
     fetchJobById,
     createJob,
     updateJobStatus,
+    deleteJob,
+    reactivateJob,
     refetch: fetchJobs
   };
 };

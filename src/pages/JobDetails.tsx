@@ -9,8 +9,9 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2, Edit3, Send, X } from 'lucide-react';
+import { Calendar, MapPin, User, DollarSign, Clock, MessageSquare, Star, ArrowLeft, Handshake, TrendingUp, Award, Shield, Eye, CheckCircle2, Edit3, Send, X, Trash2, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useJobs } from '@/hooks/useJobs';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,6 +105,7 @@ export default function JobDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, userRole } = useAuth();
+  const { deleteJob, reactivateJob } = useJobs();
   const { toast } = useToast();
   const { calculateFees, formatCurrency, getFeeDescription, isPremiumUser } = useFeeRules();
   const { canPropose, cooldownEnd, getCooldownTimeRemaining, recordRejection } = useProposalCooldown(id || '');
@@ -277,6 +279,47 @@ export default function JobDetails() {
       }
     } catch (error) {
       console.error('Error in fetchCounterOffers:', error);
+    }
+  };
+
+  const handleDeleteJob = async () => {
+    if (!job) return;
+
+    try {
+      await deleteJob(job.id, 'Excluído pelo cliente');
+      toast({
+        title: "Trabalho excluído",
+        description: "O trabalho foi excluído com sucesso.",
+      });
+      navigate('/jobs');
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o trabalho.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReactivateJob = async () => {
+    if (!job) return;
+
+    try {
+      await reactivateJob(job.id);
+      toast({
+        title: "Trabalho reativado",
+        description: "O trabalho foi reativado e está disponível novamente.",
+      });
+      // Refresh job details
+      fetchJobDetails();
+    } catch (error) {
+      console.error('Error reactivating job:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível reativar o trabalho.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -900,111 +943,75 @@ export default function JobDetails() {
                       <div className="text-center py-4">
                         <Button 
                           onClick={() => navigate(`/jobs/${job.id}/proposals`)}
-                          size="lg"
-                          className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+                          variant="outline"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
                         >
                           Ver Todas as {proposals.length} Propostas
-                          <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
                         </Button>
                       </div>
                     )}
-                    
-                    <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl border border-blue-200">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <Award className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-blue-900 mb-1">💡 Dica para escolher a melhor proposta</h4>
-                          <p className="text-sm text-blue-700">
-                            Considere não apenas o preço, mas também a avaliação do prestador, tempo de entrega 
-                            e qualidade da proposta apresentada. Clique no nome do prestador para ver o perfil completo.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               </div>
             )}
 
-            {/* Escrow Manager - Show payment status and completion button */}
+            {/* Escrow Manager */}
             {job.status === 'in_progress' && (
-              <EscrowManager jobId={job.id} isClient={userRole === 'client'} />
+              <EscrowManager jobId={job.id} />
             )}
           </div>
 
           {/* Sidebar */}
-          <div className="xl:col-span-1 space-y-6">
-            {/* Active Proposals Panel for Providers */}
-            {userRole === 'provider' && (
-              <ActiveProposalsPanel />
-            )}
-
-            {/* Enhanced Job Actions for Providers - Sidebar */}
+          <div className="space-y-6">
+            {/* Enhanced Job Actions - Only for Providers */}
             {userRole === 'provider' && job.status === 'open' && (
               <div className="space-y-4">
-                {/* Direct Accept Button */}
-                {job.budget_max && (
-                  <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-green-800">
-                        <Handshake className="h-5 w-5" />
-                        Aceitação Direta
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-700 mb-1">
-                          {formatCurrency(job.budget_max)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Valor proposto pelo cliente
-                        </p>
-                      </div>
+                <EnhancedJobActions 
+                  job={job} 
+                  userRole={userRole}
+                  onUpdate={() => {
+                    fetchJobDetails();
+                    if (userRole === 'client') {
+                      fetchProposals();
+                    }
+                  }}
+                />
 
-                      {/* Check if can propose */}
-                      {(() => {
-                        const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
-                        return !canProposeToThisJob ? (
-                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <p className="text-sm text-amber-700">{reason}</p>
-                          </div>
-                        ) : (
-                          <Button 
-                            onClick={handleDirectAccept}
-                            disabled={submittingProposal}
-                            className="w-full bg-green-600 hover:bg-green-700"
-                            size="lg"
-                          >
-                            {submittingProposal ? 'Enviando...' : 'Aceitar Trabalho'}
-                          </Button>
-                        );
-                      })()}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Custom Proposal Button */}
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Edit3 className="h-5 w-5" />
-                      Proposta Personalizada
+                      <Handshake className="h-5 w-5" />
+                      Proposta Rápida
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     {(() => {
                       const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
-                      return !canProposeToThisJob ? (
+                      
+                      return !canProposeToThisJob && reason ? (
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                           <p className="text-sm text-amber-700">{reason}</p>
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          <p className="text-sm text-muted-foreground">
-                            Envie uma proposta com seu preço e condições
-                          </p>
+                          <Button 
+                            onClick={handleDirectAccept}
+                            disabled={submittingProposal}
+                            className="w-full bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            {submittingProposal ? 'Processando...' : 'Aceitar Trabalho'}
+                          </Button>
+                          
+                          <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-background px-2 text-muted-foreground">ou</span>
+                            </div>
+                          </div>
+
                           <Button 
                             onClick={() => setShowProposalForm(!showProposalForm)}
                             variant="outline" 
@@ -1056,6 +1063,45 @@ export default function JobDetails() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                  )}
+
+                  {/* Delete Job Button - Available for all statuses except completed */}
+                  {job.status !== 'completed' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir Trabalho
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir Trabalho</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja excluir este trabalho permanentemente? 
+                            Esta ação não pode ser desfeita e o trabalho será removido 
+                            do mapa e das listas.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteJob} className="bg-red-600 hover:bg-red-700">
+                            Sim, Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
+                  {/* Reactivate Job Button - Only for cancelled jobs */}
+                  {job.status === 'cancelled' && (
+                    <Button 
+                      onClick={handleReactivateJob}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reativar Trabalho
+                    </Button>
                   )}
                   
                   <Button 
@@ -1240,11 +1286,11 @@ export default function JobDetails() {
                           </div>
                         </div>
                       )}
-                      </div>
                     </div>
-                   )}
-                </CardContent>
-             </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Category */}
             {job.service_categories && (
