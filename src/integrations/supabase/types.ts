@@ -209,6 +209,33 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_content_patterns: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          pattern: string
+          pattern_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          pattern: string
+          pattern_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          pattern?: string
+          pattern_type?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           agreed_deadline: string | null
@@ -1140,8 +1167,36 @@ export type Database = {
         }
         Relationships: []
       }
+      proposal_rejections: {
+        Row: {
+          can_propose_again_at: string
+          created_at: string
+          id: string
+          job_id: string
+          provider_id: string
+          rejected_at: string
+        }
+        Insert: {
+          can_propose_again_at?: string
+          created_at?: string
+          id?: string
+          job_id: string
+          provider_id: string
+          rejected_at?: string
+        }
+        Update: {
+          can_propose_again_at?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          provider_id?: string
+          rejected_at?: string
+        }
+        Relationships: []
+      }
       proposals: {
         Row: {
+          auto_accepted: boolean | null
           created_at: string | null
           delivery_date: string | null
           estimated_hours: number | null
@@ -1150,11 +1205,13 @@ export type Database = {
           message: string | null
           notes: string | null
           price: number
+          proposal_type: string | null
           provider_id: string
           status: Database["public"]["Enums"]["proposal_status"] | null
           updated_at: string | null
         }
         Insert: {
+          auto_accepted?: boolean | null
           created_at?: string | null
           delivery_date?: string | null
           estimated_hours?: number | null
@@ -1163,11 +1220,13 @@ export type Database = {
           message?: string | null
           notes?: string | null
           price: number
+          proposal_type?: string | null
           provider_id: string
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
         }
         Update: {
+          auto_accepted?: boolean | null
           created_at?: string | null
           delivery_date?: string | null
           estimated_hours?: number | null
@@ -1176,6 +1235,7 @@ export type Database = {
           message?: string | null
           notes?: string | null
           price?: number
+          proposal_type?: string | null
           provider_id?: string
           status?: Database["public"]["Enums"]["proposal_status"] | null
           updated_at?: string | null
@@ -1268,6 +1328,48 @@ export type Database = {
           location_lng?: number | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      real_time_notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          expires_at: string | null
+          id: string
+          is_read: boolean | null
+          is_system: boolean | null
+          message: string
+          priority: number | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          is_system?: boolean | null
+          message: string
+          priority?: number | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          is_system?: boolean | null
+          message?: string
+          priority?: number | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1806,6 +1908,10 @@ export type Database = {
         }
         Returns: number
       }
+      can_provider_propose: {
+        Args: { job_uuid: string; provider_user_id: string }
+        Returns: boolean
+      }
       can_use_platform: {
         Args: { user_id_input: string }
         Returns: boolean
@@ -1840,6 +1946,10 @@ export type Database = {
       equals: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: boolean
+      }
+      filter_chat_content: {
+        Args: { content: string }
+        Returns: Json
       }
       geography: {
         Args: { "": string } | { "": unknown }
