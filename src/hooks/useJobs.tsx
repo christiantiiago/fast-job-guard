@@ -261,6 +261,9 @@ export const useJobs = () => {
 
   const deleteJob = async (jobId: string, reason?: string) => {
     try {
+      console.log('🚀 deleteJob chamado para:', jobId);
+      console.log('🔍 Usuário logado:', user?.id);
+      
       const { error } = await supabase
         .from('jobs')
         .update({ 
@@ -269,12 +272,18 @@ export const useJobs = () => {
         })
         .eq('id', jobId);
 
-      if (error) throw error;
+      console.log('📊 Resultado da query:', { error });
+
+      if (error) {
+        console.error('❌ Erro na query:', error);
+        throw error;
+      }
       
+      console.log('✅ Job atualizado com sucesso');
       // Refresh jobs list
       fetchJobs();
     } catch (err) {
-      console.error('Error deleting job:', err);
+      console.error('💥 Error deleting job:', err);
       throw err;
     }
   };

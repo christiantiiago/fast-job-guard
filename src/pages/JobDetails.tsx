@@ -286,14 +286,20 @@ export default function JobDetails() {
     if (!job) return;
 
     try {
+      console.log('🗑️ Iniciando exclusão do job:', job.id);
+      console.log('👤 Usuário atual:', user?.id);
+      console.log('📝 Job cliente:', job.client_id);
+      
       await deleteJob(job.id, 'Excluído pelo cliente');
+      
+      console.log('✅ Job excluído com sucesso');
       toast({
         title: "Trabalho excluído",
         description: "O trabalho foi excluído com sucesso.",
       });
       navigate('/jobs');
     } catch (error) {
-      console.error('Error deleting job:', error);
+      console.error('❌ Error deleting job:', error);
       toast({
         title: "Erro",
         description: "Não foi possível excluir o trabalho.",
