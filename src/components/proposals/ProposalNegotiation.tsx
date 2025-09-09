@@ -223,7 +223,7 @@ const ProposalNegotiation = ({
     <Card className="border-l-4 border-l-primary">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3">
             <Avatar className="h-12 w-12">
               <AvatarImage src={providerProfile?.avatar_url} />
               <AvatarFallback>
@@ -233,8 +233,10 @@ const ProposalNegotiation = ({
             
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">
-                  {providerProfile?.full_name || 'Prestador'}
+                <CardTitle className="text-lg cursor-pointer hover:text-primary transition-colors">
+                  <a href={`/profile/${proposal.provider_id}`} className="flex items-center gap-2">
+                    {providerProfile?.full_name || 'Prestador Anônimo'}
+                  </a>
                 </CardTitle>
                 {providerProfile?.rating_avg && (
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">

@@ -23,7 +23,7 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
 
   const providerTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
-    { id: "discover", label: "Descobrir", icon: Search, href: "/providers/discover" },
+    { id: "discover", label: "Descobrir", icon: Search, href: "/discover" },
     { id: "jobs", label: "Trabalhos", icon: Briefcase, href: "/jobs" },
     { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
     { id: "wallet", label: "Carteira", icon: Wallet, href: "/provider/finance" },

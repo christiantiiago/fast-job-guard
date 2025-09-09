@@ -29,6 +29,8 @@ import JobProposals from "./pages/JobProposals";
 import JobsInProgress from "./pages/JobsInProgress";
 import Discover from "./pages/Discover";
 import ProvidersDiscover from "./pages/ProvidersDiscover";
+import UserProfile from "./pages/UserProfile";
+import ClientWallet from "./pages/ClientWallet";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
@@ -215,7 +217,17 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <Wallet />
+                    <ClientWallet />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/:userId"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <UserProfile />
                   </KYCGate>
                 </ProtectedRoute>
               }

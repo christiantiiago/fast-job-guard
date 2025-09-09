@@ -214,7 +214,11 @@ export function ProposalNotifications() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="space-y-1">
-                    <p className="font-medium">{proposal.profiles?.full_name || 'Prestador'}</p>
+                    <p className="font-medium">
+                      <a href={`/profile/${proposal.provider_id}`} className="hover:text-primary transition-colors">
+                        {proposal.profiles?.full_name || 'Prestador Anônimo'}
+                      </a>
+                    </p>
                     <p className="text-sm text-muted-foreground">{proposal.jobs.title}</p>
                     <div className="flex items-center gap-4 text-sm">
                       <span className="flex items-center gap-1 text-green-600">
