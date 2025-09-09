@@ -44,7 +44,7 @@ const Hero = () => {
                     className="pl-10 bg-white/20 border-white/30 text-white placeholder:text-white/70 h-12"
                   />
                 </div>
-                <Button variant="shipfy" size="lg" className="h-12 px-8" asChild>
+                <Button variant="jobfast" size="lg" className="h-12 px-8" asChild>
                   <Link to="/auth/register">Buscar</Link>
                 </Button>
               </div>

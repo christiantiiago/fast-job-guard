@@ -94,7 +94,7 @@ export function MobileHamburgerMenu() {
                 <div className="h-8 w-8 rounded-lg primary-gradient flex items-center justify-center">
                   <span className="text-white font-bold text-sm">S</span>
                 </div>
-                <span className="font-bold text-lg">ShipFy</span>
+                <span className="font-bold text-lg">Job Fast</span>
               </div>
             </SheetTitle>
             

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Job Fast Design System - Shipfy-inspired modern marketplace */
+/* Job Fast Design System - Modern marketplace */
 
 @layer base {
   :root {
@@ -16,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 27%;
 
-    /* Primary: Shipfy coral-red - dynamic and modern */
+    /* Primary: Job Fast coral-red - dynamic and modern */
     --primary: 8 84% 60%;
     --primary-foreground: 0 0% 100%;
     --primary-soft: 8 75% 65%;
@@ -41,7 +41,7 @@
 
     --radius: 1rem;
 
-    /* Custom design tokens - Shipfy style */
+    /* Custom design tokens - Job Fast style */
     --gradient-primary: linear-gradient(135deg, hsl(8 84% 60%), hsl(8 75% 65%));
     --gradient-accent: linear-gradient(135deg, hsl(24 95% 53%), hsl(24 95% 63%));
     --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
@@ -134,7 +134,7 @@
 }
 
 @layer components {
-  /* Modern gradients - Shipfy style */
+  /* Modern gradients - Job Fast style */
   .primary-gradient {
     background: var(--gradient-primary);
   }

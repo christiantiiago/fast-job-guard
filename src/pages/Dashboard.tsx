@@ -20,15 +20,23 @@ import {
   UserCheck,
   Activity
 } from 'lucide-react';
-import { ProviderDashboard } from '@/components/provider/ProviderDashboard';
+import { JobFastHomepage } from '@/components/home/JobFastHomepage';
 
 export default function Dashboard() {
   const { userRole } = useAuth();
 
   if (userRole === 'provider') {
     return (
-      <AppLayout>
-        <ProviderDashboard />
+      <AppLayout showKYCBanner={false}>
+        <JobFastHomepage userRole="provider" />
+      </AppLayout>
+    );
+  }
+
+  if (userRole === 'client') {
+    return (
+      <AppLayout showKYCBanner={false}>
+        <JobFastHomepage userRole="client" />
       </AppLayout>
     );
   }

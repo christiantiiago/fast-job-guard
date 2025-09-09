@@ -46,7 +46,7 @@ const Header = () => {
                 Entrar
               </Link>
             </Button>
-            <Button variant="shipfy" size="sm" asChild>
+            <Button variant="jobfast" size="sm" asChild>
               <Link to="/auth/register">Publicar Trabalho</Link>
             </Button>
           </div>
@@ -85,7 +85,7 @@ const Header = () => {
                     Entrar
                   </Link>
                 </Button>
-                <Button variant="shipfy" asChild>
+                <Button variant="jobfast" asChild>
                   <Link to="/auth/register">Publicar Trabalho</Link>
                 </Button>
               </div>

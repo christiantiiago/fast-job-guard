@@ -21,6 +21,7 @@ const buttonVariants = cva(
         accent: "accent-gradient text-accent-foreground shadow-accent hover:shadow-elevated hover:scale-[1.02]",
         modern: "bg-card border-2 border-border/50 hover:border-primary/30 hover:bg-primary/5 text-foreground shadow-card hover:shadow-elevated",
         shipfy: "primary-gradient text-primary-foreground shadow-primary hover:shadow-elevated transform transition-all duration-300 hover:-translate-y-0.5",
+        jobfast: "primary-gradient text-primary-foreground shadow-primary hover:shadow-elevated transform transition-all duration-300 hover:-translate-y-0.5",
       },
       size: {
         default: "h-11 px-6 py-3",
