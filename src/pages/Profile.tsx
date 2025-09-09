@@ -1,10 +1,12 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { VerificationBadge } from '@/components/ui/verification-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { 
@@ -25,6 +27,7 @@ import {
 export default function Profile() {
   const { user, userRole } = useAuth();
   const { profile, stats, loading, updating } = useProfile();
+  const { status: kycStatus } = useKYCStatus();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -151,11 +154,20 @@ export default function Profile() {
                          : user?.email?.[0].toUpperCase() || '?'}
                      </AvatarFallback>
                    </Avatar>
-                   <div>
-                     <h3 className="text-lg font-medium">
-                       {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
-                     </h3>
-                     <p className="text-muted-foreground capitalize">{userRole}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-medium">
+                          {profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                        </h3>
+                        {kycStatus?.canUsePlatform && (
+                          <VerificationBadge 
+                            isVerified={true} 
+                            verifiedAt={kycStatus?.documents?.find(d => d.is_verified && d.verified_at)?.verified_at}
+                            size="md"
+                          />
+                        )}
+                      </div>
+                      <p className="text-muted-foreground capitalize">{userRole}</p>
                      {userRole === 'provider' && stats && (
                        <div className="flex items-center mt-1">
                          <Star className="w-4 h-4 text-warning fill-current" />

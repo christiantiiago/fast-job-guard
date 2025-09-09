@@ -9,6 +9,7 @@ export interface KYCDocument {
   is_verified: boolean;
   file_url: string;
   created_at: string;
+  verified_at?: string;
   notes?: string;
 }
 
