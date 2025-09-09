@@ -172,13 +172,14 @@ export default function Checkout() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-4 md:py-8 max-w-4xl min-h-screen overflow-y-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Checkout</h1>
-          <p className="text-muted-foreground">Confirme os detalhes e escolha a forma de pagamento</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-6 max-w-4xl">
+          <div className="mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold">Checkout</h1>
+            <p className="text-muted-foreground">Confirme os detalhes e escolha a forma de pagamento</p>
+          </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Job Details */}
           <div className="space-y-6">
             <Card>
@@ -288,7 +289,14 @@ export default function Checkout() {
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Pagamento Seguro:</strong> O valor ficará em escrow até a conclusão do serviço.
+                    <strong>Pagamento Seguro e Protegido:</strong>
+                    <ul className="list-disc list-inside text-sm mt-2 space-y-1">
+                      <li>Valor fica em garantia até a conclusão do serviço</li>
+                      <li>Contrato automático entre cliente e prestador</li>
+                      <li>Chat liberado para comunicação direta</li>
+                      <li>Sistema de disputas disponível se necessário</li>
+                      <li>Pagamento liberado em 7 dias ou quando sinalizado</li>
+                    </ul>
                   </AlertDescription>
                 </Alert>
                 
@@ -338,6 +346,7 @@ export default function Checkout() {
               </CardContent>
             </Card>
           </div>
+        </div>
         </div>
       </div>
     </AppLayout>

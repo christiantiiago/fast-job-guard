@@ -15,10 +15,10 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
   
   const clientTabs = [
     { id: "home", label: "Início", icon: Home, href: "/dashboard" },
+    { id: "discover", label: "Prestadores", icon: Search, href: "/providers/discover" },
     { id: "jobs", label: "Trabalhos", icon: Briefcase, href: "/jobs" },
     { id: "messages", label: "Chat", icon: MessageCircle, href: "/chat" },
     { id: "wallet", label: "Carteira", icon: Wallet, href: "/wallet" },
-    { id: "profile", label: "Perfil", icon: User, href: "/profile" },
   ];
 
   const providerTabs = [

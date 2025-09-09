@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import Map from '@/components/ui/map';
+import { DirectProposalModal } from '@/components/providers/DirectProposalModal';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, MapPin, Star, Filter, Navigation } from 'lucide-react';
+import { Search, MapPin, Star, Filter, Navigation, MessageSquare, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Provider {
@@ -22,6 +24,9 @@ interface Provider {
   distance_km: number;
   services: any[];
   priority_score: number;
+  is_online?: boolean;
+  location_lat?: number;
+  location_lng?: number;
 }
 
 interface MapMarker {
@@ -37,7 +42,10 @@ export default function ProvidersDiscover() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
+  const [proposalModalOpen, setProposalModalOpen] = useState(false);
+  const [selectedProviderForProposal, setSelectedProviderForProposal] = useState<Provider | null>(null);
   const { position, error: geoError } = useGeolocation();
+  const { user } = useAuth();
 
   const categories = [
     { slug: 'limpeza', name: 'Limpeza' },
@@ -51,7 +59,7 @@ export default function ProvidersDiscover() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke('optimized-provider-search', {
+      const { data, error } = await supabase.functions.invoke('enhanced-provider-search', {
         body: {
           category: selectedCategory || null,
           latitude: position?.latitude,
@@ -64,7 +72,15 @@ export default function ProvidersDiscover() {
 
       if (error) throw error;
 
-      setProviders(data?.providers || []);
+      // Process the data to ensure all required fields are present
+      const processedProviders = (data?.providers || []).map((provider: any) => ({
+        ...provider,
+        is_online: provider.is_online || false,
+        location_lat: provider.location_lat || null,
+        location_lng: provider.location_lng || null
+      }));
+
+      setProviders(processedProviders);
     } catch (error) {
       console.error('Erro ao buscar prestadores:', error);
       toast.error('Erro ao carregar prestadores');
@@ -88,13 +104,13 @@ export default function ProvidersDiscover() {
   );
 
   const mapMarkers: MapMarker[] = filteredProviders
-    .filter(provider => provider.distance_km < 999999)
+    .filter(provider => provider.location_lat && provider.location_lng)
     .slice(0, 20) // Limitar a 20 markers para performance
     .map(provider => ({
-      latitude: position?.latitude || 0,
-      longitude: position?.longitude || 0,
+      latitude: provider.location_lat || 0,
+      longitude: provider.location_lng || 0,
       title: provider.full_name,
-      description: `${provider.rating_avg.toFixed(1)} ⭐ • ${provider.services.length} serviços`
+      description: `${provider.rating_avg.toFixed(1)} ⭐ • ${provider.services.length} serviços${provider.is_online ? ' • Online' : ' • Offline'}`
     }));
 
   if (geoError) {
@@ -219,17 +235,20 @@ export default function ProvidersDiscover() {
                 ))
               ) : (
                 filteredProviders.map(provider => (
-                  <Card 
-                    key={provider.id} 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setSelectedProvider(provider)}
-                  >
+                  <Card key={provider.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <span className="text-primary font-semibold">
-                            {provider.full_name.charAt(0).toUpperCase()}
-                          </span>
+                        <div className="relative">
+                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                            <span className="text-primary font-semibold">
+                              {provider.full_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="absolute -bottom-1 -right-1">
+                            <Circle 
+                              className={`h-4 w-4 ${provider.is_online ? 'text-green-500 fill-current' : 'text-gray-400 fill-current'}`} 
+                            />
+                          </div>
                         </div>
                         
                         <div className="flex-1 min-w-0">
@@ -238,6 +257,12 @@ export default function ProvidersDiscover() {
                             {provider.is_premium && (
                               <Badge variant="secondary" className="text-xs">Premium</Badge>
                             )}
+                            <Badge 
+                              variant={provider.is_online ? "default" : "secondary"} 
+                              className={`text-xs ${provider.is_online ? 'bg-green-500' : 'bg-gray-400'}`}
+                            >
+                              {provider.is_online ? 'Online' : 'Offline'}
+                            </Badge>
                           </div>
                           
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -267,6 +292,30 @@ export default function ProvidersDiscover() {
                               </Badge>
                             )}
                           </div>
+
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedProvider(provider)}
+                              className="text-xs"
+                            >
+                              Ver Detalhes
+                            </Button>
+                            {user && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedProviderForProposal(provider);
+                                  setProposalModalOpen(true);
+                                }}
+                                className="text-xs"
+                              >
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                Contratar
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -276,6 +325,18 @@ export default function ProvidersDiscover() {
             </div>
           </div>
         </div>
+
+        <DirectProposalModal
+          provider={selectedProviderForProposal}
+          isOpen={proposalModalOpen}
+          onClose={() => {
+            setProposalModalOpen(false);
+            setSelectedProviderForProposal(null);
+          }}
+          onSuccess={() => {
+            // Could refetch data or show success message
+          }}
+        />
       </div>
     </AppLayout>
   );

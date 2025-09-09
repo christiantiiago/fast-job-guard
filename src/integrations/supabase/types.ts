@@ -335,6 +335,54 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_proposals: {
+        Row: {
+          client_id: string | null
+          client_message: string | null
+          created_at: string | null
+          deadline: string | null
+          description: string
+          estimated_hours: number | null
+          id: string
+          proposed_price: number
+          provider_id: string | null
+          provider_response: string | null
+          status: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          client_message?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description: string
+          estimated_hours?: number | null
+          id?: string
+          proposed_price: number
+          provider_id?: string | null
+          provider_response?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          client_message?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          description?: string
+          estimated_hours?: number | null
+          id?: string
+          proposed_price?: number
+          provider_id?: string | null
+          provider_response?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       disputes: {
         Row: {
           admin_notes: string | null
@@ -387,6 +435,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      escrow_payments: {
+        Row: {
+          amount: number
+          client_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          job_id: string | null
+          platform_fee: number
+          provider_id: string | null
+          release_date: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          platform_fee: number
+          provider_id?: string | null
+          release_date?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          platform_fee?: number
+          provider_id?: string | null
+          release_date?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       facial_enrollment: {
         Row: {
@@ -1142,6 +1238,39 @@ export type Database = {
         }
         Relationships: []
       }
+      provider_status: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_online: boolean
+          last_seen: string | null
+          location_lat: number | null
+          location_lng: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_online?: boolean
+          last_seen?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_online?: boolean
+          last_seen?: string | null
+          location_lat?: number | null
+          location_lng?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           author_id: string
@@ -1616,6 +1745,10 @@ export type Database = {
               use_typmod?: boolean
             }
         Returns: string
+      }
+      auto_release_escrow: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       box: {
         Args: { "": unknown } | { "": unknown }
