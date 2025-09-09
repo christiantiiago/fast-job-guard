@@ -137,19 +137,94 @@ export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: 
           setMapboxError(null);
           setMapInitialized(true);
           
-          // Add user marker
+          // Add user marker (operário/trabalhador)
           if (position && mapboxglRef.current) {
             const userEl = document.createElement('div');
-            userEl.style.cssText = `
-              width: 16px;
-              height: 16px;
-              border-radius: 50%;
-              background: #3b82f6;
-              border: 3px solid white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            userEl.innerHTML = `
+              <div style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                position: relative;
+              ">
+                <!-- Operário Avatar -->
+                <div style="
+                  width: 44px;
+                  height: 44px;
+                  background: linear-gradient(135deg, #1e40af, #3b82f6);
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), 0 2px 8px rgba(0,0,0,0.1);
+                  border: 4px solid white;
+                  position: relative;
+                  z-index: 2;
+                ">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                
+                <!-- Pulse effect -->
+                <div style="
+                  position: absolute;
+                  top: 0;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  width: 44px;
+                  height: 44px;
+                  border-radius: 50%;
+                  background: rgba(59, 130, 246, 0.3);
+                  animation: pulse 2s infinite;
+                  z-index: 1;
+                "></div>
+                
+                <!-- Label -->
+                <div style="
+                  background: white;
+                  padding: 4px 8px;
+                  border-radius: 12px;
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #1e40af;
+                  margin-top: 8px;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                  border: 1px solid rgba(59, 130, 246, 0.2);
+                  white-space: nowrap;
+                ">
+                  Você
+                </div>
+              </div>
             `;
             
-            new mapboxglRef.current.Marker(userEl)
+            // Add CSS animation for pulse effect
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes pulse {
+                0% {
+                  transform: translateX(-50%) scale(1);
+                  opacity: 1;
+                }
+                70% {
+                  transform: translateX(-50%) scale(1.4);
+                  opacity: 0;
+                }
+                100% {
+                  transform: translateX(-50%) scale(1.4);
+                  opacity: 0;
+                }
+              }
+            `;
+            document.head.appendChild(style);
+            
+            new mapboxglRef.current.Marker(userEl, { 
+              anchor: 'bottom',
+              offset: [0, 0]
+            })
               .setLngLat([position.longitude, position.latitude])
               .addTo(map.current);
           }

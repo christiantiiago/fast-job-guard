@@ -209,6 +209,19 @@ export default function Discover() {
       .filter(Boolean)
   )) as string[];
 
+  // Calculate job statistics
+  const jobsWithLocation = filteredJobs.filter(job => job.latitude && job.longitude);
+  const jobsWithoutLocation = filteredJobs.filter(job => !job.latitude || !job.longitude);
+  
+  // Find closest job
+  const closestJob = jobsWithLocation.length > 0 
+    ? jobsWithLocation.reduce((closest, current) => {
+        const closestDistance = closest.routeDistance || closest.distance || Infinity;
+        const currentDistance = current.routeDistance || current.distance || Infinity;
+        return currentDistance < closestDistance ? current : closest;
+      })
+    : null;
+
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -308,7 +321,11 @@ export default function Discover() {
             setSelectedCategory={setSelectedCategory}
             categories={categories}
             resultCount={filteredJobs.length}
-            userDistance={position ? formatDistance(0) : undefined}
+            jobsWithLocation={jobsWithLocation.length}
+            jobsWithoutLocation={jobsWithoutLocation.length}
+            closestJob={closestJob}
+            formatDistance={formatDistance}
+            formatCurrency={formatCurrency}
           />
         </div>
 
@@ -316,7 +333,7 @@ export default function Discover() {
         <div className="flex-1 relative">
           {viewMode === 'map' ? (
             <DiscoverMap
-              jobs={filteredJobs}
+              jobs={jobsWithLocation}
               position={position}
               formatDistance={formatDistance}
               formatDuration={formatDuration}

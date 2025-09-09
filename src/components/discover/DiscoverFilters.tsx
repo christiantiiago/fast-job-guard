@@ -9,7 +9,11 @@ interface DiscoverFiltersProps {
   setSelectedCategory: (category: string) => void;
   categories: string[];
   resultCount: number;
-  userDistance?: string;
+  jobsWithLocation: number;
+  jobsWithoutLocation: number;
+  closestJob: any;
+  formatDistance: (distance: number) => string;
+  formatCurrency: (min?: number, max?: number, final?: number) => string;
 }
 
 export function DiscoverFilters({
@@ -19,7 +23,11 @@ export function DiscoverFilters({
   setSelectedCategory,
   categories,
   resultCount,
-  userDistance
+  jobsWithLocation,
+  jobsWithoutLocation,
+  closestJob,
+  formatDistance,
+  formatCurrency
 }: DiscoverFiltersProps) {
   return (
     <div className="bg-background border-b p-4 space-y-4">
@@ -50,9 +58,37 @@ export function DiscoverFilters({
         </Select>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        {resultCount} trabalho(s) encontrado(s)
-        {userDistance && ` • ${userDistance} da sua localização`}
+      <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <span>{resultCount} trabalho(s) encontrado(s)</span>
+          <div className="flex gap-4 text-xs">
+            <span className="flex items-center">
+              📍 {jobsWithLocation} no mapa
+            </span>
+            <span className="flex items-center">
+              📋 {jobsWithoutLocation} sem localização
+            </span>
+          </div>
+        </div>
+        
+        {closestJob && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-blue-800 text-sm">Trabalho mais próximo:</p>
+                <p className="text-blue-700 font-semibold line-clamp-1">{closestJob.title}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-blue-800 font-bold">
+                  {formatCurrency(closestJob.budget_min, closestJob.budget_max, closestJob.final_price)}
+                </p>
+                <p className="text-blue-600 text-sm">
+                  📍 {formatDistance(closestJob.routeDistance || closestJob.distance || 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
