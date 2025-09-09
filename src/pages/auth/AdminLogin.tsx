@@ -44,6 +44,22 @@ export default function AdminLogin() {
     }
   }, [attemptCount]);
 
+  // Verificar se o usuário logado tem permissão de admin
+  useEffect(() => {
+    if (user && !loading && userRole && userRole !== 'admin') {
+      toast.error('🚫 Acesso Negado', {
+        description: 'Esta conta não tem permissões administrativas.',
+        duration: 5000,
+      });
+      signOut();
+    } else if (user && !loading && userRole === 'admin') {
+      toast.success('Acesso administrativo autorizado!', {
+        description: 'Bem-vindo ao painel de administração'
+      });
+      navigate('/admin');
+    }
+  }, [user, userRole, loading, signOut, navigate]);
+
   // Redirect if already logged in as admin
   if (user && !loading && userRole === 'admin') {
     return <Navigate to="/admin" replace />;
@@ -103,22 +119,6 @@ export default function AdminLogin() {
       setIsLoading(false);
     }
   };
-
-  // Verificar se o usuário logado tem permissão de admin
-  useEffect(() => {
-    if (user && !loading && userRole && userRole !== 'admin') {
-      toast.error('🚫 Acesso Negado', {
-        description: 'Esta conta não tem permissões administrativas.',
-        duration: 5000,
-      });
-      signOut();
-    } else if (user && !loading && userRole === 'admin') {
-      toast.success('Acesso administrativo autorizado!', {
-        description: 'Bem-vindo ao painel de administração'
-      });
-      navigate('/admin');
-    }
-  }, [user, userRole, loading]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
