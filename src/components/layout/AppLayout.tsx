@@ -21,7 +21,7 @@ interface AppLayoutProps {
 export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayoutProps) => {
   const { userRole } = useAuth();
   const { status } = useKYCStatus();
-  const { showPopup, closePopup } = usePremiumPopup(false); // TODO: Replace with real premium status
+  const { showPopup, closePopup } = usePremiumPopup();
 
   return (
     <div className="min-h-screen bg-background">

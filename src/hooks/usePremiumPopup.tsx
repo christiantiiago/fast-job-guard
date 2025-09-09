@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { usePremiumStatus } from './usePremiumStatus';
 
 const POPUP_KEY = 'premium_popup_last_shown';
 const POPUP_INTERVAL = 5 * 60 * 60 * 1000; // 5 horas em milliseconds
 
-export const usePremiumPopup = (isPremium: boolean = false) => {
+export const usePremiumPopup = () => {
+  const { isPremium } = usePremiumStatus();
   const [showPopup, setShowPopup] = useState(false);
 
   useEffect(() => {

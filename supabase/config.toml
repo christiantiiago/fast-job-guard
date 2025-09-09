@@ -60,3 +60,12 @@ verify_jwt = true
 
 [functions.analyze-document-ai]
 verify_jwt = true
+
+[functions.create-premium-payment]
+verify_jwt = true
+
+[functions.check-premium-status]
+verify_jwt = true
+
+[functions.create-customer-portal]
+verify_jwt = true

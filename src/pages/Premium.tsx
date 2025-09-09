@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,10 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useAuth } from '@/hooks/useAuth';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { 
   Crown,
   Zap,
@@ -20,7 +24,10 @@ import {
   Plus,
   Edit2,
   Clock,
-  Users
+  Users,
+  CreditCard,
+  Smartphone,
+  Settings
 } from 'lucide-react';
 
 interface Goal {
@@ -33,7 +40,9 @@ interface Goal {
 }
 
 export default function Premium() {
-  const [isPremium, setIsPremium] = useState(false);
+  const { user } = useAuth();
+  const { premiumStatus, loading, refetch } = usePremiumStatus();
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([
     {
       id: '1',
@@ -51,6 +60,62 @@ export default function Premium() {
     category: ''
   });
 
+  // Check premium status on load
+  useEffect(() => {
+    // Premium status is managed by the usePremiumStatus hook
+  }, [user]);
+
+  const handleUpgrade = async (paymentMethod: 'card' | 'pix') => {
+    if (!user) {
+      toast.error('Você precisa estar logado para assinar o premium');
+      return;
+    }
+
+    try {
+      setProcessingPayment(true);
+      toast.loading('Criando sessão de pagamento...');
+
+      const { data, error } = await supabase.functions.invoke('create-premium-payment', {
+        body: { paymentMethod }
+      });
+
+      if (error) throw error;
+
+      toast.dismiss();
+      toast.success(`Redirecionando para pagamento ${paymentMethod === 'pix' ? 'PIX' : 'cartão'}...`);
+      
+      // Open payment in new tab
+      window.open(data.url, '_blank');
+      
+      // Refresh status after a short delay
+      setTimeout(() => {
+        refetch();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      toast.error('Erro ao criar pagamento. Tente novamente.');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      toast.loading('Abrindo portal do cliente...');
+
+      const { data, error } = await supabase.functions.invoke('create-customer-portal');
+      
+      if (error) throw error;
+
+      toast.dismiss();
+      window.open(data.url, '_blank');
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast.error('Erro ao abrir portal do cliente');
+    }
+  };
+
   const addGoal = () => {
     if (!newGoal.title || !newGoal.targetAmount) return;
     
@@ -66,6 +131,19 @@ export default function Premium() {
     setGoals([...goals, goal]);
     setNewGoal({ title: '', targetAmount: 0, targetDate: '', category: '' });
   };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Verificando status premium...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const premiumFeatures = [
     {
@@ -104,21 +182,21 @@ export default function Premium() {
     <AppLayout>
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-2">
-              <Crown className="h-8 w-8 text-accent" />
-              <h1 className="text-3xl font-bold">Premium</h1>
-            </div>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Desbloqueie recursos exclusivos, economize nas taxas e tenha uma experiência superior
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-lg text-muted-foreground line-through">R$ 89,90</span>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                22% OFF
-              </Badge>
-            </div>
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <Crown className="h-8 w-8 text-accent" />
+            <h1 className="text-3xl font-bold">Premium</h1>
           </div>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Desbloqueie recursos exclusivos, economize nas taxas e tenha uma experiência superior
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-lg text-muted-foreground line-through">R$ 89,90</span>
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              22% OFF
+            </Badge>
+          </div>
+        </div>
 
         {/* Premium Status */}
         <Card className="border-accent/20">
@@ -128,26 +206,58 @@ export default function Premium() {
                 <Crown className="h-5 w-5 text-accent" />
                 <CardTitle>Status Premium</CardTitle>
               </div>
-              <Badge variant={isPremium ? "default" : "outline"}>
-                {isPremium ? 'ATIVO' : 'INATIVO'}
+              <Badge variant={premiumStatus.is_premium ? "default" : "outline"}>
+                {premiumStatus.is_premium ? 'ATIVO' : 'INATIVO'}
               </Badge>
             </div>
             <CardDescription>
-              {isPremium 
+              {premiumStatus.is_premium 
                 ? 'Você tem acesso a todos os recursos premium' 
                 : 'Upgrade para premium e tenha acesso a recursos exclusivos'
               }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!isPremium && (
-              <Button 
-                onClick={() => setIsPremium(true)} 
-                className="w-full bg-gradient-to-r from-accent to-accent/80 text-white"
-              >
-              <Crown className="mr-2 h-4 w-4" />
-              Assinar Premium - R$ 69,90/mês
-              </Button>
+            {!premiumStatus.is_premium ? (
+              <div className="space-y-3">
+                <Button 
+                  onClick={() => handleUpgrade('card')} 
+                  disabled={processingPayment}
+                  className="w-full bg-gradient-to-r from-accent to-accent/80 text-white"
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Pagar com Cartão - R$ 69,90/mês
+                </Button>
+                <Button 
+                  onClick={() => handleUpgrade('pix')} 
+                  disabled={processingPayment}
+                  variant="outline"
+                  className="w-full border-accent text-accent hover:bg-accent/10"
+                >
+                  <Smartphone className="mr-2 h-4 w-4" />
+                  Pagar com PIX - R$ 69,90/mês
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                      Assinatura ativa - Próxima cobrança: {premiumStatus.subscription?.current_period_end ? 
+                        new Date(premiumStatus.subscription.current_period_end).toLocaleDateString('pt-BR') : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleManageSubscription}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Gerenciar Assinatura
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -155,9 +265,9 @@ export default function Premium() {
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {premiumFeatures.map((feature, index) => (
-            <Card key={index} className={`transition-all ${isPremium ? 'border-accent/20' : 'opacity-60'}`}>
+            <Card key={index} className={`transition-all ${premiumStatus.is_premium ? 'border-accent/20' : 'opacity-60'}`}>
               <CardHeader>
-                <feature.icon className={`h-8 w-8 ${isPremium ? 'text-accent' : 'text-muted-foreground'}`} />
+                <feature.icon className={`h-8 w-8 ${premiumStatus.is_premium ? 'text-accent' : 'text-muted-foreground'}`} />
                 <CardTitle className="text-lg">{feature.title}</CardTitle>
                 <CardDescription>{feature.description}</CardDescription>
               </CardHeader>
@@ -166,7 +276,7 @@ export default function Premium() {
         </div>
 
         {/* Goals Section - Premium Feature */}
-        {isPremium && (
+        {premiumStatus.is_premium && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
