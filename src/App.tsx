@@ -28,7 +28,8 @@ import Discover from "./pages/Discover";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
-import FinanceRevolutionary from "./pages/provider/FinanceRevolutionary";
+import Finance from "./pages/provider/Finance";
+import Premium from "./pages/Premium";
 import ProviderOnboarding from "./pages/provider/Onboarding";
 
 // KYC pages
@@ -230,6 +231,17 @@ const App = () => (
               }
             />
 
+            <Route
+              path="/premium"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <Premium />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+
             {/* Provider routes */}
             <Route
               path="/provider/onboarding"
@@ -246,7 +258,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <FinanceRevolutionary />
+                    <Finance />
                   </KYCGate>
                 </ProtectedRoute>
               }

@@ -18,7 +18,8 @@ import {
   Star,
   Activity,
   BarChart,
-  FileText
+  FileText,
+  Crown
 } from 'lucide-react';
 
 const clientNavigation = [
@@ -27,6 +28,7 @@ const clientNavigation = [
   { name: 'Chat', href: '/chat', icon: MessageCircle },
   { name: 'Meus Documentos', href: '/documents', icon: FileText },
   { name: 'Carteira', href: '/wallet', icon: Wallet },
+  { name: 'Premium', href: '/premium', icon: Crown },
   { name: 'Reviews', href: '/reviews', icon: Star },
   { name: 'Perfil', href: '/profile', icon: User },
 ];
