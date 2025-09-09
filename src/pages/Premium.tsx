@@ -104,15 +104,21 @@ export default function Premium() {
     <AppLayout>
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <Crown className="h-8 w-8 text-accent" />
-            <h1 className="text-3xl font-bold">Premium</h1>
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-2">
+              <Crown className="h-8 w-8 text-accent" />
+              <h1 className="text-3xl font-bold">Premium</h1>
+            </div>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Desbloqueie recursos exclusivos, economize nas taxas e tenha uma experiência superior
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-lg text-muted-foreground line-through">R$ 89,90</span>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                22% OFF
+              </Badge>
+            </div>
           </div>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Desbloqueie recursos exclusivos e tenha uma experiência superior na plataforma
-          </p>
-        </div>
 
         {/* Premium Status */}
         <Card className="border-accent/20">
@@ -139,8 +145,8 @@ export default function Premium() {
                 onClick={() => setIsPremium(true)} 
                 className="w-full bg-gradient-to-r from-accent to-accent/80 text-white"
               >
-                <Crown className="mr-2 h-4 w-4" />
-                Ativar Premium - R$ 29,90/mês
+              <Crown className="mr-2 h-4 w-4" />
+              Assinar Premium - R$ 69,90/mês
               </Button>
             )}
           </CardContent>

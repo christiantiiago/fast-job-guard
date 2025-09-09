@@ -60,6 +60,11 @@
     --chart-4: 262 83% 58%;
     --chart-5: 199 89% 48%;
     
+    /* Status colors */
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 84% 60%;
+    
     /* Smooth animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -99,6 +104,11 @@
     --border: 215 28% 25%;
     --input: 215 28% 25%;
     --ring: 8 84% 60%;
+
+    /* Status colors */
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 62% 50%;
 
     /* Dark mode gradients */
     --gradient-primary: linear-gradient(135deg, hsl(8 84% 60%), hsl(8 75% 65%));

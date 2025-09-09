@@ -1,9 +1,11 @@
 import { ReactNode } from 'react';
 import { NotificationCenter } from '@/components/admin/NotificationCenter';
 import { FacialAuthModal } from '@/components/admin/FacialAuthModal';
+import { PremiumPopup } from '@/components/premium/PremiumPopup';
 import { useFacialAuth } from '@/hooks/useFacialAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
+import { usePremiumPopup } from '@/hooks/usePremiumPopup';
 import { KYCBanner } from '@/components/kyc/KYCBanner';
 import MobileBottomNav from './MobileBottomNav';
 import MobileHeader from './MobileHeader';
@@ -19,6 +21,7 @@ interface AppLayoutProps {
 export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayoutProps) => {
   const { userRole } = useAuth();
   const { status } = useKYCStatus();
+  const { showPopup, closePopup } = usePremiumPopup(false); // TODO: Replace with real premium status
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,6 +55,9 @@ export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayo
       <div className="lg:hidden">
         <MobileBottomNav userRole={userRole as "client" | "provider" | "admin"} />
       </div>
+
+      {/* Premium Popup */}
+      <PremiumPopup isOpen={showPopup} onClose={closePopup} />
     </div>
   );
 };

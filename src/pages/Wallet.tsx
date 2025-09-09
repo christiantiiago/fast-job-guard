@@ -198,18 +198,18 @@ export default function Wallet() {
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      'pending': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendente', icon: Clock },
-      'held': { color: 'bg-orange-100 text-orange-800', label: 'Retido', icon: AlertCircle },
-      'captured': { color: 'bg-green-100 text-green-800', label: 'Concluído', icon: CheckCircle2 },
-      'paid': { color: 'bg-green-100 text-green-800', label: 'Pago', icon: CheckCircle2 },
-      'failed': { color: 'bg-red-100 text-red-800', label: 'Falhou', icon: AlertCircle }
+      'pending': { color: 'bg-warning/10 text-warning border-warning/20', label: 'Pendente', icon: Clock },
+      'held': { color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', label: 'Retido', icon: AlertCircle },
+      'captured': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
+      'paid': { color: 'bg-success/10 text-success border-success/20', label: 'Pago', icon: CheckCircle2 },
+      'failed': { color: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Falhou', icon: AlertCircle }
     };
 
     const variant = variants[status as keyof typeof variants] || variants.pending;
     const Icon = variant.icon;
     
     return (
-      <Badge className={variant.color}>
+      <Badge className={`${variant.color} border`}>
         <Icon className="h-3 w-3 mr-1" />
         {variant.label}
       </Badge>
@@ -282,8 +282,8 @@ export default function Wallet() {
             <>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
-                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Saldo Disponível</CardTitle>
+                  <PiggyBank className="h-4 w-4 text-success" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-green-600">
@@ -297,11 +297,11 @@ export default function Wallet() {
               
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saldo Pendente</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Saldo Pendente</CardTitle>
+                  <Clock className="h-4 w-4 text-warning" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
+                  <div className="text-2xl font-bold text-warning">
                     {formatCurrency(stats.pendingBalance)}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -312,8 +312,8 @@ export default function Wallet() {
               
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Total Recebido</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-success" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
@@ -327,8 +327,8 @@ export default function Wallet() {
               
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saques</CardTitle>
-                  <Download className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Saques</CardTitle>
+                  <Download className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
@@ -344,11 +344,11 @@ export default function Wallet() {
             <>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Gasto</CardTitle>
-                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Total Gasto</CardTitle>
+                  <TrendingDown className="h-4 w-4 text-destructive" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-destructive">
                     {formatCurrency(stats.totalSpent)}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -359,8 +359,8 @@ export default function Wallet() {
               
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pagamentos</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium text-foreground">Pagamentos</CardTitle>
+                  <CreditCard className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
