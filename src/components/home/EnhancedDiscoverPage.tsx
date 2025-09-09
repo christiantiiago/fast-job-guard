@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useJobs } from '@/hooks/useJobs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +20,8 @@ import {
   Star,
   Route,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Eye
 } from 'lucide-react';
 import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
 import { useNavigate } from 'react-router-dom';
@@ -27,13 +29,7 @@ import mapboxgl from 'mapbox-gl';
 import { supabase } from '@/integrations/supabase/client';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-interface JobWithDistance extends Job {
-  distance?: number;
-  routeDistance?: number;
-  routeDuration?: number;
-}
-
-interface Job {
+interface JobWithDistance {
   id: string;
   title: string;
   description: string;
@@ -53,6 +49,9 @@ interface Job {
     city?: string;
     state?: string;
   };
+  distance?: number;
+  routeDistance?: number;
+  routeDuration?: number;
 }
 
 export default function EnhancedDiscoverPage() {
@@ -87,20 +86,42 @@ export default function EnhancedDiscoverPage() {
     getMapboxToken();
   }, []);
 
-  // Fetch jobs on mount
+  // Fetch jobs on mount and subscribe to real-time updates
   useEffect(() => {
     fetchAllPublicJobs();
+    
+    // Subscribe to real-time job updates
+    const channel = supabase
+      .channel('public:jobs')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'jobs'
+        },
+        (payload) => {
+          console.log('Job update received:', payload);
+          // Refetch jobs when there's any change
+          fetchAllPublicJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Calculate distances when position or jobs change
   useEffect(() => {
     if (!position || !jobs.length) {
-      setJobsWithDistance(jobs as JobWithDistance[]);
+      setJobsWithDistance(jobs.filter(job => job.status === 'open') as JobWithDistance[]);
       return;
     }
 
     const jobsWithDist = jobs
-      .filter(job => job.latitude && job.longitude)
+      .filter(job => job.status === 'open' && job.latitude && job.longitude)
       .map(job => ({
         ...job,
         distance: calculateDistance(
@@ -306,10 +327,9 @@ export default function EnhancedDiscoverPage() {
       
       if (data.routes && data.routes[0]) {
         const route = data.routes[0];
-        const distance = route.distance; // in meters
-        const duration = route.duration; // in seconds
+        const distance = route.distance;
+        const duration = route.duration;
         
-        // Update job with route info
         setSelectedJob(prev => prev ? {
           ...prev,
           routeDistance: distance,
@@ -403,261 +423,284 @@ export default function EnhancedDiscoverPage() {
 
   if (geoLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">
-            Carregando trabalhos próximos...
-          </p>
+      <AppLayout showKYCBanner={false}>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Carregando trabalhos próximos...
+            </p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (geoError) {
     return (
-      <div className="p-4">
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Localização necessária:</strong> {geoError}
-            <br />
-            Por favor, permita o acesso à sua localização para ver os trabalhos próximos.
-          </AlertDescription>
-        </Alert>
-      </div>
+      <AppLayout showKYCBanner={false}>
+        <div className="p-4">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Localização necessária:</strong> {geoError}
+              <br />
+              Por favor, permita o acesso à sua localização para ver os trabalhos próximos.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-background border-b p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Descobrir Jobs</h1>
+    <AppLayout showKYCBanner={false}>
+      <div className="flex flex-col h-full pb-24">
+        {/* Header */}
+        <div className="bg-background border-b p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold">Descobrir Jobs</h1>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'map' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('map')}
+              >
+                <Map className="w-4 h-4 mr-2" />
+                Mapa
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4 mr-2" />
+                Lista
+              </Button>
+            </div>
+          </div>
+
+          {/* Search and filters */}
           <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'map' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('map')}
-            >
-              <Map className="w-4 h-4 mr-2" />
-              Mapa
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-            >
-              <List className="w-4 h-4 mr-2" />
-              Lista
-            </Button>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar trabalhos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-40">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category!}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="text-sm text-muted-foreground">
+            {filteredJobs.length} trabalhos encontrados
           </div>
         </div>
 
-        {/* Search and filters */}
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar trabalhos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-40">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category} value={category!}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="text-sm text-muted-foreground">
-          {filteredJobs.length} trabalhos encontrados
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 relative">
-        {viewMode === 'map' ? (
-          <div className="h-full relative">
-            <div ref={mapContainer} className="absolute inset-0" />
-            
-            {/* Route details overlay */}
-            {selectedJob && showRouteDetails && (
-              <div className="absolute bottom-4 left-4 right-4 z-10 max-w-sm">
-                <Card className="shadow-lg">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg line-clamp-1">{selectedJob.title}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            {selectedJob.service_categories?.name}
-                          </Badge>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedJob(null);
-                          setShowRouteDetails(false);
-                          // Remove route from map
-                          if (map.current && map.current.getLayer(routeLayerId)) {
-                            map.current.removeLayer(routeLayerId);
-                            map.current.removeSource(routeLayerId);
-                          }
-                        }}
-                        className="text-muted-foreground hover:text-foreground p-1"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Route className="w-4 h-4 text-red-500" />
+        {/* Content */}
+        <div className="flex-1 relative">
+          {viewMode === 'map' ? (
+            <div className="h-full relative">
+              <div ref={mapContainer} className="absolute inset-0" />
+              
+              {/* Route details overlay */}
+              {selectedJob && showRouteDetails && (
+                <div className="absolute bottom-4 left-4 right-4 z-10 max-w-sm">
+                  <Card className="shadow-lg">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-medium">
-                            {selectedJob.routeDistance ? 
-                              formatRouteDistance(selectedJob.routeDistance) : 
-                              formatDistance(selectedJob.distance || 0)
-                            }
+                          <CardTitle className="text-lg line-clamp-1">{selectedJob.title}</CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {selectedJob.service_categories?.name}
+                            </Badge>
                           </div>
-                          <div className="text-xs text-muted-foreground">Distância</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedJob(null);
+                            setShowRouteDetails(false);
+                            if (map.current && map.current.getLayer(routeLayerId)) {
+                              map.current.removeLayer(routeLayerId);
+                              map.current.removeSource(routeLayerId);
+                            }
+                          }}
+                          className="text-muted-foreground hover:text-foreground p-1"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Route className="w-4 h-4 text-red-500" />
+                          <div>
+                            <div className="font-medium">
+                              {selectedJob.routeDistance ? 
+                                formatRouteDistance(selectedJob.routeDistance) : 
+                                formatDistance(selectedJob.distance || 0)
+                              }
+                            </div>
+                            <div className="text-xs text-muted-foreground">Distância</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          <div>
+                            <div className="font-medium">
+                              {selectedJob.routeDuration ? 
+                                formatDuration(selectedJob.routeDuration) : 
+                                'Calculando...'
+                              }
+                            </div>
+                            <div className="text-xs text-muted-foreground">Tempo</div>
+                          </div>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <div>
-                          <div className="font-medium">
-                            {selectedJob.routeDuration ? 
-                              formatDuration(selectedJob.routeDuration) : 
-                              'Calculando...'
-                            }
-                          </div>
-                          <div className="text-xs text-muted-foreground">Tempo</div>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="pt-2 border-t">
-                      <div className="text-lg font-bold text-primary mb-2">
-                        {formatCurrency(
-                          selectedJob.budget_min,
-                          selectedJob.budget_max,
-                          selectedJob.final_price
-                        )}
+                      <div className="pt-2 border-t">
+                        <div className="text-lg font-bold text-primary mb-2">
+                          {formatCurrency(
+                            selectedJob.budget_min,
+                            selectedJob.budget_max,
+                            selectedJob.final_price
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => navigate(`/jobs/${selectedJob.id}`)}
+                          >
+                            Ver Detalhes
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
+                          >
+                            Aceitar Rota
+                          </Button>
+                        </div>
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          className="flex-1"
-                          onClick={() => navigate(`/jobs/${selectedJob.id}`)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="bg-red-50 border-red-200 text-red-600 hover:bg-red-100"
-                        >
-                          Aceitar Rota
-                        </Button>
-                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Jobs Counter */}
+              <div className="absolute top-4 right-4 z-10">
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4" />
+                    <span className="font-medium">
+                      {jobsWithDistance.length} trabalhos próximos
+                    </span>
+                  </div>
+                  {jobsWithDistance.length > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Mais próximo: {formatDistance(jobsWithDistance[0]?.distance || 0)}
                     </div>
-                  </CardContent>
+                  )}
                 </Card>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-4 space-y-4 pb-24">
-            {filteredJobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1">{job.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {job.description}
-                      </p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className="text-xs">
-                          {job.service_categories?.name}
-                        </Badge>
-                        {job.distance && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" />
-                            {formatDistance(job.distance)}
-                          </div>
-                        )}
+            </div>
+          ) : (
+            <div className="p-4 space-y-4">
+              {filteredJobs.map((job) => (
+                <Card key={job.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">{job.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                          {job.description}
+                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="text-xs">
+                            {job.service_categories?.name}
+                          </Badge>
+                          {job.distance && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="w-3 h-3" />
+                              {formatDistance(job.distance)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-primary">
-                        {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(job.created_at).toLocaleDateString('pt-BR')}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {job.addresses ? 
-                          `${job.addresses.neighborhood}, ${job.addresses.city}` : 
-                          'Localização não informada'
-                        }
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-primary">
+                          {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(job.created_at).toLocaleDateString('pt-BR')}
+                        </div>
                       </div>
                     </div>
                     
-                    <Button 
-                      size="sm"
-                      onClick={() => navigate(`/jobs/${job.id}`)}
-                    >
-                      Ver Detalhes
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {job.addresses ? 
+                            `${job.addresses.neighborhood}, ${job.addresses.city}` : 
+                            'Localização não informada'
+                          }
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        size="sm"
+                        onClick={() => navigate(`/jobs/${job.id}`)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ver Detalhes
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
 
-      <style>{`
-        @keyframes pulse {
-          0% {
-            transform: scale(1);
-            opacity: 1;
+        <style>{`
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.2);
+              opacity: 0.5;
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
           }
-          50% {
-            transform: scale(1.2);
-            opacity: 0.5;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-      `}</style>
-    </div>
+        `}</style>
+      </div>
+    </AppLayout>
   );
 }
