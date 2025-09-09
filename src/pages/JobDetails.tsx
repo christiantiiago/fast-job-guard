@@ -558,28 +558,60 @@ export default function JobDetails() {
             {/* Enhanced Proposals with Negotiation */}
             {userRole === 'client' && proposals.length > 0 && (
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Handshake className="h-5 w-5" />
-                      Propostas Recebidas ({proposals.length})
-                    </CardTitle>
+                <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+                  <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-3 text-xl">
+                        <div className="p-2 bg-primary/20 rounded-lg">
+                          <Handshake className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <span>Propostas Recebidas</span>
+                          <Badge variant="secondary" className="ml-3 bg-primary/20 text-primary">
+                            {proposals.length} proposta{proposals.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <TrendingUp className="h-4 w-4" />
+                        <span>Analise e negocie</span>
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-6">
                     <div className="space-y-6">
-                      {proposals.map((proposal) => {
+                      {proposals.map((proposal, index) => {
                         const providerProfile = proposalProfiles[proposal.provider_id];
                         return (
-                          <ProposalNegotiation
-                            key={proposal.id}
-                            proposal={proposal}
-                            providerProfile={providerProfile}
-                            jobId={job.id}
-                            isClient={true}
-                            onProposalUpdate={fetchProposals}
-                          />
+                          <div key={proposal.id} className="relative">
+                            {index > 0 && <Separator className="mb-6" />}
+                            <div className="bg-white/50 backdrop-blur-sm rounded-xl border border-primary/10 p-1">
+                              <ProposalNegotiation
+                                proposal={proposal}
+                                providerProfile={providerProfile}
+                                jobId={job.id}
+                                isClient={true}
+                                onProposalUpdate={fetchProposals}
+                              />
+                            </div>
+                          </div>
                         );
                       })}
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl border border-blue-200">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Award className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900 mb-1">💡 Dica para escolher a melhor proposta</h4>
+                          <p className="text-sm text-blue-700">
+                            Considere não apenas o preço, mas também a avaliação do prestador, tempo de entrega 
+                            e qualidade da proposta apresentada.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -626,42 +658,64 @@ export default function JobDetails() {
             </Card>
 
             {/* Budget */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Orçamento
+            <Card className="border-2 border-gradient-to-br from-primary/20 to-accent/20 bg-gradient-to-br from-primary/5 to-accent/5">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-lg border-b border-primary/10">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <DollarSign className="h-6 w-6 text-green-600" />
+                  </div>
+                  <span className="text-xl">Orçamento do Projeto</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="text-2xl font-bold">
+              <CardContent className="space-y-6 p-6">
+                <div className="text-center p-6 bg-gradient-to-r from-primary/10 to-accent/10 rounded-xl border border-primary/20">
+                  <div className="text-3xl font-bold text-primary mb-2">
                     {job.budget_min === job.budget_max 
                       ? formatCurrency(job.budget_min)
                       : `${formatCurrency(job.budget_min)} - ${formatCurrency(job.budget_max)}`
                     }
-                    {job.budget_min === job.budget_max && (
-                      <Badge variant="secondary" className="ml-2 text-xs">Preço fixo</Badge>
-                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    💡 Prestadores podem negociar valores através de propostas
+                  {job.budget_min === job.budget_max && (
+                    <Badge className="bg-primary/20 text-primary border-primary/30 mb-2">
+                      <Shield className="w-3 h-3 mr-1" />
+                      Preço Fixo
+                    </Badge>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    💰 Prestadores podem negociar valores através de propostas
                   </p>
                 </div>
 
                 {budgetFees && (
-                  <div className="space-y-3">
-                    <Separator />
+                  <div className="space-y-4">
+                    <Separator className="bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
                     <div>
-                      <h4 className="font-medium text-sm mb-2">Taxas da Plataforma</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="bg-muted p-2 rounded">
-                          <div className="font-medium text-green-600 mb-1">
-                            Plano Premium (3,5%) {isPremiumUser && '✓ Seu plano'}
+                      <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5 text-primary" />
+                        Simulação de Taxas
+                      </h4>
+                      <div className="space-y-3">
+                        {/* Premium Plan */}
+                        <div className={`relative p-4 rounded-xl border-2 transition-all ${
+                          isPremiumUser 
+                            ? 'border-green-300 bg-gradient-to-r from-green-50 to-emerald-50' 
+                            : 'border-green-200 bg-green-50 hover:border-green-300'
+                        }`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-green-200 rounded-lg">
+                                <Award className="h-4 w-4 text-green-700" />
+                              </div>
+                              <span className="font-semibold text-green-800">Plano Premium</span>
+                              <Badge className="bg-green-600 text-white text-xs">5% de taxa</Badge>
+                              {isPremiumUser && (
+                                <Badge className="bg-emerald-600 text-white text-xs">✓ Seu plano</Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Total com taxas:</span>
-                            <span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-green-700">Total com taxas:</span>
+                            <span className="font-bold text-lg text-green-800">
                               {budgetFees.premium.min.total !== budgetFees.premium.max.total ? (
                                 `${formatCurrency(budgetFees.premium.min.total)} - ${formatCurrency(budgetFees.premium.max.total)}`
                               ) : (
@@ -671,13 +725,27 @@ export default function JobDetails() {
                           </div>
                         </div>
                         
-                        <div className="bg-muted p-2 rounded">
-                          <div className="font-medium text-blue-600 mb-1">
-                            Plano Padrão (5%) {!isPremiumUser && '← Seu plano atual'}
+                        {/* Standard Plan */}
+                        <div className={`relative p-4 rounded-xl border-2 transition-all ${
+                          !isPremiumUser 
+                            ? 'border-blue-300 bg-gradient-to-r from-blue-50 to-cyan-50' 
+                            : 'border-blue-200 bg-blue-50'
+                        }`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-blue-200 rounded-lg">
+                                <User className="h-4 w-4 text-blue-700" />
+                              </div>
+                              <span className="font-semibold text-blue-800">Plano Padrão</span>
+                              <Badge className="bg-blue-600 text-white text-xs">7,5% de taxa</Badge>
+                              {!isPremiumUser && (
+                                <Badge className="bg-orange-600 text-white text-xs">← Seu plano atual</Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Total com taxas:</span>
-                            <span>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-blue-700">Total com taxas:</span>
+                            <span className="font-bold text-lg text-blue-800">
                               {budgetFees.standard.min.total !== budgetFees.standard.max.total ? (
                                 `${formatCurrency(budgetFees.standard.min.total)} - ${formatCurrency(budgetFees.standard.max.total)}`
                               ) : (
@@ -689,10 +757,23 @@ export default function JobDetails() {
                       </div>
 
                       {!isPremiumUser && (
-                        <div className="mt-2">
-                          <Button variant="outline" size="sm" className="w-full">
-                            Assinar Premium e Economizar
-                          </Button>
+                        <div className="mt-4 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                          <div className="text-center space-y-3">
+                            <div className="flex items-center justify-center gap-2 text-amber-800 mb-2">
+                              <TrendingUp className="h-5 w-5" />
+                              <span className="font-semibold">Economize 2,5% em taxas!</span>
+                            </div>
+                            <p className="text-sm text-amber-700 mb-3">
+                              Upgrade para Premium e pague menos taxas em todos os seus projetos
+                            </p>
+                            <Button 
+                              onClick={() => navigate('/premium')}
+                              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                            >
+                              <Award className="w-4 h-4 mr-2" />
+                              Assinar Premium e Economizar
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
