@@ -1,12 +1,3 @@
-import { AppLayout } from '@/components/layout/AppLayout';
+import EnhancedFinance from './EnhancedFinance';
 
-export default function ProviderFinance() {
-  return (
-    <AppLayout>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Financeiro</h1>
-        <p>Página em desenvolvimento...</p>
-      </div>
-    </AppLayout>
-  );
-}
+export default EnhancedFinance;

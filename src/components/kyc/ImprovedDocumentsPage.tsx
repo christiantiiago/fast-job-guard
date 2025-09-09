@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 interface DocumentType {
-  type: 'rg' | 'cpf' | 'selfie' | 'address_proof' | 'criminal_background';
+  type: 'rg' | 'cpf' | 'selfie' | 'address_proof' | 'criminal_background' | 'bank_info';
   label: string;
   description: string;
   icon: typeof FileText;
@@ -68,6 +68,14 @@ const documentTypes: DocumentType[] = [
     label: 'Certidão de Antecedentes Criminais',
     description: 'Certidão negativa de antecedentes criminais',
     icon: Shield,
+    required: true,
+    providerOnly: true
+  },
+  {
+    type: 'bank_info',
+    label: 'Dados Bancários',
+    description: 'Comprovante de conta bancária ou dados da conta',
+    icon: CreditCard,
     required: true,
     providerOnly: true
   }
