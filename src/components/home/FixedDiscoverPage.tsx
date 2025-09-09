@@ -23,8 +23,6 @@ import {
 import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface JobWithDistance {
   id: string;
@@ -53,7 +51,7 @@ interface JobWithDistance {
   routeDuration?: number;
 }
 
-export default function EnhancedDiscoverPage() {
+export default function FixedDiscoverPage() {
   const { jobs, loading, error, fetchAllPublicJobs } = useJobs();
   const { position, error: geoError, loading: geoLoading } = useGeolocation();
   const navigate = useNavigate();
@@ -66,35 +64,35 @@ export default function EnhancedDiscoverPage() {
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [mapboxError, setMapboxError] = useState<string | null>(null);
   const [showRouteDetails, setShowRouteDetails] = useState(false);
+  const [mapInitialized, setMapInitialized] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<{ [key: string]: mapboxgl.Marker }>({});
-  const routeLayerId = 'route';
+  const map = useRef<any>(null);
+  const markersRef = useRef<{ [key: string]: any }>({});
 
   // Get Mapbox token
   useEffect(() => {
     const getMapboxToken = async () => {
       try {
-        console.log('Fetching Mapbox token...');
+        console.log('[MAPBOX] Fetching token...');
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         
         if (error) {
-          console.error('Error fetching Mapbox token:', error);
+          console.error('[MAPBOX] Error:', error);
           setMapboxError('Erro ao carregar token do mapa');
           return;
         }
         
         if (data?.token) {
-          console.log('Mapbox token retrieved successfully');
+          console.log('[MAPBOX] ✅ Token received');
           setMapboxToken(data.token);
         } else {
-          console.error('No token in response');
-          setMapboxError('Token do mapa não disponível');
+          console.error('[MAPBOX] No token in response');
+          setMapboxError('Token não encontrado');
         }
       } catch (error) {
-        console.error('Exception fetching Mapbox token:', error);
-        setMapboxError('Erro de conexão ao carregar mapa');
+        console.error('[MAPBOX] Exception:', error);
+        setMapboxError('Erro de rede');
       }
     };
 
@@ -127,21 +125,6 @@ export default function EnhancedDiscoverPage() {
     };
 
     fetchJobsWithProposals();
-    
-    // Real-time subscription
-    const channel = supabase
-      .channel('jobs-discover')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => {
-        fetchJobsWithProposals();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'proposals' }, () => {
-        fetchJobsWithProposals();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   // Filter jobs by completion time (completed jobs only show for 2 minutes)
@@ -157,7 +140,7 @@ export default function EnhancedDiscoverPage() {
       if (job.status === 'completed' && job.completed_at) {
         const completedTime = new Date(job.completed_at);
         const timeDiff = now.getTime() - completedTime.getTime();
-        const twoMinutesInMs = 2 * 60 * 1000; // 2 minutes in milliseconds
+        const twoMinutesInMs = 2 * 60 * 1000;
         return timeDiff <= twoMinutesInMs;
       }
       
@@ -195,133 +178,203 @@ export default function EnhancedDiscoverPage() {
     setJobsWithDistance(jobsWithDist);
   }, [position, jobs]);
 
-  // Initialize map
+  // Initialize Mapbox dynamically
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || viewMode !== 'map') {
-      console.log('Skipping map init:', { 
-        container: !!mapContainer.current, 
-        token: !!mapboxToken, 
-        viewMode 
-      });
+    if (!mapboxToken || viewMode !== 'map' || !mapContainer.current) {
+      console.log('[MAP] Skipping init:', { token: !!mapboxToken, viewMode, container: !!mapContainer.current });
       return;
     }
 
-    if (map.current) {
-      console.log('Map already exists');
-      return; // Map already initialized
-    }
-
-    try {
-      console.log('Starting map initialization...');
-      
-      // Ensure container has dimensions
-      if (mapContainer.current) {
-        mapContainer.current.style.width = '100%';
-        mapContainer.current.style.height = '100%';
-        mapContainer.current.style.position = 'absolute';
-        mapContainer.current.style.top = '0';
-        mapContainer.current.style.left = '0';
-      }
-      
-      mapboxgl.accessToken = mapboxToken;
-      
-      const initialCenter: [number, number] = position 
-        ? [position.longitude, position.latitude]
-        : [-46.6333, -23.5505]; // São Paulo default
-      
-      console.log('Creating map with center:', initialCenter);
-      
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: initialCenter,
-        zoom: position ? 13 : 10,
-        pitch: 0,
-        bearing: 0,
-        antialias: true
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      map.current.addControl(new mapboxgl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: true,
-        showUserHeading: true
-      }), 'top-right');
-
-      map.current.on('load', () => {
-        console.log('✅ Map loaded and ready!');
-        setMapboxError(null);
+    // Dynamic import to avoid SSR issues
+    const initializeMap = async () => {
+      try {
+        console.log('[MAP] 🚀 Starting dynamic initialization...');
         
-        // Force resize after load
-        setTimeout(() => {
-          if (map.current) {
-            map.current.resize();
-            console.log('Map resized');
-          }
-        }, 100);
+        // Import mapbox dynamically
+        const mapboxgl = await import('mapbox-gl');
+        await import('mapbox-gl/dist/mapbox-gl.css');
         
-        // Add user location marker if available
-        if (position) {
-          console.log('Adding user marker at:', position);
-          const userEl = createUserMarker();
-          new mapboxgl.Marker(userEl)
-            .setLngLat([position.longitude, position.latitude])
-            .addTo(map.current!);
+        console.log('[MAP] ✅ Mapbox modules loaded');
+        
+        // Clean up existing map
+        if (map.current) {
+          console.log('[MAP] 🧹 Cleaning existing map');
+          map.current.remove();
+          map.current = null;
         }
-      });
+        
+        // Clear markers
+        Object.values(markersRef.current).forEach((marker: any) => marker.remove());
+        markersRef.current = {};
+        
+        // Set access token
+        (mapboxgl.default || mapboxgl).accessToken = mapboxToken;
+        console.log('[MAP] 🔑 Token set');
+        
+        // Ensure container is ready
+        if (mapContainer.current) {
+          mapContainer.current.style.width = '100%';
+          mapContainer.current.style.height = '100%';
+          mapContainer.current.style.position = 'relative';
+          mapContainer.current.innerHTML = ''; // Clear any existing content
+        }
+        
+        const initialCenter: [number, number] = position 
+          ? [position.longitude, position.latitude]
+          : [-46.6333, -23.5505];
+        
+        console.log('[MAP] 🗺️ Creating map at:', initialCenter);
+        
+        // Create map
+        const MapboxGL = mapboxgl.default || mapboxgl;
+        map.current = new MapboxGL.Map({
+          container: mapContainer.current!,
+          style: 'mapbox://styles/mapbox/streets-v12',
+          center: initialCenter,
+          zoom: position ? 13 : 10,
+          antialias: true
+        });
+        
+        // Add controls
+        map.current.addControl(new MapboxGL.NavigationControl(), 'top-right');
+        
+        // Handle load event
+        map.current.on('load', () => {
+          console.log('[MAP] ✅ Map loaded successfully!');
+          setMapboxError(null);
+          setMapInitialized(true);
+          
+          // Force resize
+          setTimeout(() => {
+            if (map.current) {
+              map.current.resize();
+              console.log('[MAP] 📏 Map resized');
+            }
+          }, 100);
+          
+          // Add user marker if position available
+          if (position) {
+            console.log('[MAP] 📍 Adding user marker');
+            const userEl = document.createElement('div');
+            userEl.style.cssText = `
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background: #3b82f6;
+              border: 3px solid white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            `;
+            
+            new MapboxGL.Marker(userEl)
+              .setLngLat([position.longitude, position.latitude])
+              .addTo(map.current);
+          }
+        });
+        
+        map.current.on('error', (e: any) => {
+          console.error('[MAP] ❌ Error:', e);
+          setMapboxError('Erro no mapa: ' + (e.error?.message || 'Desconhecido'));
+        });
+        
+        console.log('[MAP] ✅ Map initialization complete');
+        
+      } catch (error) {
+        console.error('[MAP] ❌ Failed to initialize:', error);
+        setMapboxError('Falha ao carregar mapa: ' + (error.message || 'Erro desconhecido'));
+      }
+    };
 
-      map.current.on('error', (e) => {
-        console.error('❌ Map error:', e);
-        setMapboxError('Erro ao carregar o mapa: ' + e.error?.message || 'Erro desconhecido');
-      });
+    initializeMap();
+    
+    return () => {
+      if (map.current) {
+        console.log('[MAP] 🧹 Cleanup on unmount');
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [mapboxToken, viewMode, position]);
 
-      map.current.on('style.load', () => {
-        console.log('Map style loaded');
-      });
-
-    } catch (error) {
-      console.error('❌ Error initializing map:', error);
-      setMapboxError('Erro ao inicializar o mapa: ' + (error.message || 'Erro desconhecido'));
-    }
-  }, [mapboxToken, position, viewMode]);
-
-  // Update map markers when jobs change
+  // Add job markers
   useEffect(() => {
-    if (!map.current || viewMode !== 'map') return;
+    if (!map.current || !mapInitialized || viewMode !== 'map') {
+      return;
+    }
 
+    console.log('[MARKERS] Adding', jobsWithDistance.length, 'job markers');
+    
     // Clear existing markers
-    Object.values(markersRef.current).forEach(marker => marker.remove());
+    Object.values(markersRef.current).forEach((marker: any) => marker.remove());
     markersRef.current = {};
 
     // Add markers for jobs
     jobsWithDistance.forEach((job) => {
       if (!job.latitude || !job.longitude) return;
 
-      const markerEl = createJobMarker(job);
+      const markerEl = document.createElement('div');
+      const price = formatCurrency(job.budget_min, job.budget_max, job.final_price);
+      const distance = job.distance ? formatDistance(job.distance) : '';
       
-      const marker = new mapboxgl.Marker(markerEl)
-        .setLngLat([job.longitude, job.latitude])
-        .addTo(map.current!);
-
-      // Add click handler
+      // Choose color based on job status
+      let borderColor = '#ef4444';
+      if (job.status === 'in_progress') borderColor = '#f59e0b';
+      else if (job.status === 'completed') borderColor = '#10b981';
+      
+      markerEl.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 8px 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          border: 2px solid ${borderColor};
+          cursor: pointer;
+          min-width: 80px;
+          text-align: center;
+          position: relative;
+        ">
+          <div style="font-size: 12px; font-weight: 600; color: ${borderColor}; margin-bottom: 2px;">
+            ${price}
+          </div>
+          <div style="font-size: 10px; color: #6b7280;">
+            ${distance}
+          </div>
+          ${job.proposal_count && job.proposal_count > 0 ? `
+            <div style="
+              position: absolute;
+              top: -8px;
+              right: -8px;
+              background: #ef4444;
+              color: white;
+              border-radius: 50%;
+              width: 20px;
+              height: 20px;
+              font-size: 10px;
+              font-weight: bold;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 2px solid white;
+            ">${job.proposal_count}</div>
+          ` : ''}
+        </div>
+      `;
+      
       markerEl.addEventListener('click', () => {
+        console.log('[MARKER] Job clicked:', job.id);
         setSelectedJob(job);
-        calculateRoute(job);
-        
-        // Center map on job
-        map.current?.flyTo({
-          center: [job.longitude!, job.latitude!],
-          zoom: 15,
-          duration: 1000
-        });
+        setShowRouteDetails(true);
       });
+
+      const marker = new (window as any).mapboxgl.Marker(markerEl)
+        .setLngLat([job.longitude, job.latitude])
+        .addTo(map.current);
 
       markersRef.current[job.id] = marker;
     });
 
     // Fit map to show all jobs
     if (jobsWithDistance.length > 0 && position) {
-      const bounds = new mapboxgl.LngLatBounds();
+      const bounds = new (window as any).mapboxgl.LngLatBounds();
       bounds.extend([position.longitude, position.latitude]);
       
       jobsWithDistance.forEach(job => {
@@ -332,200 +385,20 @@ export default function EnhancedDiscoverPage() {
       
       setTimeout(() => {
         if (map.current && !bounds.isEmpty()) {
-          map.current.fitBounds(bounds, {
-            padding: 50,
-            maxZoom: 15
-          });
+          map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
         }
       }, 500);
     }
-  }, [jobsWithDistance, position, viewMode]);
+  }, [jobsWithDistance, mapInitialized, position, viewMode]);
 
   // Auto-refresh to remove completed jobs after 2 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      setJobsWithDistance(prev => {
-        const filtered = filterJobsByTime(prev);
-        return filtered;
-      });
-    }, 30000); // Check every 30 seconds
+      setJobsWithDistance(prev => filterJobsByTime(prev));
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
-
-  const createUserMarker = () => {
-    const el = document.createElement('div');
-    el.style.cssText = `
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #3b82f6;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      position: relative;
-    `;
-    
-    const pulse = document.createElement('div');
-    pulse.style.cssText = `
-      position: absolute;
-      top: -10px;
-      left: -10px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: rgba(59, 130, 246, 0.3);
-      animation: pulse 2s infinite;
-    `;
-    el.appendChild(pulse);
-    
-    return el;
-  };
-
-  const createJobMarker = (job: JobWithDistance) => {
-    const el = document.createElement('div');
-    el.className = 'job-marker';
-    
-    const price = formatCurrency(job.budget_min, job.budget_max, job.final_price);
-    const distance = job.distance ? formatDistance(job.distance) : '';
-    
-    // Choose color based on job status
-    let borderColor = '#ef4444'; // red for open
-    let bgColor = '#fee2e2';
-    
-    if (job.status === 'in_progress') {
-      borderColor = '#f59e0b'; // orange for in progress
-      bgColor = '#fef3c7';
-    } else if (job.status === 'completed') {
-      borderColor = '#10b981'; // green for completed
-      bgColor = '#d1fae5';
-    }
-    
-    el.innerHTML = `
-      <div style="
-        background: white;
-        border-radius: 12px;
-        padding: 8px 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border: 2px solid ${borderColor};
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
-        min-width: 80px;
-        text-align: center;
-      ">
-        <div style="
-          font-size: 12px;
-          font-weight: 600;
-          color: ${borderColor};
-          margin-bottom: 2px;
-        ">${price}</div>
-        <div style="
-          font-size: 10px;
-          color: #6b7280;
-        ">${distance}</div>
-        ${job.proposal_count && job.proposal_count > 0 ? `
-          <div style="
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 10px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-          ">${job.proposal_count}</div>
-        ` : ''}
-        <div style="
-          position: absolute;
-          bottom: -6px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 0;
-          height: 0;
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-top: 6px solid ${borderColor};
-        "></div>
-      </div>
-    `;
-    
-    el.addEventListener('mouseenter', () => {
-      el.style.transform = 'scale(1.1)';
-      el.style.zIndex = '1000';
-    });
-    
-    el.addEventListener('mouseleave', () => {
-      el.style.transform = 'scale(1)';
-      el.style.zIndex = '1';
-    });
-    
-    return el;
-  };
-
-  const calculateRoute = async (job: JobWithDistance) => {
-    if (!position || !job.latitude || !job.longitude || !mapboxToken) return;
-
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${position.longitude},${position.latitude};${job.longitude},${job.latitude}?geometries=geojson&access_token=${mapboxToken}`
-      );
-      
-      const data = await response.json();
-      
-      if (data.routes && data.routes[0]) {
-        const route = data.routes[0];
-        
-        setSelectedJob(prev => prev ? {
-          ...prev,
-          routeDistance: route.distance,
-          routeDuration: route.duration
-        } : null);
-        
-        // Add route to map
-        if (map.current) {
-          if (map.current.getLayer(routeLayerId)) {
-            map.current.removeLayer(routeLayerId);
-            map.current.removeSource(routeLayerId);
-          }
-          
-          map.current.addSource(routeLayerId, {
-            type: 'geojson',
-            data: {
-              type: 'Feature',
-              properties: {},
-              geometry: route.geometry
-            }
-          });
-          
-          map.current.addLayer({
-            id: routeLayerId,
-            type: 'line',
-            source: routeLayerId,
-            layout: {
-              'line-join': 'round',
-              'line-cap': 'round'
-            },
-            paint: {
-              'line-color': '#3b82f6',
-              'line-width': 4,
-              'line-opacity': 0.8
-            }
-          });
-        }
-        
-        setShowRouteDetails(true);
-      }
-    } catch (error) {
-      console.error('Error calculating route:', error);
-    }
-  };
 
   const formatCurrency = (min?: number, max?: number, final?: number) => {
     const formatter = new Intl.NumberFormat('pt-BR', {
@@ -542,23 +415,6 @@ export default function EnhancedDiscoverPage() {
       return `${formatter.format(min)}+`;
     }
     return 'A combinar';
-  };
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.round(seconds / 60);
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}min`;
-  };
-
-  const formatRouteDistance = (meters: number) => {
-    if (meters < 1000) {
-      return `${Math.round(meters)} m`;
-    }
-    return `${(meters / 1000).toFixed(1)} km`;
   };
 
   const getStatusBadge = (status: string) => {
@@ -706,7 +562,7 @@ export default function EnhancedDiscoverPage() {
               ) : !mapboxToken ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
                   <div className="text-center space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto" />
+                    <Loader2 className="w-8 w-8 animate-spin mx-auto" />
                     <p className="text-sm font-medium">
                       Carregando mapa...
                     </p>
@@ -716,13 +572,42 @@ export default function EnhancedDiscoverPage() {
                 <>
                   <div 
                     ref={mapContainer} 
-                    className="absolute inset-0 w-full h-full map-container"
-                    style={{ minHeight: '400px', background: '#f0f0f0' }}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ 
+                      minHeight: '400px',
+                      backgroundColor: '#f8f9fa',
+                      position: 'relative'
+                    }}
                   />
+                  
+                  {/* Debug info */}
+                  <div className="absolute top-4 left-4 z-10 bg-white p-2 rounded shadow text-xs">
+                    <div>Token: {mapboxToken ? '✅' : '❌'}</div>
+                    <div>Map: {mapInitialized ? '✅' : '❌'}</div>
+                    <div>Jobs: {jobsWithDistance.length}</div>
+                  </div>
                 </>
               )}
-              
-              {/* Route details overlay */}
+
+              {/* Stats overlay */}
+              <div className="absolute top-4 right-4 z-10">
+                <Card className="p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="w-4 h-4" />
+                    <span className="font-medium">
+                      {jobsWithDistance.length} trabalhos
+                    </span>
+                  </div>
+                  {position && (
+                    <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      GPS Ativo
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* Selected job details */}
               {selectedJob && showRouteDetails && (
                 <div className="absolute bottom-4 left-4 right-4 z-10 max-w-sm">
                   <Card className="shadow-lg">
@@ -744,10 +629,6 @@ export default function EnhancedDiscoverPage() {
                           onClick={() => {
                             setSelectedJob(null);
                             setShowRouteDetails(false);
-                            if (map.current && map.current.getLayer(routeLayerId)) {
-                              map.current.removeLayer(routeLayerId);
-                              map.current.removeSource(routeLayerId);
-                            }
                           }}
                           className="text-muted-foreground hover:text-foreground p-1"
                         >
@@ -755,34 +636,6 @@ export default function EnhancedDiscoverPage() {
                         </button>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Navigation className="w-4 h-4 text-blue-500" />
-                          <div>
-                            <div className="font-medium">
-                              {selectedJob.routeDistance ? 
-                                formatRouteDistance(selectedJob.routeDistance) : 
-                                formatDistance(selectedJob.distance || 0)
-                              }
-                            </div>
-                            <div className="text-xs text-muted-foreground">Distância</div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-green-500" />
-                          <div>
-                            <div className="font-medium">
-                              {selectedJob.routeDuration ? 
-                                formatDuration(selectedJob.routeDuration) : 
-                                'Calculando...'
-                              }
-                            </div>
-                            <div className="text-xs text-muted-foreground">Tempo</div>
-                          </div>
-                        </div>
-                      </div>
-
                       <div className="pt-2 border-t">
                         <div className="text-lg font-bold text-primary mb-2">
                           {formatCurrency(
@@ -804,45 +657,6 @@ export default function EnhancedDiscoverPage() {
                   </Card>
                 </div>
               )}
-
-              {/* Stats overlay */}
-              <div className="absolute top-4 right-4 z-10">
-                <Card className="p-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="w-4 h-4" />
-                    <span className="font-medium">
-                      {jobsWithDistance.length} trabalhos
-                    </span>
-                  </div>
-                  {position && (
-                    <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      GPS Ativo
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              {/* Status legend */}
-              <div className="absolute top-4 left-4 z-10">
-                <Card className="p-3 space-y-2">
-                  <div className="text-xs font-medium text-muted-foreground mb-2">Legenda</div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded"></div>
-                      <span>Aberto</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="w-3 h-3 bg-yellow-100 border border-yellow-400 rounded"></div>
-                      <span>Em andamento</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="w-3 h-3 bg-green-100 border border-green-400 rounded"></div>
-                      <span>Concluído</span>
-                    </div>
-                  </div>
-                </Card>
-              </div>
             </div>
           ) : (
             <div className="p-4 space-y-4">
@@ -911,48 +725,6 @@ export default function EnhancedDiscoverPage() {
             </div>
           )}
         </div>
-
-        <style>{`
-          @keyframes pulse {
-            0% {
-              transform: scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: scale(1.2);
-              opacity: 0.5;
-            }
-            100% {
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-          
-          /* Mapbox overrides to ensure visibility */
-          .mapboxgl-map {
-            width: 100% !important;
-            height: 100% !important;
-            position: relative !important;
-          }
-          
-          .mapboxgl-canvas-container,
-          .mapboxgl-canvas {
-            width: 100% !important;
-            height: 100% !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-          }
-          
-          /* Ensure the map container is visible */
-          .map-container {
-            background: #f0f0f0;
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-          }
-        `}</style>
       </div>
     </AppLayout>
   );

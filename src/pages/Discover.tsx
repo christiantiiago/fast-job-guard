@@ -1,3 +1,3 @@
-import EnhancedDiscoverPage from '@/components/home/EnhancedDiscoverPage';
+import SimpleMapPage from '@/components/home/SimpleMapPage';
 
-export default EnhancedDiscoverPage;
+export default SimpleMapPage;
