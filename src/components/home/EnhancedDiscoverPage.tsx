@@ -65,6 +65,8 @@ export default function EnhancedDiscoverPage() {
   const [jobsWithDistance, setJobsWithDistance] = useState<JobWithDistance[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobWithDistance | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
+  const [mapboxError, setMapboxError] = useState<string | null>(null);
+  const [mapRetryCount, setMapRetryCount] = useState(0);
   const [showRouteDetails, setShowRouteDetails] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -72,31 +74,48 @@ export default function EnhancedDiscoverPage() {
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const routeLayerId = 'route';
 
-  // Get Mapbox token
+  // Get Mapbox token with retry logic
   useEffect(() => {
-    const getMapboxToken = async () => {
+    const getMapboxToken = async (attempt = 1) => {
       try {
-        console.log('Fetching Mapbox token...');
+        console.log(`[Map] Fetching Mapbox token (attempt ${attempt})...`);
+        setMapboxError(null);
+        
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-        console.log('Mapbox token response:', data, error);
+        console.log('[Map] Mapbox token response:', { data, error });
         
         if (error) {
-          console.error('Error from Mapbox function:', error);
-          throw error;
+          console.error('[Map] Error from Mapbox function:', error);
+          throw new Error(error.message || 'Failed to fetch token');
         }
         
         if (data?.token) {
-          console.log('Mapbox token retrieved successfully');
+          console.log('[Map] Mapbox token retrieved successfully');
           setMapboxToken(data.token);
+          setMapRetryCount(0);
         } else {
-          console.error('No token in response:', data);
+          console.error('[Map] No token in response:', data);
+          throw new Error(data?.message || 'Token not found in response');
         }
       } catch (err) {
-        console.error('Error getting Mapbox token:', err);
-        // Show user-friendly error
-        setMapboxToken('error');
+        console.error(`[Map] Error getting Mapbox token (attempt ${attempt}):`, err);
+        setMapboxError(err.message || 'Failed to load map');
+        
+        // Retry up to 3 times with exponential backoff
+        if (attempt < 3) {
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`[Map] Retrying in ${delay}ms...`);
+          setTimeout(() => {
+            setMapRetryCount(attempt);
+            getMapboxToken(attempt + 1);
+          }, delay);
+        } else {
+          console.error('[Map] Max retries exceeded, giving up');
+          setMapboxToken('error');
+        }
       }
     };
+    
     getMapboxToken();
   }, []);
 
@@ -150,49 +169,80 @@ export default function EnhancedDiscoverPage() {
     setJobsWithDistance(jobsWithDist);
   }, [position, jobs]);
 
-  // Initialize map
+  // Initialize map with better error handling
   useEffect(() => {
-    if (!mapContainer.current || !position || viewMode !== 'map') return;
+    if (!mapContainer.current || !position || viewMode !== 'map') {
+      console.log('[Map] Skipping map initialization:', { 
+        hasContainer: !!mapContainer.current, 
+        hasPosition: !!position, 
+        viewMode 
+      });
+      return;
+    }
 
     if (mapboxToken === 'error') {
-      console.error('Cannot initialize map: Mapbox token error');
+      console.error('[Map] Cannot initialize map: Mapbox token error');
       return;
     }
 
     if (!mapboxToken) {
-      console.log('Waiting for Mapbox token...');
+      console.log('[Map] Waiting for Mapbox token...');
       return;
     }
 
-    if (map.current) return; // Map already initialized
+    if (map.current) {
+      console.log('[Map] Map already initialized');
+      return;
+    }
 
-    console.log('Initializing map with token:', mapboxToken.substring(0, 10) + '...');
-    mapboxgl.accessToken = mapboxToken;
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: [position.longitude, position.latitude],
-      zoom: 12,
-      pitch: 0,
-      bearing: 0
-    });
+    try {
+      console.log('[Map] Initializing map with token:', mapboxToken.substring(0, 20) + '...');
+      console.log('[Map] User position:', position);
+      
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [position.longitude, position.latitude],
+        zoom: 12,
+        pitch: 0,
+        bearing: 0
+      });
 
-    // Add user location marker
-    new mapboxgl.Marker({ 
-      color: '#3b82f6', 
-      scale: 1.2,
-      element: createUserMarker()
-    })
-      .setLngLat([position.longitude, position.latitude])
-      .setPopup(new mapboxgl.Popup().setHTML('<div class="p-2 font-medium">Sua localização</div>'))
-      .addTo(map.current);
+      map.current.on('load', () => {
+        console.log('[Map] Map loaded successfully');
+      });
 
-    // Add controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.on('error', (e) => {
+        console.error('[Map] Map error:', e);
+        setMapboxError('Erro ao carregar o mapa');
+      });
+
+      // Add user location marker
+      const userMarker = new mapboxgl.Marker({ 
+        color: '#3b82f6', 
+        scale: 1.2,
+        element: createUserMarker()
+      })
+        .setLngLat([position.longitude, position.latitude])
+        .setPopup(new mapboxgl.Popup().setHTML('<div class="p-2 font-medium">Sua localização</div>'))
+        .addTo(map.current);
+
+      // Add controls
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      
+      console.log('[Map] Map initialization complete');
+      
+    } catch (error) {
+      console.error('[Map] Error initializing map:', error);
+      setMapboxError('Erro ao inicializar o mapa');
+      setMapboxToken('error');
+    }
     
     return () => {
       if (map.current) {
+        console.log('[Map] Cleaning up map');
         map.current.remove();
         map.current = null;
       }
@@ -541,25 +591,46 @@ export default function EnhancedDiscoverPage() {
         <div className="flex-1 relative">
           {viewMode === 'map' ? (
             <div className="h-full relative">
-              {mapboxToken === 'error' ? (
+              {mapboxToken === 'error' || mapboxError ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="text-center space-y-2">
-                    <AlertTriangle className="w-8 h-8 text-destructive mx-auto" />
-                    <p className="text-sm text-muted-foreground">
-                      Erro ao carregar o mapa
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Configure a chave da API do Mapbox
-                    </p>
+                  <div className="text-center space-y-4 p-6">
+                    <AlertTriangle className="w-12 h-12 text-destructive mx-auto" />
+                    <div>
+                      <p className="text-lg font-medium mb-2">
+                        Erro ao carregar o mapa
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {mapboxError || 'Configure a chave da API do Mapbox no Supabase'}
+                      </p>
+                      {mapRetryCount > 0 && (
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Tentativa {mapRetryCount} de 3...
+                        </p>
+                      )}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setViewMode('list')}
+                      >
+                        Ver em Lista
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : !mapboxToken ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <div className="text-center space-y-2">
+                  <div className="text-center space-y-4">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto" />
-                    <p className="text-sm text-muted-foreground">
-                      Carregando mapa...
-                    </p>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Carregando mapa...
+                      </p>
+                      {mapRetryCount > 0 && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Reconectando... (tentativa {mapRetryCount})
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
