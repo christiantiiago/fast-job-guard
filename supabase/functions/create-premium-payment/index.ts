@@ -71,6 +71,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://id-preview--3a9424a9-9f63-406b-baf3-0311e8e4ac7b.lovable.app";
 
     // Create subscription checkout session
+    // Note: PIX needs to be enabled in Stripe Dashboard for Brazil
     const sessionData = {
       customer: customerId,
       payment_method_types: paymentMethod === 'pix' ? ['pix'] : ['card'],
@@ -149,6 +150,18 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("[PREMIUM] Error creating payment:", error);
+    
+    // Handle PIX-specific errors
+    if (error.message && error.message.includes('pix is invalid')) {
+      return new Response(JSON.stringify({ 
+        error: "PIX não está disponível no momento. Use cartão de crédito ou tente novamente mais tarde.",
+        pixError: true
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    
     return new Response(JSON.stringify({ 
       error: error.message || "Failed to create premium payment session"
     }), {

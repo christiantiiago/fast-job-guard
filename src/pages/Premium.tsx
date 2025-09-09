@@ -79,7 +79,15 @@ export default function Premium() {
         body: { paymentMethod }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle PIX specific errors
+        if (error.pixError) {
+          toast.dismiss();
+          toast.error(error.error || 'PIX não está disponível. Use cartão de crédito.');
+          return;
+        }
+        throw error;
+      }
 
       toast.dismiss();
       toast.success(`Redirecionando para pagamento ${paymentMethod === 'pix' ? 'PIX' : 'cartão'}...`);
@@ -92,9 +100,10 @@ export default function Premium() {
         refetch();
       }, 2000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating payment:', error);
-      toast.error('Erro ao criar pagamento. Tente novamente.');
+      toast.dismiss();
+      toast.error(error.message || 'Erro ao criar pagamento. Tente novamente.');
     } finally {
       setProcessingPayment(false);
     }
