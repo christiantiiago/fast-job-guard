@@ -121,8 +121,9 @@ export default function JobDetails() {
 
     try {
       setLoading(true);
+      console.log('🔍 Fetching job details for ID:', id);
       
-      // Fetch job data
+      // Fetch job data with better error handling
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select(`
@@ -141,11 +142,13 @@ export default function JobDetails() {
         .eq('id', id)
         .maybeSingle();
 
+      console.log('📝 Job query result:', { jobData, jobError });
+
       if (jobError) {
-        console.error('Error fetching job:', jobError);
+        console.error('❌ Error fetching job:', jobError);
         toast({
-          title: "Erro",
-          description: "Não foi possível carregar os detalhes do trabalho.",
+          title: "Erro no banco de dados",
+          description: `Erro ao buscar trabalho: ${jobError.message}`,
           variant: "destructive",
         });
         navigate('/jobs');
@@ -153,36 +156,43 @@ export default function JobDetails() {
       }
 
       if (!jobData) {
+        console.warn('⚠️ No job data found for ID:', id);
         toast({
           title: "Trabalho não encontrado",
-          description: "O trabalho solicitado não existe ou foi removido.",
+          description: "O trabalho solicitado não existe, foi removido ou você não tem permissão para visualizá-lo.",
           variant: "destructive",
         });
         navigate('/jobs');
         return;
       }
 
+      console.log('✅ Job data loaded successfully:', jobData.title);
       setJob(jobData);
 
       // Fetch client profile separately
       if (jobData.client_id) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('full_name, avatar_url, rating_avg, rating_count')
           .eq('user_id', jobData.client_id)
           .maybeSingle();
+
+        if (profileError) {
+          console.error('❌ Error fetching client profile:', profileError);
+        }
 
         if (profileData) {
           setClientProfile(profileData);
         }
       }
     } catch (error) {
-      console.error('Error in fetchJobDetails:', error);
+      console.error('💥 Unexpected error in fetchJobDetails:', error);
       toast({
         title: "Erro inesperado",
-        description: "Ocorreu um erro ao carregar o trabalho.",
+        description: "Ocorreu um erro ao carregar o trabalho. Tente novamente.",
         variant: "destructive",
       });
+      navigate('/jobs');
     } finally {
       setLoading(false);
     }
