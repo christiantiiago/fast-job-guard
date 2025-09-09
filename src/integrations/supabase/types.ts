@@ -1095,6 +1095,33 @@ export type Database = {
           },
         ]
       }
+      profile_visits: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          visited_user_id: string
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          visited_user_id: string
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          visited_user_id?: string
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1916,6 +1943,10 @@ export type Database = {
         Args: { user_id_input: string }
         Returns: boolean
       }
+      delete_notification: {
+        Args: { notification_id: string }
+        Returns: boolean
+      }
       disablelongtransactions: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2174,6 +2205,23 @@ export type Database = {
       geomfromewkt: {
         Args: { "": string }
         Returns: unknown
+      }
+      get_profile_visit_stats: {
+        Args: { target_user_id: string }
+        Returns: {
+          recent_visits: number
+          total_visits: number
+          unique_visitors: number
+        }[]
+      }
+      get_profile_visitors: {
+        Args: { limit_count?: number; target_user_id: string }
+        Returns: {
+          visit_date: string
+          visitor_avatar: string
+          visitor_id: string
+          visitor_name: string
+        }[]
       }
       get_proj4_from_srid: {
         Args: { "": number }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, Check, CheckCheck, X, AlertCircle, Info, Star, Zap } from 'lucide-react';
+import { Bell, Check, CheckCheck, X, AlertCircle, Info, Star, Zap, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,8 @@ export const NotificationCenter = () => {
     unreadCount,
     loading,
     markAsRead,
-    markAllAsRead
+    markAllAsRead,
+    deleteNotification
   } = useRealTimeNotifications();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -152,19 +153,32 @@ export const NotificationCenter = () => {
                               {formatTimeAgo(notification.created_at)}
                             </span>
                             
-                            {!notification.is_read && (
+                            <div className="flex items-center gap-1">
+                              {!notification.is_read && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(notification.id);
+                                  }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs"
+                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  markAsRead(notification.id);
+                                  deleteNotification(notification.id);
                                 }}
                               >
-                                <Check className="h-3 w-3" />
+                                <Trash2 className="h-3 w-3" />
                               </Button>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>

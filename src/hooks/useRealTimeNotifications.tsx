@@ -132,6 +132,25 @@ export const useRealTimeNotifications = () => {
     }
   };
 
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      const { error } = await supabase.rpc('delete_notification', {
+        notification_id: notificationId
+      });
+
+      if (error) throw error;
+
+      // Remove from local state
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => {
+        const notification = notifications.find(n => n.id === notificationId);
+        return notification && !notification.is_read ? Math.max(0, prev - 1) : prev;
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   const sendNotification = async (
     userId: string,
     type: string,
@@ -164,6 +183,7 @@ export const useRealTimeNotifications = () => {
     loading,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     sendNotification,
     refresh: fetchNotifications
   };

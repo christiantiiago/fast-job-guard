@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useFeeRules } from '@/hooks/useFeeRules';
+import { useFinanceData } from '@/hooks/useFinanceData';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Wallet,
   TrendingUp,
-  TrendingDown,
   DollarSign,
   CreditCard,
   Target,
@@ -22,7 +23,6 @@ import {
   EyeOff,
   Settings,
   ArrowUpRight,
-  ArrowDownRight,
   Clock,
   CheckCircle,
   AlertCircle,
@@ -30,20 +30,8 @@ import {
   Banknote,
   Smartphone,
   QrCode,
-  Crown,
-  Plus,
-  Edit2
+  Plus
 } from 'lucide-react';
-
-interface Transaction {
-  id: string;
-  type: 'income' | 'expense' | 'withdrawal';
-  amount: number;
-  description: string;
-  date: string;
-  status: 'completed' | 'pending' | 'failed';
-  category: string;
-}
 
 interface Goal {
   id: string;
@@ -70,63 +58,49 @@ export default function EnhancedFinance() {
   ]);
   const [newGoal, setNewGoal] = useState<{ name: string; target: number; period: 'weekly' | 'monthly' | 'yearly' }>({ name: '', target: 0, period: 'monthly' });
   const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
   
   const { calculateFees, getFeeDescription, isPremiumUser } = useFeeRules();
+  const { payments, payouts, stats, loading, requestWithdrawal } = useFinanceData();
+  const { toast } = useToast();
 
-  // Mock data
-  const balance = 15750.80;
-  const availableForWithdrawal = 12340.50;
-  const pendingPayments = 3410.30;
-  
-  // Calcular taxa real baseada no sistema
   const sampleAmount = 1000;
   const feeCalculation = calculateFees(sampleAmount);
   const currentFeeRate = feeCalculation.feePercentage;
 
-  const earningsData = [
-    { month: 'Jan', earnings: 8500, jobs: 12 },
-    { month: 'Fev', earnings: 12300, jobs: 18 },
-    { month: 'Mar', earnings: 15200, jobs: 22 },
-    { month: 'Abr', earnings: 18900, jobs: 28 },
-    { month: 'Mai', earnings: 15750, jobs: 24 },
-    { month: 'Jun', earnings: 19500, jobs: 30 }
-  ];
+  const generateEarningsData = () => {
+    const data = [];
+    const currentDate = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = monthDate.toLocaleDateString('pt-BR', { month: 'short' });
+      
+      const monthPayments = payments.filter(payment => {
+        const paymentDate = new Date(payment.processed_at || payment.created_at);
+        return paymentDate.getMonth() === monthDate.getMonth() && 
+               paymentDate.getFullYear() === monthDate.getFullYear() &&
+               payment.status === 'completed';
+      });
+
+      data.push({
+        month: monthName,
+        earnings: monthPayments.reduce((sum, p) => sum + p.net_amount, 0),
+        jobs: monthPayments.length
+      });
+    }
+
+    return data;
+  };
+
+  const earningsData = generateEarningsData();
 
   const categoryData = [
-    { name: 'Instalação Elétrica', value: 45, amount: 7087.50 },
-    { name: 'Manutenção', value: 30, amount: 4725.00 },
-    { name: 'Reforma', value: 20, amount: 3150.00 },
-    { name: 'Outros', value: 5, amount: 787.50 }
-  ];
-
-  const recentTransactions: Transaction[] = [
-    {
-      id: '1',
-      type: 'income',
-      amount: 1200.00,
-      description: 'Serviço de instalação elétrica',
-      date: '2024-01-15',
-      status: 'completed',
-      category: 'Instalação'
-    },
-    {
-      id: '2',
-      type: 'withdrawal',
-      amount: 800.00,
-      description: 'Saque PIX',
-      date: '2024-01-14',
-      status: 'completed',
-      category: 'Saque'
-    },
-    {
-      id: '3',
-      type: 'income',
-      amount: 2500.00,
-      description: 'Reforma completa - Etapa 1',
-      date: '2024-01-13',
-      status: 'pending',
-      category: 'Reforma'
-    }
+    { name: 'Serviços Gerais', value: 60, amount: stats.totalEarnings * 0.6 },
+    { name: 'Manutenção', value: 25, amount: stats.totalEarnings * 0.25 },
+    { name: 'Instalação', value: 10, amount: stats.totalEarnings * 0.1 },
+    { name: 'Outros', value: 5, amount: stats.totalEarnings * 0.05 }
   ];
 
   const formatCurrency = (value: number) => {
@@ -136,32 +110,38 @@ export default function EnhancedFinance() {
     }).format(value);
   };
 
-  const addGoal = () => {
-    if (newGoal.name && newGoal.target > 0) {
-      const goal: Goal = {
-        id: Date.now().toString(),
-        ...newGoal,
-        current: 0,
-        color: COLORS[goals.length % COLORS.length]
-      };
-      setGoals([...goals, goal]);
-      setNewGoal({ name: '', target: 0, period: 'monthly' });
-      setShowGoalDialog(false);
+  const handleWithdrawal = async () => {
+    const amount = parseFloat(withdrawalAmount);
+    if (amount <= 0 || amount > stats.availableBalance) {
+      toast({
+        title: "Valor inválido",
+        description: "Verifique o valor e tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await requestWithdrawal(amount, { type: 'pix', key: 'user@email.com' });
+      toast({
+        title: "Saque solicitado",
+        description: "Seu saque será processado em até 2 dias úteis.",
+      });
+      setShowWithdrawalDialog(false);
+      setWithdrawalAmount('');
+    } catch (error) {
+      toast({
+        title: "Erro ao solicitar saque",
+        description: "Tente novamente mais tarde.",
+        variant: "destructive"
+      });
     }
   };
 
-  const updateGoalProgress = (goalId: string, amount: number) => {
-    setGoals(goals.map(goal => 
-      goal.id === goalId 
-        ? { ...goal, current: Math.min(goal.current + amount, goal.target) }
-        : goal
-    ));
-  };
-
-  const getTransactionIcon = (type: string) => {
-    if (type === 'income') return <ArrowUpRight className="h-4 w-4 text-green-600" />;
-    if (type === 'withdrawal') return <ArrowDownRight className="h-4 w-4 text-red-600" />;
-    return <Clock className="h-4 w-4 text-yellow-600" />;
+  const getTransactionIcon = (status: string) => {
+    if (status === 'completed') return <ArrowUpRight className="h-4 w-4 text-green-600" />;
+    if (status === 'pending') return <Clock className="h-4 w-4 text-yellow-600" />;
+    return <AlertCircle className="h-4 w-4 text-red-600" />;
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,21 +153,27 @@ export default function EnhancedFinance() {
     return variants[status as keyof typeof variants];
   };
 
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="p-6 space-y-8">
+          <div className="text-center">Carregando dados financeiros...</div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="p-6 space-y-8">
-        {/* Header with Balance and Premium Status */}
+        {/* Header with Balance */}
         <div className="relative overflow-hidden rounded-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary/80" />
           <div className="relative p-8 text-primary-foreground">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                  Carteira Digital
-                </h1>
-                <p className="text-primary-foreground/80">
-                  {getFeeDescription()}
-                </p>
+                <h1 className="text-3xl font-bold mb-2">Carteira Digital</h1>
+                <p className="text-primary-foreground/80">{getFeeDescription()}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -206,41 +192,68 @@ export default function EnhancedFinance() {
 
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <p className="text-primary-foreground/80 text-sm">Saldo Total</p>
+                <p className="text-primary-foreground/80 text-sm">Total Ganho</p>
                 <p className="text-4xl font-bold">
-                  {showBalance ? formatCurrency(balance) : '••••••'}
+                  {showBalance ? formatCurrency(stats.totalEarnings) : '••••••'}
                 </p>
                 <div className="flex items-center gap-2 text-sm">
                   <TrendingUp className="h-4 w-4" />
-                  <span>+15.3% este mês</span>
+                  <span>Este mês: {formatCurrency(stats.currentMonthEarnings)}</span>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <p className="text-primary-foreground/80 text-sm">Disponível para Saque</p>
                 <p className="text-2xl font-semibold">
-                  {showBalance ? formatCurrency(availableForWithdrawal) : '••••••'}
+                  {showBalance ? formatCurrency(stats.availableBalance) : '••••••'}
                 </p>
-                <Button size="sm" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90">
-                  <Banknote className="h-4 w-4 mr-2" />
-                  Sacar
-                </Button>
+                <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90">
+                      <Banknote className="h-4 w-4 mr-2" />
+                      Sacar
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Solicitar Saque</DialogTitle>
+                      <DialogDescription>
+                        Disponível: {formatCurrency(stats.availableBalance)}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="amount">Valor</Label>
+                        <Input
+                          id="amount"
+                          type="number"
+                          value={withdrawalAmount}
+                          onChange={(e) => setWithdrawalAmount(e.target.value)}
+                          placeholder="0,00"
+                          max={stats.availableBalance}
+                        />
+                      </div>
+                      <Button onClick={handleWithdrawal} className="w-full">
+                        Confirmar Saque
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="space-y-2">
-                <p className="text-primary-foreground/80 text-sm">Sua Taxa Atual</p>
+                <p className="text-primary-foreground/80 text-sm">Pendente</p>
                 <p className="text-2xl font-semibold">
-                  {currentFeeRate.toFixed(1)}%
+                  {showBalance ? formatCurrency(stats.pendingAmount) : '••••••'}
                 </p>
                 <div className="text-sm">
                   <span className="text-primary-foreground/80">
-                    {isPremiumUser ? 'Taxa Premium Ativa' : 'Saques instantâneos via PIX'}
+                    Taxa atual: {currentFeeRate.toFixed(1)}%
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="flex gap-4 mt-8">
               <Button size="lg" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90">
                 <QrCode className="h-5 w-5 mr-2" />
@@ -258,134 +271,15 @@ export default function EnhancedFinance() {
           </div>
         </div>
 
-
-        {/* Goals Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Minhas Metas
-                </CardTitle>
-                <CardDescription>
-                  Acompanhe o progresso das suas metas financeiras
-                </CardDescription>
-              </div>
-              <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Meta
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Criar Nova Meta</DialogTitle>
-                    <DialogDescription>
-                      Defina uma meta financeira para acompanhar seu progresso
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="goal-name">Nome da Meta</Label>
-                      <Input
-                        id="goal-name"
-                        value={newGoal.name}
-                        onChange={(e) => setNewGoal({...newGoal, name: e.target.value})}
-                        placeholder="Ex: Meta de Janeiro"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="goal-target">Valor Alvo</Label>
-                      <Input
-                        id="goal-target"
-                        type="number"
-                        value={newGoal.target}
-                        onChange={(e) => setNewGoal({...newGoal, target: Number(e.target.value)})}
-                        placeholder="Ex: 20000"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="goal-period">Período</Label>
-                      <select 
-                        id="goal-period"
-                        className="w-full p-2 border rounded-md"
-                        value={newGoal.period}
-                        onChange={(e) => setNewGoal({...newGoal, period: e.target.value as 'weekly' | 'monthly' | 'yearly'})}
-                      >
-                        <option value="weekly">Semanal</option>
-                        <option value="monthly">Mensal</option>
-                        <option value="yearly">Anual</option>
-                      </select>
-                    </div>
-                    <Button onClick={addGoal} className="w-full">
-                      Criar Meta
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {goals.map((goal) => {
-                const progress = (goal.current / goal.target) * 100;
-                return (
-                  <div key={goal.id} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">{goal.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {formatCurrency(goal.current)} de {formatCurrency(goal.target)}
-                        </p>
-                      </div>
-                      <Badge variant="outline" className="text-lg px-3 py-1">
-                        {progress.toFixed(0)}%
-                      </Badge>
-                    </div>
-                    <Progress value={progress} className="h-3" />
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateGoalProgress(goal.id, 100)}
-                      >
-                        +R$ 100
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateGoalProgress(goal.id, 500)}
-                      >
-                        +R$ 500
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateGoalProgress(goal.id, 1000)}
-                      >
-                        +R$ 1000
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Analytics Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="analytics">Análises</TabsTrigger>
             <TabsTrigger value="transactions">Transações</TabsTrigger>
             <TabsTrigger value="reports">Relatórios</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Performance Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -393,9 +287,9 @@ export default function EnhancedFinance() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(15750)}</div>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.currentMonthEarnings)}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600">+23%</span> vs mês anterior
+                    Total de {stats.totalJobs} trabalhos
                   </p>
                 </CardContent>
               </Card>
@@ -406,9 +300,9 @@ export default function EnhancedFinance() {
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">24</div>
+                  <div className="text-2xl font-bold">{stats.totalJobs}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600">+12%</span> vs mês anterior
+                    Total de trabalhos
                   </p>
                 </CardContent>
               </Card>
@@ -436,127 +330,10 @@ export default function EnhancedFinance() {
                   <Star className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">4.8</div>
+                  <div className="text-2xl font-bold">{stats.avgRating}</div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="text-green-600">+0.2</span> vs mês anterior
+                    Avaliação média
                   </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Earnings Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Evolução dos Ganhos</CardTitle>
-                <CardDescription>
-                  Acompanhe o crescimento dos seus ganhos nos últimos 6 meses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={earningsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value: number) => [formatCurrency(value), 'Ganhos']}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="earnings" 
-                        stroke="hsl(var(--primary))" 
-                        fill="hsl(var(--primary))" 
-                        fillOpacity={0.3}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Category Breakdown */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ganhos por Categoria</CardTitle>
-                  <CardDescription>
-                    Distribuição dos seus ganhos por tipo de serviço
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={categoryData}
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                          label={({ name, percent }: any) => `${name} ${(percent! * 100).toFixed(0)}%`}
-                        >
-                          {categoryData.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => [`${value}%`, 'Percentual']} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  <div className="space-y-2 mt-4">
-                    {categoryData.map((category, index) => (
-                      <div key={category.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                          />
-                          <span className="text-sm">{category.name}</span>
-                        </div>
-                        <span className="text-sm font-medium">{formatCurrency(category.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Fee Comparison */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Comparação de Taxas</CardTitle>
-                  <CardDescription>
-                    Economia potencial com o plano Premium
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                      <span className="font-medium">Taxa Padrão</span>
-                      <span className="text-lg font-bold">4,9%</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900 dark:to-orange-900 rounded-lg">
-                      <span className="font-medium flex items-center gap-2">
-                        <Crown className="h-4 w-4 text-yellow-600" />
-                        Taxa Premium
-                      </span>
-                      <span className="text-lg font-bold text-yellow-700 dark:text-yellow-300">3,5%</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      Sistema de taxas atualizado:
-                    </p>
-                    <p className="text-lg font-semibold text-primary">
-                      Prestadores Premium têm prioridade nas buscas!
-                    </p>
-                  </div>
-
                 </CardContent>
               </Card>
             </div>
@@ -572,27 +349,34 @@ export default function EnhancedFinance() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentTransactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        {getTransactionIcon(transaction.type)}
-                        <div>
-                          <p className="font-medium">{transaction.description}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(transaction.date).toLocaleDateString('pt-BR')} • {transaction.category}
+                  {[...payments.slice(0, 5), ...payouts.slice(0, 3)].map((item) => {
+                    const isPayment = 'net_amount' in item;
+                    return (
+                      <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          {getTransactionIcon(item.status)}
+                          <div>
+                            <p className="font-medium">
+                              {isPayment 
+                                ? `Pagamento - ${(item as any).job_title}`
+                                : 'Saque solicitado'
+                              }
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(item.created_at).toLocaleDateString('pt-BR')} • 
+                              {isPayment ? 'Recebimento' : 'Saque'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-semibold ${isPayment ? 'text-green-600' : 'text-red-600'}`}>
+                            {isPayment ? '+' : '-'}{formatCurrency(item.amount)}
                           </p>
+                          {getStatusBadge(item.status)}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${
-                          transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                        </p>
-                        {getStatusBadge(transaction.status)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -603,24 +387,22 @@ export default function EnhancedFinance() {
               <CardHeader>
                 <CardTitle>Relatórios Financeiros</CardTitle>
                 <CardDescription>
-                  Exporte relatórios detalhados dos seus ganhos
+                  Exporte seus dados financeiros para análise
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Button variant="outline" className="h-16">
-                    <Download className="h-5 w-5 mr-2" />
-                    <div className="text-left">
-                      <p className="font-medium">Relatório Mensal</p>
-                      <p className="text-xs text-muted-foreground">PDF com todos os ganhos</p>
-                    </div>
+                <div className="grid gap-4">
+                  <Button variant="outline" className="justify-start">
+                    <Download className="h-4 w-4 mr-2" />
+                    Relatório Mensal - {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                   </Button>
-                  <Button variant="outline" className="h-16">
-                    <Download className="h-5 w-5 mr-2" />
-                    <div className="text-left">
-                      <p className="font-medium">Comprovante de Renda</p>
-                      <p className="text-xs text-muted-foreground">Para fins bancários</p>
-                    </div>
+                  <Button variant="outline" className="justify-start">
+                    <Download className="h-4 w-4 mr-2" />
+                    Relatório Anual - {new Date().getFullYear()}
+                  </Button>
+                  <Button variant="outline" className="justify-start">
+                    <Download className="h-4 w-4 mr-2" />
+                    Declaração de Rendimentos
                   </Button>
                 </div>
               </CardContent>
