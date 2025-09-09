@@ -22,6 +22,7 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Stripe key verified");
 
     // Use service role for database operations
     const supabaseClient = createClient(
@@ -41,13 +42,13 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { jobId, providerId, amount, platformFee } = await req.json();
+    const { jobId, providerId, amount, platformFee, paymentMethod = 'card' } = await req.json();
     if (!jobId || !providerId || !amount || !platformFee) {
       throw new Error("Missing required parameters");
     }
 
     const totalAmount = amount + platformFee;
-    logStep("Payment parameters", { jobId, providerId, amount, platformFee, totalAmount });
+    logStep("Payment parameters", { jobId, providerId, amount, platformFee, totalAmount, paymentMethod });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
@@ -58,25 +59,51 @@ serve(async (req) => {
       customerId = customers.data[0].id;
       logStep("Existing customer found", { customerId });
     } else {
-      const customer = await stripe.customers.create({ email: user.email });
+      const customer = await stripe.customers.create({ 
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email 
+      });
       customerId = customer.id;
       logStep("New customer created", { customerId });
     }
 
-    // Create payment intent for escrow
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalAmount * 100), // Convert to cents
-      currency: "brl",
+    const origin = req.headers.get("origin") || "https://yelytezcifyrykxvlbok.supabase.co";
+
+    // Create Stripe checkout session instead of payment intent
+    const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      payment_method_types: ["card", "pix"],
+      payment_method_types: paymentMethod === 'pix' ? ['boleto'] : ['card'], // Use boleto as PIX alternative
+      line_items: [{
+        price_data: {
+          currency: 'brl',
+          product_data: {
+            name: 'Serviço Contratado',
+            description: `Pagamento em escrow para job ${jobId}`
+          },
+          unit_amount: Math.round(totalAmount * 100), // Convert to cents
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&job_id=${jobId}`,
+      cancel_url: `${origin}/checkout/cancel?job_id=${jobId}`,
       metadata: {
         jobId,
         providerId,
+        clientId: user.id,
         type: "escrow_payment"
+      },
+      payment_intent_data: {
+        metadata: {
+          jobId,
+          providerId,
+          clientId: user.id,
+          type: "escrow_payment"
+        }
       }
     });
 
-    logStep("Payment intent created", { paymentIntentId: paymentIntent.id });
+    logStep("Checkout session created", { sessionId: session.id });
 
     // Create escrow payment record
     const { data: escrowPayment, error: escrowError } = await supabaseClient
@@ -89,17 +116,21 @@ serve(async (req) => {
         platform_fee: platformFee,
         total_amount: totalAmount,
         status: "pending",
-        stripe_payment_intent_id: paymentIntent.id,
+        stripe_payment_intent_id: session.payment_intent as string,
         release_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
       })
       .select()
       .single();
 
-    if (escrowError) throw escrowError;
+    if (escrowError) {
+      logStep("Escrow payment creation error", { error: escrowError });
+      throw escrowError;
+    }
     logStep("Escrow payment record created", { escrowPaymentId: escrowPayment.id });
 
     return new Response(JSON.stringify({
-      clientSecret: paymentIntent.client_secret,
+      sessionUrl: session.url,
+      sessionId: session.id,
       escrowPaymentId: escrowPayment.id
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

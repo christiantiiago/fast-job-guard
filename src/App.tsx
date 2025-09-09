@@ -51,6 +51,8 @@ import AdminActivity from "./pages/admin/Activity";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminEnhanced from "./pages/admin/AdminEnhanced";
 import Checkout from "./pages/Checkout";
+import CheckoutSuccess from "./pages/checkout/Success";
+import CheckoutCancel from "./pages/checkout/Cancel";
 
 const queryClient = new QueryClient();
 
@@ -214,6 +216,24 @@ const App = () => (
                   <KYCGate>
                     <Checkout />
                   </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/checkout/success"
+              element={
+                <ProtectedRoute>
+                  <CheckoutSuccess />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/checkout/cancel"
+              element={
+                <ProtectedRoute>
+                  <CheckoutCancel />
                 </ProtectedRoute>
               }
             />

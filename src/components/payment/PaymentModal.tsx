@@ -70,61 +70,49 @@ export function PaymentModal({
     setProcessing(true);
     
     try {
-      // 1. Create payment record
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          job_id: jobId,
-          client_id: user.id,
-          provider_id: proposal.provider_id,
+      // Create escrow payment with Stripe
+      const response = await supabase.functions.invoke('create-escrow-payment', {
+        body: {
+          jobId: jobId,
+          providerId: proposal.provider_id,
           amount: proposal.price,
-          platform_fee: fees.platformFee,
-          client_fee: fees.platformFee,
-          provider_fee: 0,
-          net_amount: proposal.price,
-          status: 'captured',
-          provider: 'stripe',
-          method: paymentMethod === 'credit-card' ? 'card' : 'pix',
-          processed_at: new Date().toISOString(),
-          metadata: {
-            proposal_id: proposal.id,
-            payment_method: paymentMethod
-          }
-        })
-        .select()
-        .single();
-
-      if (paymentError) throw paymentError;
-
-      // 2. Accept the proposal automatically
-      const { error: proposalError } = await supabase
-        .from('proposals')
-        .update({ status: 'accepted' })
-        .eq('id', proposal.id);
-
-      if (proposalError) throw proposalError;
-
-      // 3. Update job status and assign provider
-      const { error: jobError } = await supabase
-        .from('jobs')
-        .update({ 
-          provider_id: proposal.provider_id,
-          status: 'in_progress',
-          final_price: proposal.price
-        })
-        .eq('id', jobId);
-
-      if (jobError) throw jobError;
-
-      // 4. The contract generation will be handled by the database trigger
-
-      toast({
-        title: "Pagamento Processado!",
-        description: "Contrato gerado automaticamente. O prestador foi notificado e o chat foi liberado.",
+          platformFee: fees.platformFee,
+          paymentMethod: paymentMethod === 'credit-card' ? 'card' : 'pix'
+        }
       });
 
-      onPaymentSuccess();
-      onClose();
+      if (response.error) throw response.error;
+
+      const { sessionUrl, sessionId, escrowPaymentId } = response.data;
+      
+      if (sessionUrl) {
+        // Accept the proposal before redirecting to payment
+        const { error: proposalError } = await supabase
+          .from('proposals')
+          .update({ status: 'accepted' })
+          .eq('id', proposal.id);
+
+        if (proposalError) throw proposalError;
+
+        // Store payment info for later reference
+        localStorage.setItem('pendingPayment', JSON.stringify({
+          jobId,
+          proposalId: proposal.id,
+          escrowPaymentId,
+          sessionId
+        }));
+
+        // Redirect to Stripe checkout
+        window.open(sessionUrl, '_blank');
+        
+        toast({
+          title: "Redirecionando para Pagamento",
+          description: "Você será redirecionado para completar o pagamento com segurança.",
+        });
+
+        onPaymentSuccess();
+        onClose();
+      }
       
     } catch (error: any) {
       console.error('Payment error:', error);
