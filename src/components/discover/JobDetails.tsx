@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Eye, MessageSquare, MapPin } from 'lucide-react';
+import { Eye, MessageSquare, MapPin, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface JobWithDistance {
@@ -16,6 +16,8 @@ interface JobWithDistance {
   proposal_count?: number;
   created_at: string;
   completed_at?: string;
+  routeDistance?: number;
+  routeDuration?: number;
 }
 
 interface JobDetailsProps {
@@ -23,10 +25,11 @@ interface JobDetailsProps {
   onClose: () => void;
   formatCurrency: (min?: number, max?: number, final?: number) => string;
   formatDistance: (distance: number) => string;
+  formatDuration: (duration: number) => string;
   getStatusBadge: (status: string) => JSX.Element;
 }
 
-export function JobDetails({ job, onClose, formatCurrency, formatDistance, getStatusBadge }: JobDetailsProps) {
+export function JobDetails({ job, onClose, formatCurrency, formatDistance, formatDuration, getStatusBadge }: JobDetailsProps) {
   const navigate = useNavigate();
 
   return (
@@ -63,10 +66,18 @@ export function JobDetails({ job, onClose, formatCurrency, formatDistance, getSt
               <div className="font-semibold text-lg text-primary">
                 {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
               </div>
-              {job.distance && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {formatDistance(job.distance)}
+              {(job.routeDistance || job.distance) && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <div className="flex items-center">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {formatDistance(job.routeDistance || job.distance || 0)}
+                  </div>
+                  {job.routeDuration && job.routeDuration > 0 && (
+                    <div className="flex items-center">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {formatDuration(job.routeDuration)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

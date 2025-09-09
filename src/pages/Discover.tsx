@@ -13,9 +13,10 @@ import {
   AlertTriangle,
   Eye,
   MessageSquare,
-  MapPin
+  MapPin,
+  Clock
 } from 'lucide-react';
-import { useGeolocation, calculateDistance, formatDistance } from '@/hooks/useGeolocation';
+import { useGeolocation, calculateRouteDistance, formatDistance, formatDuration } from '@/hooks/useGeolocation';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { DiscoverFilters } from '@/components/discover/DiscoverFilters';
@@ -57,8 +58,29 @@ export default function Discover() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [jobsWithDistance, setJobsWithDistance] = useState<JobWithDistance[]>([]);
+  const [mapboxToken, setMapboxToken] = useState<string | null>(null);
 
-  // Fetch jobs and calculate proposal counts
+  // Get Mapbox token
+  useEffect(() => {
+    const getMapboxToken = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+        
+        if (error) {
+          console.error('[MAPBOX] Error:', error);
+          return;
+        }
+        
+        if (data?.token) {
+          setMapboxToken(data.token);
+        }
+      } catch (error) {
+        console.error('[MAPBOX] Exception:', error);
+      }
+    };
+
+    getMapboxToken();
+  }, []);
   useEffect(() => {
     const fetchJobsWithProposals = async () => {
       try {
@@ -111,29 +133,56 @@ export default function Discover() {
     });
   };
 
-  // Calculate distances when position changes
+  // Calculate route distances when position changes
   useEffect(() => {
-    if (!jobsWithDistance.length || !position) return;
+    if (!jobsWithDistance.length || !position || !mapboxToken) return;
 
-    const filteredJobs = filterJobsByTime(jobsWithDistance);
+    let isActive = true;
     
-    const jobsWithDist = filteredJobs
-      .filter(job => job.latitude && job.longitude)
-      .map(job => ({
-        ...job,
-        distance: calculateDistance(
-          position.latitude,
-          position.longitude,
-          job.latitude!,
-          job.longitude!
-        )
-      }))
-      .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    const calculateRoutes = async () => {
+      // Only calculate routes for jobs that don't have route distance yet
+      const jobsNeedingRoutes = jobsWithDistance.filter(job => 
+        job.latitude && job.longitude && !job.routeDistance
+      );
+      
+      if (jobsNeedingRoutes.length === 0) return;
 
-    if (JSON.stringify(jobsWithDist) !== JSON.stringify(jobsWithDistance)) {
-      setJobsWithDistance(jobsWithDist);
-    }
-  }, [position]); // Only depend on position to prevent loops
+      const updatedJobs = await Promise.all(
+        jobsWithDistance.map(async (job) => {
+          if (!job.latitude || !job.longitude || job.routeDistance) return job;
+          
+          const routeInfo = await calculateRouteDistance(
+            position.latitude,
+            position.longitude,
+            job.latitude,
+            job.longitude,
+            mapboxToken
+          );
+
+          return {
+            ...job,
+            routeDistance: routeInfo?.distance || job.distance,
+            routeDuration: routeInfo?.duration || 0
+          };
+        })
+      );
+
+      if (isActive) {
+        // Sort by route distance
+        const sortedJobs = updatedJobs.sort((a, b) => 
+          (a.routeDistance || 0) - (b.routeDistance || 0)
+        );
+
+        setJobsWithDistance(sortedJobs);
+      }
+    };
+
+    calculateRoutes();
+    
+    return () => {
+      isActive = false;
+    };
+  }, [position?.latitude, position?.longitude, mapboxToken, jobsWithDistance.length]); // More specific dependencies
 
   // Auto-refresh to remove completed jobs after 2 minutes
   useEffect(() => {
@@ -269,6 +318,7 @@ export default function Discover() {
               jobs={filteredJobs}
               position={position}
               formatDistance={formatDistance}
+              formatDuration={formatDuration}
             />
           ) : (
             /* List View */
@@ -303,17 +353,25 @@ export default function Discover() {
                       </p>
                       
                       <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="font-semibold text-lg text-primary">
-                            {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
-                          </div>
-                          {job.distance && (
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {formatDistance(job.distance)}
+                          <div className="space-y-1">
+                            <div className="font-semibold text-lg text-primary">
+                              {formatCurrency(job.budget_min, job.budget_max, job.final_price)}
                             </div>
-                          )}
-                        </div>
+                            {job.routeDistance && (
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                <div className="flex items-center">
+                                  <MapPin className="w-3 h-3 mr-1" />
+                                  {formatDistance(job.routeDistance)}
+                                </div>
+                                {job.routeDuration && job.routeDuration > 0 && (
+                                  <div className="flex items-center">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {formatDuration(job.routeDuration)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         
                         <div className="flex gap-2">
                           <Button

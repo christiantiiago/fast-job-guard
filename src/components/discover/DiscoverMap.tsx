@@ -35,9 +35,10 @@ interface DiscoverMapProps {
   jobs: JobWithDistance[];
   position: { latitude: number; longitude: number } | null;
   formatDistance: (distance: number) => string;
+  formatDuration: (duration: number) => string;
 }
 
-export function DiscoverMap({ jobs, position, formatDistance }: DiscoverMapProps) {
+export function DiscoverMap({ jobs, position, formatDistance, formatDuration }: DiscoverMapProps) {
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [mapboxError, setMapboxError] = useState<string | null>(null);
   const [mapInitialized, setMapInitialized] = useState(false);
@@ -288,6 +289,7 @@ export function DiscoverMap({ jobs, position, formatDistance }: DiscoverMapProps
             onJobClick={(job) => setSelectedJob(job)}
             formatCurrency={formatCurrency}
             formatDistance={formatDistance}
+            formatDuration={formatDuration}
           />
         )
       ))}
@@ -299,6 +301,7 @@ export function DiscoverMap({ jobs, position, formatDistance }: DiscoverMapProps
           onClose={() => setSelectedJob(null)}
           formatCurrency={formatCurrency}
           formatDistance={formatDistance}
+          formatDuration={formatDuration}
           getStatusBadge={getStatusBadge}
         />
       )}

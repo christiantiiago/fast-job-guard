@@ -71,7 +71,7 @@ export const useGeolocation = () => {
   return state;
 };
 
-// Função para calcular distância usando Haversine formula
+// Função para calcular distância usando Haversine formula (distância em linha reta)
 export const calculateDistance = (
   lat1: number,
   lon1: number,
@@ -88,6 +88,56 @@ export const calculateDistance = (
   return R * c;
 };
 
+// Função para calcular distância de rota precisa usando Mapbox Directions API
+export const calculateRouteDistance = async (
+  startLat: number,
+  startLon: number,
+  endLat: number,
+  endLon: number,
+  mapboxToken?: string
+): Promise<{ distance: number; duration: number } | null> => {
+  if (!mapboxToken) {
+    // Fallback para distância em linha reta se não houver token
+    return {
+      distance: calculateDistance(startLat, startLon, endLat, endLon),
+      duration: 0
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${startLon},${startLat};${endLon},${endLat}?access_token=${mapboxToken}&geometries=geojson`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      return {
+        distance: route.distance / 1000, // Converter de metros para km
+        duration: route.duration // Em segundos
+      };
+    }
+
+    // Fallback para distância em linha reta
+    return {
+      distance: calculateDistance(startLat, startLon, endLat, endLon),
+      duration: 0
+    };
+  } catch (error) {
+    console.error('[ROUTE] Erro ao calcular rota:', error);
+    // Fallback para distância em linha reta
+    return {
+      distance: calculateDistance(startLat, startLon, endLat, endLon),
+      duration: 0
+    };
+  }
+};
+
 const toRad = (value: number): number => {
   return (value * Math.PI) / 180;
 };
@@ -99,5 +149,18 @@ export const formatDistance = (distance: number): string => {
     return `${distance.toFixed(1)}km`;
   } else {
     return `${Math.round(distance)}km`;
+  }
+};
+
+export const formatDuration = (duration: number): string => {
+  if (duration === 0) return '';
+  
+  const hours = Math.floor(duration / 3600);
+  const minutes = Math.floor((duration % 3600) / 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`;
+  } else {
+    return `${minutes}min`;
   }
 };

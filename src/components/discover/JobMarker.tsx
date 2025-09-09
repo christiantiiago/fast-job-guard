@@ -23,6 +23,8 @@ interface JobWithDistance {
   };
   distance?: number;
   proposal_count?: number;
+  routeDistance?: number;
+  routeDuration?: number;
 }
 
 interface JobMarkerProps {
@@ -32,9 +34,10 @@ interface JobMarkerProps {
   onJobClick: (job: JobWithDistance) => void;
   formatCurrency: (min?: number, max?: number, final?: number) => string;
   formatDistance: (distance: number) => string;
+  formatDuration: (duration: number) => string;
 }
 
-export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, formatDistance }: JobMarkerProps) {
+export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, formatDistance, formatDuration }: JobMarkerProps) {
   const markerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -42,7 +45,8 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
 
     const markerEl = document.createElement('div');
     const price = formatCurrency(job.budget_min, job.budget_max, job.final_price);
-    const distance = job.distance ? formatDistance(job.distance) : '';
+    const distance = job.routeDistance ? formatDistance(job.routeDistance) : '';
+    const duration = job.routeDuration ? formatDuration(job.routeDuration) : '';
     
     // Choose color based on job status
     let borderColor = '#ef4444';
@@ -65,8 +69,8 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
         <div style="font-size: 12px; font-weight: 600; color: ${borderColor}; margin-bottom: 2px;">
           ${price}
         </div>
-        <div style="font-size: 10px; color: #6b7280;">
-          ${distance}
+        <div style="font-size: 10px; color: #6b7280; line-height: 1.2;">
+          ${distance}${duration ? `<br/>${duration}` : ''}
         </div>
         ${job.proposal_count && job.proposal_count > 0 ? `
           <div style="
@@ -119,7 +123,7 @@ export function JobMarker({ job, mapboxgl, map, onJobClick, formatCurrency, form
         markerRef.current.remove();
       }
     };
-  }, [job, mapboxgl, map, onJobClick, formatCurrency, formatDistance]);
+  }, [job, mapboxgl, map, onJobClick, formatCurrency, formatDistance, formatDuration]);
 
   return null;
 }
