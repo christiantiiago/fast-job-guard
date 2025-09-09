@@ -69,6 +69,7 @@ export default function FixedDiscoverPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<any>(null);
   const markersRef = useRef<{ [key: string]: any }>({});
+  const mapboxglRef = useRef<any>(null);
 
   // Get Mapbox token
   useEffect(() => {
@@ -194,6 +195,9 @@ export default function FixedDiscoverPage() {
         const mapboxgl = await import('mapbox-gl');
         await import('mapbox-gl/dist/mapbox-gl.css');
         
+        // Store reference for later use
+        mapboxglRef.current = mapboxgl.default || mapboxgl;
+        
         console.log('[MAP] ✅ Mapbox modules loaded');
         
         // Clean up existing map
@@ -208,7 +212,7 @@ export default function FixedDiscoverPage() {
         markersRef.current = {};
         
         // Set access token
-        (mapboxgl.default || mapboxgl).accessToken = mapboxToken;
+        mapboxglRef.current.accessToken = mapboxToken;
         console.log('[MAP] 🔑 Token set');
         
         // Ensure container is ready
@@ -226,8 +230,7 @@ export default function FixedDiscoverPage() {
         console.log('[MAP] 🗺️ Creating map at:', initialCenter);
         
         // Create map
-        const MapboxGL = mapboxgl.default || mapboxgl;
-        map.current = new MapboxGL.Map({
+        map.current = new mapboxglRef.current.Map({
           container: mapContainer.current!,
           style: 'mapbox://styles/mapbox/streets-v12',
           center: initialCenter,
@@ -236,7 +239,7 @@ export default function FixedDiscoverPage() {
         });
         
         // Add controls
-        map.current.addControl(new MapboxGL.NavigationControl(), 'top-right');
+        map.current.addControl(new mapboxglRef.current.NavigationControl(), 'top-right');
         
         // Handle load event
         map.current.on('load', () => {
@@ -265,7 +268,7 @@ export default function FixedDiscoverPage() {
               box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             `;
             
-            new MapboxGL.Marker(userEl)
+            new mapboxglRef.current.Marker(userEl)
               .setLngLat([position.longitude, position.latitude])
               .addTo(map.current);
           }
@@ -365,7 +368,7 @@ export default function FixedDiscoverPage() {
         setShowRouteDetails(true);
       });
 
-      const marker = new (window as any).mapboxgl.Marker(markerEl)
+      const marker = new mapboxglRef.current.Marker(markerEl)
         .setLngLat([job.longitude, job.latitude])
         .addTo(map.current);
 
@@ -373,8 +376,8 @@ export default function FixedDiscoverPage() {
     });
 
     // Fit map to show all jobs
-    if (jobsWithDistance.length > 0 && position) {
-      const bounds = new (window as any).mapboxgl.LngLatBounds();
+    if (jobsWithDistance.length > 0 && position && mapboxglRef.current) {
+      const bounds = new mapboxglRef.current.LngLatBounds();
       bounds.extend([position.longitude, position.latitude]);
       
       jobsWithDistance.forEach(job => {
