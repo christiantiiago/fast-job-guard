@@ -15,7 +15,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminLogin from "./pages/auth/AdminLogin";
 import ProfileEdit from "./pages/ProfileEdit";
-import MyDocuments from "./pages/MyDocuments";
+import { UnifiedDocumentsPage } from '@/components/kyc/UnifiedDocumentsPage';
 import NotFound from "./pages/NotFound";
 
 // Protected pages
@@ -28,7 +28,7 @@ import Discover from "./pages/Discover";
 import Chat from "./pages/Chat";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
-import FinanceRevolutionary from "./provider/FinanceRevolutionary";
+import FinanceRevolutionary from "./pages/provider/FinanceRevolutionary";
 import ProviderOnboarding from "./pages/provider/Onboarding";
 
 // KYC pages
@@ -95,7 +95,16 @@ const App = () => (
               path="/documents"
               element={
                 <ProtectedRoute>
-                  <MyDocuments />
+                  <UnifiedDocumentsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/my-documents"
+              element={
+                <ProtectedRoute>
+                  <UnifiedDocumentsPage />
                 </ProtectedRoute>
               }
             />

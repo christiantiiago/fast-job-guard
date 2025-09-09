@@ -20,9 +20,6 @@ import {
   UserCheck,
   Activity
 } from 'lucide-react';
-
-import { useAuth } from '@/hooks/useAuth';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { ProviderDashboard } from '@/components/provider/ProviderDashboard';
 
 export default function Dashboard() {

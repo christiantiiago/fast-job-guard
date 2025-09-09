@@ -228,7 +228,7 @@ export default function AdminAnalytics() {
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }: any) => `${name}: ${(percent! * 100).toFixed(0)}%`}
                       >
                         {COLORS.map((color, index) => (
                           <Cell key={`cell-${index}`} fill={color} />

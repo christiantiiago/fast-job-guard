@@ -419,7 +419,7 @@ export const FraudDetectionDashboard = () => {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ risk_level, count }) => `${risk_level}: ${count}`}
+                      label={({ risk_level, count }: any) => `${risk_level}: ${count}`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="count"
