@@ -59,7 +59,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.analyze-document-ai]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-premium-payment]
 verify_jwt = true
@@ -80,4 +80,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.auto-release-escrow]
+verify_jwt = false
+
+[functions.process-background-jobs]
 verify_jwt = false

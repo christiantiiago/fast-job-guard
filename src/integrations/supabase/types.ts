@@ -209,6 +209,36 @@ export type Database = {
         }
         Relationships: []
       }
+      background_jobs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: number
+          job_type: string
+          payload: Json
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          job_type: string
+          payload: Json
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          job_type?: string
+          payload?: Json
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       blocked_content_patterns: {
         Row: {
           created_at: string

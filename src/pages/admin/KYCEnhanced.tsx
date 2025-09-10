@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/use-toast';
+import { useBackgroundJobProcessor } from '@/hooks/useBackgroundJobProcessor';
 import { 
   CheckCircle, 
   XCircle, 
@@ -70,6 +71,9 @@ const AdminKYCEnhanced = () => {
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  
+  // Ativar processamento automático de jobs em background
+  useBackgroundJobProcessor();
 
   const fetchDocuments = async () => {
     setLoading(true);
