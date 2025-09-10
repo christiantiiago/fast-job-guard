@@ -47,7 +47,7 @@ import { ImprovedDocumentsPage } from '@/components/kyc/ImprovedDocumentsPage';
 // Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
-import AdminKYC from "./pages/admin/KYC";
+import AdminKYCEnhanced from "./pages/admin/KYCEnhanced";
 import AdminPayments from "./pages/admin/Payments";
 import AdminDisputes from "./pages/admin/Disputes";
 import AdminSettings from "./pages/admin/Settings";
@@ -338,7 +338,7 @@ const App = () => (
               path="/admin/kyc"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <AdminKYC />
+                  <AdminKYCEnhanced />
                 </ProtectedRoute>
               }
             />

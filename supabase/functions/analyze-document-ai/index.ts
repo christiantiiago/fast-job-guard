@@ -63,7 +63,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5-2025-08-07',
         messages: [
           {
             role: 'system',
@@ -94,8 +94,7 @@ serve(async (req) => {
             ]
           }
         ],
-        max_tokens: 1000,
-        temperature: 0.1
+        max_completion_tokens: 1000
       }),
     });
 
@@ -151,7 +150,7 @@ serve(async (req) => {
         confidence_score: analysis.confidence,
         fraud_indicators: analysis.fraudIndicators,
         recommendations: analysis.recommendations,
-        ai_model_version: 'gpt-4o'
+        ai_model_version: 'gpt-5-2025-08-07'
       });
 
     if (saveError) {
