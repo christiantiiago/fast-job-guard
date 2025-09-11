@@ -78,6 +78,7 @@ const AdminKYCEnhanced = () => {
   const fetchDocuments = async () => {
     setLoading(true);
     try {
+      // Primeiro, buscar os documentos KYC
       const { data: kycData, error: kycError } = await supabase
         .from('kyc_documents')
         .select('*')
@@ -85,26 +86,31 @@ const AdminKYCEnhanced = () => {
 
       if (kycError) throw kycError;
 
+      // Buscar análises de IA separadamente
       const { data: aiAnalyses, error: aiError } = await supabase
         .from('kyc_ai_analysis')
         .select('*');
 
       if (aiError) console.warn('Erro ao buscar análises de IA:', aiError);
 
+      // Buscar informações dos usuários separadamente
       const documentsWithUserInfo = await Promise.all(
         (kycData || []).map(async (doc) => {
+          // Buscar perfil do usuário
           const { data: profileData } = await supabase
             .from('profiles')
             .select('full_name, phone, kyc_status')
             .eq('user_id', doc.user_id)
             .single();
 
+          // Buscar role do usuário
           const { data: roleData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', doc.user_id)
             .single();
 
+          // Encontrar análises de IA para este documento
           const docAIAnalyses = aiAnalyses?.filter(ai => ai.document_id === doc.id) || [];
 
           return {
@@ -130,6 +136,7 @@ const AdminKYCEnhanced = () => {
     }
   };
 
+  // Filtrar documentos
   useEffect(() => {
     let filtered = documents;
 
@@ -165,26 +172,76 @@ const AdminKYCEnhanced = () => {
 
   const runAIAnalysis = async (documentId: string) => {
     setAnalysisLoading(documentId);
+    
+    // Desabilitar análise de IA temporariamente devido à quota da OpenAI excedida
     toast({
       title: "Análise de IA temporariamente indisponível",
       description: "A análise automática está desabilitada no momento. Faça a análise manual.",
       variant: "destructive",
     });
+    
     setAnalysisLoading(null);
+    return;
+
+    /* 
+    Código original comentado devido à quota da OpenAI excedida
+    
+    try {
+      const document = documents.find(d => d.id === documentId);
+      if (!document) return;
+
+      const { data, error } = await supabase.functions.invoke('analyze-document-ai', {
+        body: {
+          documentId: document.id,
+          documentType: document.document_type,
+          imageUrl: document.file_url
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Análise concluída",
+        description: "O documento foi analisado pela IA.",
+      });
+
+      // Recarregar documentos para ver a nova análise
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Erro na análise de IA:', error);
+      toast({
+        title: "Erro na análise",
+        description: "Não foi possível analisar o documento.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalysisLoading(null);
+    }
+    */
   };
 
   const approveDocument = async (docId: string) => {
     try {
+      console.log('Aprovando documento:', docId);
+      
       const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) throw new Error('Usuário não autenticado');
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
 
+      // Usar a nova função SQL que corrige o problema do enum
       const { data, error } = await supabase.rpc('approve_kyc_document_manual', {
         doc_id: docId,
         admin_id: currentUser.data.user.id,
         approval_notes: reviewNotes.trim() || null
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro SQL ao aprovar:', error);
+        throw error;
+      }
+
+      console.log('Documento aprovado com sucesso:', data);
 
       toast({
         title: "Documento aprovado",
@@ -195,6 +252,7 @@ const AdminKYCEnhanced = () => {
       setSelectedDocument(null);
       setReviewNotes('');
     } catch (error) {
+      console.error('Erro ao aprovar documento:', error);
       toast({
         title: "Erro",
         description: `Não foi possível aprovar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
@@ -214,16 +272,26 @@ const AdminKYCEnhanced = () => {
     }
 
     try {
+      console.log('Rejeitando documento:', docId);
+      
       const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) throw new Error('Usuário não autenticado');
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
 
+      // Usar a nova função SQL que corrige o problema do enum
       const { data, error } = await supabase.rpc('reject_kyc_document_manual', {
         doc_id: docId,
         admin_id: currentUser.data.user.id,
         rejection_reason: reviewNotes.trim()
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro SQL ao rejeitar:', error);
+        throw error;
+      }
+
+      console.log('Documento rejeitado com sucesso:', data);
 
       toast({
         title: "Documento rejeitado",
@@ -234,6 +302,7 @@ const AdminKYCEnhanced = () => {
       setSelectedDocument(null);
       setReviewNotes('');
     } catch (error) {
+      console.error('Erro ao rejeitar documento:', error);
       toast({
         title: "Erro",
         description: `Não foi possível rejeitar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
@@ -243,8 +312,15 @@ const AdminKYCEnhanced = () => {
   };
 
   const getStatusBadge = (doc: KYCDocument) => {
-    if (doc.is_verified) return <Badge className="bg-green-100 text-green-800 border-green-300">Aprovado</Badge>;
-    if (doc.notes) return <Badge variant="destructive">Rejeitado</Badge>;
+    if (doc.is_verified) {
+      return <Badge className="bg-green-100 text-green-800 border-green-300">Aprovado</Badge>;
+    }
+    
+    if (doc.notes) {
+      return <Badge variant="destructive">Rejeitado</Badge>;
+    }
+
+    // Verificar se tem análise de IA suspeita
     const hasAIAnalysis = doc.kyc_ai_analysis && doc.kyc_ai_analysis.length > 0;
     if (hasAIAnalysis) {
       const analysis = doc.kyc_ai_analysis[0];
@@ -252,11 +328,13 @@ const AdminKYCEnhanced = () => {
         return <Badge className="bg-red-100 text-red-800 border-red-300">Suspeito</Badge>;
       }
     }
+
     return <Badge variant="outline">Pendente</Badge>;
   };
 
   const getAIRecommendation = (doc: KYCDocument) => {
     if (!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0) return null;
+    
     const analysis = doc.kyc_ai_analysis[0];
     const confidence = Math.round(analysis.confidence_score * 100);
     
@@ -269,6 +347,7 @@ const AdminKYCEnhanced = () => {
             {confidence}% confiança
           </Badge>
         </div>
+        
         {analysis.fraud_indicators.length > 0 && (
           <Alert className="border-red-200">
             <AlertTriangle className="h-4 w-4" />
@@ -277,12 +356,15 @@ const AdminKYCEnhanced = () => {
             </AlertDescription>
           </Alert>
         )}
+        
         <p className="text-sm text-muted-foreground">{analysis.recommendations}</p>
       </div>
     );
   };
 
-  useEffect(() => { fetchDocuments(); }, []);
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
   if (loading) {
     return (
@@ -302,42 +384,82 @@ const AdminKYCEnhanced = () => {
     (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
   ).length;
 
+  // Função para análise de IA em massa - Desabilitada temporariamente
   const bulkAIAnalysis = async () => {
     toast({
       title: "Análise de IA indisponível",
       description: "A análise automática está temporariamente desabilitada. Faça análises manuais.",
       variant: "destructive",
     });
+    return;
   };
 
+  // Funções para ações em massa
   const bulkApproveDocuments = async () => {
     if (selectedDocuments.length === 0) return;
+
     setBulkActionLoading(true);
     try {
       const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) throw new Error('Usuário não autenticado');
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Usar a função SQL para cada documento
       for (const docId of selectedDocuments) {
         const { error } = await supabase.rpc('approve_kyc_document_manual', {
           doc_id: docId,
           admin_id: currentUser.data.user.id,
           approval_notes: 'Aprovação em massa'
         });
-        if (error) throw error;
+
+        if (error) {
+          console.error(`Erro ao aprovar documento ${docId}:`, error);
+          throw error;
+        }
       }
+
       await fetchDocuments();
-      toast({ title: "Documentos aprovados", description: `${selectedDocuments.length} documentos foram aprovados.` });
       setSelectedDocuments([]);
+      
+      toast({
+        title: "Documentos aprovados",
+        description: `${selectedDocuments.length} documentos foram aprovados.`,
+      });
     } catch (error) {
-      toast({ title: "Erro", description: `Erro ao aprovar documentos: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, variant: "destructive" });
-    } finally { setBulkActionLoading(false); }
+      console.error('Erro ao aprovar em massa:', error);
+      toast({
+        title: "Erro",
+        description: `Erro ao aprovar documentos em massa: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   const bulkRejectDocuments = async () => {
     if (selectedDocuments.length === 0) return;
+
     setBulkActionLoading(true);
-    try { for (const docId of selectedDocuments) await rejectDocument(docId); setSelectedDocuments([]); } 
-    catch (error) { toast({ title: "Erro", description: "Erro ao rejeitar documentos em massa.", variant: "destructive" }); } 
-    finally { setBulkActionLoading(false); }
+    try {
+      for (const docId of selectedDocuments) {
+        await rejectDocument(docId);
+      }
+      setSelectedDocuments([]);
+      toast({
+        title: "Documentos rejeitados",
+        description: `${selectedDocuments.length} documentos foram rejeitados.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao rejeitar documentos em massa.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   const exportDocuments = async () => {
@@ -357,20 +479,413 @@ const AdminKYCEnhanced = () => {
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      link.setAttribute('href', URL.createObjectURL(blob));
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
       link.setAttribute('download', `documentos-kyc-${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      toast({ title: "Exportação concluída", description: "Os documentos foram exportados com sucesso." });
+      toast({
+        title: "Exportação concluída",
+        description: "Os documentos foram exportados com sucesso.",
+      });
     } catch (error) {
-      toast({ title: "Erro na exportação", description: "Não foi possível exportar os documentos.", variant: "destructive" });
-    } finally { setExportLoading(false); }
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os documentos.",
+        variant: "destructive",
+      });
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   return (
     <AppLayout>
-      {/* TODO: Mantive toda a estrutura de UI existente, filtros, tabelas, cards e dialogs */}
-      {/* ... seu código de UI permanece exatamente como estava ... */}
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Gestão KYC Avançada</h1>
+            <p className="text-muted-foreground">
+              Gerencie documentos com análise de IA e ferramentas anti-fraude
+            </p>
+          </div>
+          <Button onClick={fetchDocuments} variant="outline">
+            Atualizar
+          </Button>
+        </div>
+
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pendentes</p>
+                  <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+                </div>
+                <Clock className="h-8 w-8 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Aprovados</p>
+                  <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Rejeitados</p>
+                  <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                </div>
+                <XCircle className="h-8 w-8 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Suspeitos</p>
+                  <p className="text-2xl font-bold text-red-800">{suspiciousCount}</p>
+                </div>
+                <Shield className="h-8 w-8 text-red-800" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Ações em massa e exportação */}
+        {selectedDocuments.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {selectedDocuments.length} documento(s) selecionado(s)
+                  </span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={() => bulkAIAnalysis()}
+                    disabled={true}
+                    variant="outline"
+                    className="border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                  >
+                    <Brain className="h-4 w-4 mr-1" />
+                    IA Indisponível
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => bulkApproveDocuments()}
+                    disabled={bulkActionLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-1" />
+                    Aprovar Selecionados
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => bulkRejectDocuments()}
+                    disabled={bulkActionLoading}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Rejeitar Selecionados
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedDocuments([])}
+                  >
+                    Limpar Seleção
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Filtros */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtros e Busca
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por usuário ou documento..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="pending">Pendentes</SelectItem>
+                  <SelectItem value="approved">Aprovados</SelectItem>
+                  <SelectItem value="rejected">Rejeitados</SelectItem>
+                  <SelectItem value="suspicious">Suspeitos</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipo de documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="rg">RG</SelectItem>
+                  <SelectItem value="cpf">CPF</SelectItem>
+                  <SelectItem value="selfie">Selfie</SelectItem>
+                  <SelectItem value="address_proof">Comprovante de Endereço</SelectItem>
+                  <SelectItem value="criminal_background">Antecedentes Criminais</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setTypeFilter('all');
+              }} variant="outline">
+                Limpar Filtros
+              </Button>
+            </div>
+            
+            <div className="flex gap-2 mt-4">
+              <Button 
+                onClick={() => exportDocuments()}
+                disabled={exportLoading}
+                variant="outline"
+              >
+                {exportLoading ? 'Exportando...' : 'Exportar CSV'}
+              </Button>
+              
+              {filteredDocuments.length > 0 && (
+                <Button
+                  onClick={() => {
+                    const allIds = filteredDocuments.map(d => d.id);
+                    setSelectedDocuments(
+                      selectedDocuments.length === allIds.length ? [] : allIds
+                    );
+                  }}
+                  variant="outline"
+                >
+                  {selectedDocuments.length === filteredDocuments.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lista de Documentos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Documentos ({filteredDocuments.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredDocuments.map((doc) => (
+                <div key={doc.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocuments.includes(doc.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedDocuments([...selectedDocuments, doc.id]);
+                          } else {
+                            setSelectedDocuments(selectedDocuments.filter(id => id !== doc.id));
+                          }
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{doc.profiles?.full_name || 'Nome não informado'}</span>
+                          <Badge variant="outline">{doc.user_roles?.role}</Badge>
+                          {getStatusBadge(doc)}
+                        </div>
+                      
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-4 w-4" />
+                            {doc.document_type.toUpperCase()}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={true}
+                        className="cursor-not-allowed opacity-50"
+                      >
+                        <Brain className="h-4 w-4" />
+                        IA Indisponível
+                      </Button>
+                      
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedDocument(doc)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Revisar
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Revisar Documento</DialogTitle>
+                            <DialogDescription>
+                              {doc.profiles?.full_name} - {doc.document_type.toUpperCase()}
+                            </DialogDescription>
+                          </DialogHeader>
+                          
+                          <div className="space-y-4">
+                            {/* Análise de IA */}
+                            {getAIRecommendation(doc)}
+                            
+                            {/* Documento */}
+                            <div className="space-y-2">
+                              <h4 className="font-medium">Documento</h4>
+                               <div className="relative bg-gray-50 border rounded-lg p-4">
+                                 <img
+                                   src={doc.file_url}
+                                   alt="Documento KYC"
+                                   className="max-w-full h-auto max-h-[400px] mx-auto rounded shadow-sm"
+                                   onError={(e) => {
+                                     console.error('Erro ao carregar imagem:', doc.file_url);
+                                     e.currentTarget.style.display = 'none';
+                                     const errorDiv = e.currentTarget.parentElement?.querySelector('.error-fallback');
+                                     if (errorDiv) {
+                                       (errorDiv as HTMLElement).style.display = 'block';
+                                     }
+                                   }}
+                                   onLoad={() => console.log('Imagem carregada:', doc.file_url)}
+                                 />
+                                 <div className="error-fallback hidden text-center p-8 text-red-600">
+                                   <AlertTriangle className="h-16 w-16 mx-auto mb-4" />
+                                   <p className="font-medium">Erro ao carregar imagem</p>
+                                   <p className="text-sm text-muted-foreground mt-2 break-all">URL: {doc.file_url}</p>
+                                   <Button
+                                     variant="outline"
+                                     className="mt-4"
+                                     onClick={() => window.open(doc.file_url, '_blank')}
+                                   >
+                                     <Eye className="h-4 w-4 mr-2" />
+                                     Abrir em nova aba
+                                   </Button>
+                                 </div>
+                                  <div className="absolute top-2 right-2 flex gap-2">
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => window.open(doc.file_url, '_blank')}
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Abrir original
+                                    </Button>
+                                  </div>
+                               </div>
+                            </div>
+                            
+                            {/* Notas existentes */}
+                            {doc.notes && (
+                              <div className="space-y-2">
+                                <h4 className="font-medium">Notas existentes</h4>
+                                <p className="text-sm bg-muted p-3 rounded">{doc.notes}</p>
+                              </div>
+                            )}
+                            
+                            {/* Ações */}
+                            {!doc.is_verified && (
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <h4 className="font-medium">Motivo da ação</h4>
+                                  <Textarea
+                                    placeholder="Descreva o motivo da aprovação ou rejeição..."
+                                    value={reviewNotes}
+                                    onChange={(e) => setReviewNotes(e.target.value)}
+                                  />
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => approveDocument(doc.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Aprovar
+                                  </Button>
+                                  <Button
+                                    onClick={() => rejectDocument(doc.id)}
+                                    variant="destructive"
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Rejeitar
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                  
+                  {/* Análise de IA resumida */}
+                  {doc.kyc_ai_analysis && doc.kyc_ai_analysis.length > 0 && (
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      {getAIRecommendation(doc)}
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {filteredDocuments.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum documento encontrado com os filtros aplicados.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </AppLayout>
   );
 };
