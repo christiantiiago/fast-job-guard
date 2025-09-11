@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { cn } from '@/lib/utils';
 import {
   Menu,
@@ -169,6 +170,11 @@ export function MobileHamburgerMenu() {
           </ScrollArea>
 
           <div className="border-t p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Notificações</span>
+              <NotificationCenter />
+            </div>
+            
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Tema</span>
               <ThemeToggle />

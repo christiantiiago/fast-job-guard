@@ -207,29 +207,46 @@ const AdminKYCEnhanced = () => {
 
   const approveDocument = async (docId: string) => {
     try {
-      const { error } = await supabase
+      console.log('Aprovando documento:', docId);
+      
+      const currentUser = await supabase.auth.getUser();
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { data, error } = await supabase
         .from('kyc_documents')
         .update({
           is_verified: true,
-          notes: 'Aprovado pelo administrador',
+          notes: reviewNotes.trim() || 'Aprovado pelo administrador',
           verified_at: new Date().toISOString(),
-          verified_by: (await supabase.auth.getUser()).data.user?.id
+          verified_by: currentUser.data.user.id
         })
-        .eq('id', docId);
+        .eq('id', docId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro SQL ao aprovar:', error);
+        throw error;
+      }
+
+      console.log('Documento aprovado com sucesso:', data);
 
       // Log da auditoria
-      await supabase
-        .from('kyc_admin_actions')
-        .insert({
-          document_id: docId,
-          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
-          action: 'approved',
-          previous_status: 'pending',
-          new_status: 'approved',
-          notes: 'Documento aprovado manualmente pelo administrador'
-        });
+      try {
+        await supabase
+          .from('kyc_admin_actions')
+          .insert({
+            document_id: docId,
+            admin_id: currentUser.data.user.id,
+            action: 'approved',
+            previous_status: 'pending',
+            new_status: 'approved',
+            notes: reviewNotes.trim() || 'Documento aprovado manualmente pelo administrador'
+          });
+      } catch (auditError) {
+        console.warn('Erro ao criar log de auditoria:', auditError);
+      }
 
       toast({
         title: "Documento aprovado",
@@ -238,11 +255,12 @@ const AdminKYCEnhanced = () => {
 
       await fetchDocuments();
       setSelectedDocument(null);
+      setReviewNotes('');
     } catch (error) {
       console.error('Erro ao aprovar documento:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível aprovar o documento.",
+        description: `Não foi possível aprovar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       });
     }
@@ -259,29 +277,46 @@ const AdminKYCEnhanced = () => {
     }
 
     try {
-      const { error } = await supabase
+      console.log('Rejeitando documento:', docId);
+      
+      const currentUser = await supabase.auth.getUser();
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { data, error } = await supabase
         .from('kyc_documents')
         .update({
           is_verified: false,
-          notes: reviewNotes,
-          verified_at: null,
-          verified_by: (await supabase.auth.getUser()).data.user?.id
+          notes: `REJEITADO: ${reviewNotes}`,
+          verified_at: new Date().toISOString(),
+          verified_by: currentUser.data.user.id
         })
-        .eq('id', docId);
+        .eq('id', docId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro SQL ao rejeitar:', error);
+        throw error;
+      }
+
+      console.log('Documento rejeitado com sucesso:', data);
 
       // Log da auditoria
-      await supabase
-        .from('kyc_admin_actions')
-        .insert({
-          document_id: docId,
-          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
-          action: 'rejected',
-          previous_status: 'pending',
-          new_status: 'rejected',
-          notes: reviewNotes
-        });
+      try {
+        await supabase
+          .from('kyc_admin_actions')
+          .insert({
+            document_id: docId,
+            admin_id: currentUser.data.user.id,
+            action: 'rejected',
+            previous_status: 'pending',
+            new_status: 'rejected',
+            notes: reviewNotes
+          });
+      } catch (auditError) {
+        console.warn('Erro ao criar log de auditoria:', auditError);
+      }
 
       toast({
         title: "Documento rejeitado",
@@ -295,7 +330,7 @@ const AdminKYCEnhanced = () => {
       console.error('Erro ao rejeitar documento:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível rejeitar o documento.",
+        description: `Não foi possível rejeitar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       });
     }
@@ -374,24 +409,85 @@ const AdminKYCEnhanced = () => {
     (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
   ).length;
 
+  // Função para análise de IA em massa
+  const bulkAIAnalysis = async () => {
+    if (selectedDocuments.length === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      const documentsToAnalyze = documents.filter(doc => 
+        selectedDocuments.includes(doc.id) && 
+        (!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0)
+      );
+
+      for (const doc of documentsToAnalyze) {
+        await runAIAnalysis(doc.id);
+      }
+
+      toast({
+        title: "Análises concluídas",
+        description: `${documentsToAnalyze.length} documentos foram analisados pela IA.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao analisar documentos em massa.",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   // Funções para ações em massa
   const bulkApproveDocuments = async () => {
     if (selectedDocuments.length === 0) return;
 
     setBulkActionLoading(true);
     try {
-      for (const docId of selectedDocuments) {
-        await approveDocument(docId);
+      const currentUser = await supabase.auth.getUser();
+      if (!currentUser.data.user) {
+        throw new Error('Usuário não autenticado');
       }
+
+      const { error } = await supabase
+        .from('kyc_documents')
+        .update({
+          is_verified: true,
+          notes: 'Aprovado em massa pelo administrador',
+          verified_at: new Date().toISOString(),
+          verified_by: currentUser.data.user.id
+        })
+        .in('id', selectedDocuments);
+
+      if (error) throw error;
+
+      // Log da auditoria em massa
+      const auditLogs = selectedDocuments.map(docId => ({
+        document_id: docId,
+        admin_id: currentUser.data.user!.id,
+        action: 'approved',
+        previous_status: 'pending',
+        new_status: 'approved',
+        notes: 'Aprovação em massa'
+      }));
+
+      await supabase
+        .from('kyc_admin_actions')
+        .insert(auditLogs);
+
+      await fetchDocuments();
       setSelectedDocuments([]);
+      
       toast({
         title: "Documentos aprovados",
         description: `${selectedDocuments.length} documentos foram aprovados.`,
       });
     } catch (error) {
+      console.error('Erro ao aprovar em massa:', error);
       toast({
         title: "Erro",
-        description: "Erro ao aprovar documentos em massa.",
+        description: `Erro ao aprovar documentos em massa: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive",
       });
     } finally {
@@ -539,7 +635,17 @@ const AdminKYCEnhanced = () => {
                     {selectedDocuments.length} documento(s) selecionado(s)
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    onClick={() => bulkAIAnalysis()}
+                    disabled={bulkActionLoading}
+                    variant="outline"
+                    className="border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700"
+                  >
+                    <Brain className="h-4 w-4 mr-1" />
+                    Analisar IA (Todos)
+                  </Button>
                   <Button
                     size="sm"
                     onClick={() => bulkApproveDocuments()}
