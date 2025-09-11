@@ -172,20 +172,6 @@ const AdminKYCEnhanced = () => {
 
   const runAIAnalysis = async (documentId: string) => {
     setAnalysisLoading(documentId);
-    
-    // Desabilitar análise de IA temporariamente devido à quota da OpenAI excedida
-    toast({
-      title: "Análise de IA temporariamente indisponível",
-      description: "A análise automática está desabilitada no momento. Faça a análise manual.",
-      variant: "destructive",
-    });
-    
-    setAnalysisLoading(null);
-    return;
-
-    /* 
-    Código original comentado devido à quota da OpenAI excedida
-    
     try {
       const document = documents.find(d => d.id === documentId);
       if (!document) return;
@@ -217,31 +203,33 @@ const AdminKYCEnhanced = () => {
     } finally {
       setAnalysisLoading(null);
     }
-    */
   };
 
   const approveDocument = async (docId: string) => {
     try {
-      console.log('Aprovando documento:', docId);
-      
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error('Usuário não autenticado');
-      }
+      const { error } = await supabase
+        .from('kyc_documents')
+        .update({
+          is_verified: true,
+          notes: 'Aprovado pelo administrador',
+          verified_at: new Date().toISOString(),
+          verified_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', docId);
 
-      // Usar a nova função SQL que corrige o problema do enum
-      const { data, error } = await supabase.rpc('approve_kyc_document_manual', {
-        doc_id: docId,
-        admin_id: currentUser.data.user.id,
-        approval_notes: reviewNotes.trim() || null
-      });
+      if (error) throw error;
 
-      if (error) {
-        console.error('Erro SQL ao aprovar:', error);
-        throw error;
-      }
-
-      console.log('Documento aprovado com sucesso:', data);
+      // Log da auditoria
+      await supabase
+        .from('kyc_admin_actions')
+        .insert({
+          document_id: docId,
+          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
+          action: 'approved',
+          previous_status: 'pending',
+          new_status: 'approved',
+          notes: 'Documento aprovado manualmente pelo administrador'
+        });
 
       toast({
         title: "Documento aprovado",
@@ -250,12 +238,11 @@ const AdminKYCEnhanced = () => {
 
       await fetchDocuments();
       setSelectedDocument(null);
-      setReviewNotes('');
     } catch (error) {
       console.error('Erro ao aprovar documento:', error);
       toast({
         title: "Erro",
-        description: `Não foi possível aprovar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        description: "Não foi possível aprovar o documento.",
         variant: "destructive",
       });
     }
@@ -272,26 +259,29 @@ const AdminKYCEnhanced = () => {
     }
 
     try {
-      console.log('Rejeitando documento:', docId);
-      
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error('Usuário não autenticado');
-      }
+      const { error } = await supabase
+        .from('kyc_documents')
+        .update({
+          is_verified: false,
+          notes: reviewNotes,
+          verified_at: null,
+          verified_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', docId);
 
-      // Usar a nova função SQL que corrige o problema do enum
-      const { data, error } = await supabase.rpc('reject_kyc_document_manual', {
-        doc_id: docId,
-        admin_id: currentUser.data.user.id,
-        rejection_reason: reviewNotes.trim()
-      });
+      if (error) throw error;
 
-      if (error) {
-        console.error('Erro SQL ao rejeitar:', error);
-        throw error;
-      }
-
-      console.log('Documento rejeitado com sucesso:', data);
+      // Log da auditoria
+      await supabase
+        .from('kyc_admin_actions')
+        .insert({
+          document_id: docId,
+          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
+          action: 'rejected',
+          previous_status: 'pending',
+          new_status: 'rejected',
+          notes: reviewNotes
+        });
 
       toast({
         title: "Documento rejeitado",
@@ -305,7 +295,7 @@ const AdminKYCEnhanced = () => {
       console.error('Erro ao rejeitar documento:', error);
       toast({
         title: "Erro",
-        description: `Não foi possível rejeitar o documento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        description: "Não foi possível rejeitar o documento.",
         variant: "destructive",
       });
     }
@@ -384,53 +374,24 @@ const AdminKYCEnhanced = () => {
     (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
   ).length;
 
-  // Função para análise de IA em massa - Desabilitada temporariamente
-  const bulkAIAnalysis = async () => {
-    toast({
-      title: "Análise de IA indisponível",
-      description: "A análise automática está temporariamente desabilitada. Faça análises manuais.",
-      variant: "destructive",
-    });
-    return;
-  };
-
   // Funções para ações em massa
   const bulkApproveDocuments = async () => {
     if (selectedDocuments.length === 0) return;
 
     setBulkActionLoading(true);
     try {
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error('Usuário não autenticado');
-      }
-
-      // Usar a função SQL para cada documento
       for (const docId of selectedDocuments) {
-        const { error } = await supabase.rpc('approve_kyc_document_manual', {
-          doc_id: docId,
-          admin_id: currentUser.data.user.id,
-          approval_notes: 'Aprovação em massa'
-        });
-
-        if (error) {
-          console.error(`Erro ao aprovar documento ${docId}:`, error);
-          throw error;
-        }
+        await approveDocument(docId);
       }
-
-      await fetchDocuments();
       setSelectedDocuments([]);
-      
       toast({
         title: "Documentos aprovados",
         description: `${selectedDocuments.length} documentos foram aprovados.`,
       });
     } catch (error) {
-      console.error('Erro ao aprovar em massa:', error);
       toast({
         title: "Erro",
-        description: `Erro ao aprovar documentos em massa: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        description: "Erro ao aprovar documentos em massa.",
         variant: "destructive",
       });
     } finally {
@@ -578,17 +539,7 @@ const AdminKYCEnhanced = () => {
                     {selectedDocuments.length} documento(s) selecionado(s)
                   </span>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    onClick={() => bulkAIAnalysis()}
-                    disabled={true}
-                    variant="outline"
-                    className="border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
-                  >
-                    <Brain className="h-4 w-4 mr-1" />
-                    IA Indisponível
-                  </Button>
+                <div className="flex gap-2">
                   <Button
                     size="sm"
                     onClick={() => bulkApproveDocuments()}
@@ -747,15 +698,21 @@ const AdminKYCEnhanced = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={true}
-                        className="cursor-not-allowed opacity-50"
-                      >
-                        <Brain className="h-4 w-4" />
-                        IA Indisponível
-                      </Button>
+                      {!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0 ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => runAIAnalysis(doc.id)}
+                          disabled={analysisLoading === doc.id}
+                        >
+                          {analysisLoading === doc.id ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                          ) : (
+                            <Zap className="h-4 w-4" />
+                          )}
+                          Analisar IA
+                        </Button>
+                      ) : null}
                       
                       <Dialog>
                         <DialogTrigger asChild>
@@ -811,16 +768,34 @@ const AdminKYCEnhanced = () => {
                                      Abrir em nova aba
                                    </Button>
                                  </div>
-                                  <div className="absolute top-2 right-2 flex gap-2">
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => window.open(doc.file_url, '_blank')}
-                                    >
-                                      <Eye className="h-4 w-4 mr-2" />
-                                      Abrir original
-                                    </Button>
-                                  </div>
+                                 <div className="absolute top-2 right-2 flex gap-2">
+                                   <Button
+                                     variant="secondary"
+                                     size="sm"
+                                     onClick={() => window.open(doc.file_url, '_blank')}
+                                   >
+                                     <Eye className="h-4 w-4 mr-2" />
+                                     Abrir original
+                                   </Button>
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => runAIAnalysis(doc.id)}
+                                     disabled={analysisLoading === doc.id}
+                                   >
+                                     {analysisLoading === doc.id ? (
+                                       <>
+                                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1"></div>
+                                         Analisando...
+                                       </>
+                                     ) : (
+                                       <>
+                                         <Brain className="h-3 w-3 mr-1" />
+                                         Analisar IA
+                                       </>
+                                     )}
+                                   </Button>
+                                 </div>
                                </div>
                             </div>
                             

@@ -84,6 +84,8 @@ const MobileHeader = ({
           <div className="flex items-center gap-1">
             <ChatHeaderButton />
             
+            <NotificationCenter />
+            
             {showSearch && (
               <Button
                 variant="ghost"

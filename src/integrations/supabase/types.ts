@@ -1914,10 +1914,6 @@ export type Database = {
             }
         Returns: string
       }
-      approve_kyc_document_manual: {
-        Args: { admin_id: string; approval_notes?: string; doc_id: string }
-        Returns: boolean
-      }
       auto_release_escrow: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2499,10 +2495,6 @@ export type Database = {
       postgis_wagyu_version: {
         Args: Record<PropertyKey, never>
         Returns: string
-      }
-      reject_kyc_document_manual: {
-        Args: { admin_id: string; doc_id: string; rejection_reason: string }
-        Returns: boolean
       }
       search_providers_optimized: {
         Args: {

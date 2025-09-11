@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -23,10 +23,10 @@ export const KYCGate = ({ children }: KYCGateProps) => {
   const { status, loading: kycLoading } = useKYCStatus();
   const location = useLocation();
 
-  const currentPath = location.pathname;
-
   // Verificar se a rota atual é permitida sem KYC
-  const isAllowedRoute = ALLOWED_ROUTES_WITHOUT_KYC.includes(currentPath);
+  const isAllowedRoute = ALLOWED_ROUTES_WITHOUT_KYC.some(route => 
+    location.pathname.startsWith(route)
+  );
 
   // Ainda carregando
   if (authLoading || kycLoading) {
@@ -47,13 +47,14 @@ export const KYCGate = ({ children }: KYCGateProps) => {
     return <>{children}</>;
   }
 
-  // BLOQUEIO RIGOROSO: Não permitir uso da plataforma se KYC não estiver aprovado
-  if (!status?.canUsePlatform) {
+  // BLOQUEIO RIGOROSO: Verificar se pode usar a plataforma
+  // Não permitir nenhuma ação se KYC não estiver aprovado
+  if (!status || !status.canUsePlatform) {
     return <Navigate to="/kyc/verify" replace />;
   }
 
   // Verificação adicional para prestadores: certidão criminal válida
-  if (userRole === 'provider' && status?.criminalBackgroundExpiry) {
+  if (userRole === 'provider' && status.criminalBackgroundExpiry) {
     const expiryDate = new Date(status.criminalBackgroundExpiry);
     if (expiryDate <= new Date()) {
       return <Navigate to="/kyc/verify" replace />;
