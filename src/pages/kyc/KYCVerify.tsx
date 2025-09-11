@@ -1,81 +1,66 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
-import { useAuth } from "@/hooks/useAuth";
-import { useKYCStatus } from "@/hooks/useKYCStatus";
-import { KYCProgress } from "@/components/kyc/KYCProgress";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertCircle,
-  Upload,
-  CheckCircle,
-  FileText,
-  Camera,
-  Home,
-  Receipt,
-} from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/hooks/useAuth';
+import { useKYCStatus } from '@/hooks/useKYCStatus';
+import { KYCProgress } from '@/components/kyc/KYCProgress';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle, Upload, CheckCircle, FileText, Camera, Home, Receipt } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const DOCUMENT_CONFIG = {
   rg: {
-    title: "RG",
-    description: "Registro Geral com foto",
+    title: 'RG',
+    description: 'Registro Geral com foto',
     icon: FileText,
-    instructions: "Foto clara do RG (frente e verso se necessário)",
-    acceptedFormats: "JPG, PNG ou PDF",
+    instructions: 'Foto clara do RG (frente e verso se necessário)',
+    acceptedFormats: 'JPG, PNG ou PDF'
   },
   cpf: {
-    title: "CPF",
-    description: "Cadastro de Pessoa Física",
+    title: 'CPF',
+    description: 'Cadastro de Pessoa Física',
     icon: FileText,
-    instructions: "Foto clara do CPF ou comprovante de inscrição",
-    acceptedFormats: "JPG, PNG ou PDF",
+    instructions: 'Foto clara do CPF ou comprovante de inscrição',
+    acceptedFormats: 'JPG, PNG ou PDF'
   },
   selfie: {
-    title: "Selfie com Documento",
-    description: "Prova de vida",
+    title: 'Selfie com Documento',
+    description: 'Prova de vida',
     icon: Camera,
-    instructions: "Foto sua segurando o documento de identidade",
-    acceptedFormats: "JPG ou PNG",
+    instructions: 'Foto sua segurando o documento de identidade',
+    acceptedFormats: 'JPG ou PNG'
   },
   address_proof: {
-    title: "Comprovante de Residência",
-    description: "Conta de luz, água ou telefone",
+    title: 'Comprovante de Residência',
+    description: 'Conta de luz, água ou telefone',
     icon: Home,
-    instructions: "Comprovante recente (até 3 meses) em seu nome",
-    acceptedFormats: "JPG, PNG ou PDF",
+    instructions: 'Comprovante recente (até 3 meses) em seu nome',
+    acceptedFormats: 'JPG, PNG ou PDF'
   },
   bank_info: {
-    title: "Dados Bancários",
-    description: "Informações para pagamentos",
+    title: 'Dados Bancários',
+    description: 'Informações para pagamentos',
     icon: Receipt,
-    instructions: "Comprovante de conta bancária ou dados PIX",
-    acceptedFormats: "JPG, PNG ou PDF",
+    instructions: 'Comprovante de conta bancária ou dados PIX',
+    acceptedFormats: 'JPG, PNG ou PDF'
   },
   criminal_background: {
-    title: "Certidão de Antecedentes",
-    description: "Certidão emitida pela Polícia Civil",
+    title: 'Certidão de Antecedentes',
+    description: 'Certidão emitida pela Polícia Civil',
     icon: Receipt,
-    instructions: "Certidão negativa de antecedentes criminais",
-    acceptedFormats: "PDF",
-  },
+    instructions: 'Certidão negativa de antecedentes criminais',
+    acceptedFormats: 'PDF'
+  }
 };
 
 export default function KYCVerify() {
   const { userRole } = useAuth();
   const { status, loading, refreshStatus } = useKYCStatus();
-  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
-  // 🔹 Sempre buscar status ao entrar na página
+  // Força atualização ao carregar
   useEffect(() => {
     refreshStatus();
   }, [refreshStatus]);
@@ -106,6 +91,12 @@ export default function KYCVerify() {
     );
   }
 
+  // Garante que isComplete reflete os documentos aprovados
+  const allApproved =
+    status.documents?.length > 0 &&
+    status.documents.every((doc) => doc.status === 'approved');
+  const isComplete = status.isComplete || allApproved;
+
   return (
     <AppLayout showKYCBanner={false}>
       <div className="container mx-auto px-4 py-8 space-y-6">
@@ -118,12 +109,10 @@ export default function KYCVerify() {
         </div>
 
         {/* Status Geral */}
-        {status.isComplete ? (
+        {isComplete ? (
           <Alert className="border-green-200 bg-green-50">
             <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800">
-              Verificação Completa! ✅
-            </AlertTitle>
+            <AlertTitle className="text-green-800">Verificação Completa! ✅</AlertTitle>
             <AlertDescription className="text-green-700">
               Sua identidade foi verificada com sucesso. Você tem acesso completo à plataforma.
             </AlertDescription>
@@ -133,9 +122,9 @@ export default function KYCVerify() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Verificação Pendente</AlertTitle>
             <AlertDescription>
-              {userRole === "provider"
-                ? "Como prestador, você precisa enviar documentos adicionais para começar a trabalhar."
-                : "Complete sua verificação para usar todos os recursos da plataforma."}
+              {userRole === 'provider'
+                ? 'Como prestador, você precisa enviar documentos adicionais para começar a trabalhar.'
+                : 'Complete sua verificação para usar todos os recursos da plataforma.'}
             </AlertDescription>
           </Alert>
         )}
@@ -145,33 +134,30 @@ export default function KYCVerify() {
 
         {/* Cards de Upload */}
         <div className="grid gap-4 md:grid-cols-2">
-          {(status.requiredDocs || []).map((docType) => {
+          {status.documents.map((doc) => {
+            const docType = doc.document_type;
             const config = DOCUMENT_CONFIG[docType as keyof typeof DOCUMENT_CONFIG];
-            const isCompleted = status.completedDocs.includes(docType);
-            const isRejected = status.rejectedDocs.includes(docType);
-            const isPending =
-              !isCompleted &&
-              !isRejected &&
-              status.pendingDocs.includes(docType);
+            if (!config) return null;
 
+            const isCompleted = doc.status === 'approved';
+            const isRejected = doc.status === 'rejected';
+            const isPending = doc.status === 'pending';
             const Icon = config.icon;
 
             return (
               <Card
                 key={docType}
                 className={`
-                  ${isCompleted ? "border-green-200 bg-green-50" : ""}
-                  ${isRejected ? "border-red-200 bg-red-50" : ""}
-                  ${isPending ? "border-yellow-200 bg-yellow-50" : ""}
+                  ${isCompleted ? 'border-green-200 bg-green-50' : ''}
+                  ${isRejected ? 'border-red-200 bg-red-50' : ''}
+                  ${isPending ? 'border-yellow-200 bg-yellow-50' : ''}
                 `}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Icon className="h-5 w-5" />
                     {config.title}
-                    {isCompleted && (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                    )}
+                    {isCompleted && <CheckCircle className="h-4 w-4 text-green-600" />}
                   </CardTitle>
                   <CardDescription>{config.description}</CardDescription>
                 </CardHeader>
@@ -188,32 +174,26 @@ export default function KYCVerify() {
                   <div className="flex items-center justify-between">
                     <div>
                       {isCompleted && (
-                        <Badge className="bg-green-100 text-green-800">
-                          Aprovado
-                        </Badge>
+                        <Badge className="bg-green-100 text-green-800">Aprovado</Badge>
                       )}
-                      {isRejected && (
-                        <Badge variant="destructive">Rejeitado</Badge>
-                      )}
-                      {isPending && (
-                        <Badge variant="secondary">Em análise</Badge>
-                      )}
+                      {isRejected && <Badge variant="destructive">Rejeitado</Badge>}
+                      {isPending && <Badge variant="secondary">Em análise</Badge>}
                     </div>
 
                     <Button
                       asChild
-                      variant={isCompleted ? "outline" : "default"}
+                      variant={isCompleted ? 'outline' : 'default'}
                       size="sm"
                     >
                       <Link to={`/kyc/upload/${docType}`}>
                         <Upload className="h-4 w-4 mr-2" />
                         {isCompleted
-                          ? "Atualizar"
+                          ? 'Atualizar'
                           : isRejected
-                          ? "Reenviar"
+                          ? 'Reenviar'
                           : isPending
-                          ? "Substituir"
-                          : "Enviar"}
+                          ? 'Substituir'
+                          : 'Enviar'}
                       </Link>
                     </Button>
                   </div>
@@ -232,22 +212,12 @@ export default function KYCVerify() {
             </Link>
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={async () => {
-              setRefreshing(true);
-              await refreshStatus();
-              setRefreshing(false);
-            }}
-            disabled={refreshing}
-          >
-            {refreshing ? "Atualizando..." : "Atualizar Status"}
+          <Button variant="outline" onClick={refreshStatus}>
+            Atualizar Status
           </Button>
 
-          {status.isComplete && (
-            <Button onClick={() => navigate("/dashboard")}>
-              Ir para Dashboard
-            </Button>
+          {isComplete && (
+            <Button onClick={() => navigate('/dashboard')}>Ir para Dashboard</Button>
           )}
         </div>
 
@@ -258,8 +228,8 @@ export default function KYCVerify() {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Se você está tendo problemas com seus documentos ou tem dúvidas
-              sobre o processo de verificação:
+              Se você está tendo problemas com seus documentos ou tem dúvidas sobre o processo de
+              verificação:
             </p>
             <ul className="text-sm text-muted-foreground space-y-1 ml-4">
               <li>• Certifique-se de que as fotos estão nítidas e legíveis</li>
