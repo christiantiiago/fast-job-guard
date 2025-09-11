@@ -172,6 +172,20 @@ const AdminKYCEnhanced = () => {
 
   const runAIAnalysis = async (documentId: string) => {
     setAnalysisLoading(documentId);
+    
+    // Desabilitar análise de IA temporariamente devido à quota da OpenAI excedida
+    toast({
+      title: "Análise de IA temporariamente indisponível",
+      description: "A análise automática está desabilitada no momento. Faça a análise manual.",
+      variant: "destructive",
+    });
+    
+    setAnalysisLoading(null);
+    return;
+
+    /* 
+    Código original comentado devido à quota da OpenAI excedida
+    
     try {
       const document = documents.find(d => d.id === documentId);
       if (!document) return;
@@ -203,6 +217,7 @@ const AdminKYCEnhanced = () => {
     } finally {
       setAnalysisLoading(null);
     }
+    */
   };
 
   const approveDocument = async (docId: string) => {
@@ -214,16 +229,12 @@ const AdminKYCEnhanced = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .update({
-          is_verified: true,
-          notes: reviewNotes.trim() || 'Aprovado pelo administrador',
-          verified_at: new Date().toISOString(),
-          verified_by: currentUser.data.user.id
-        })
-        .eq('id', docId)
-        .select();
+      // Usar a nova função SQL que corrige o problema do enum
+      const { data, error } = await supabase.rpc('approve_kyc_document_manual', {
+        doc_id: docId,
+        admin_id: currentUser.data.user.id,
+        approval_notes: reviewNotes.trim() || null
+      });
 
       if (error) {
         console.error('Erro SQL ao aprovar:', error);
@@ -231,22 +242,6 @@ const AdminKYCEnhanced = () => {
       }
 
       console.log('Documento aprovado com sucesso:', data);
-
-      // Log da auditoria
-      try {
-        await supabase
-          .from('kyc_admin_actions')
-          .insert({
-            document_id: docId,
-            admin_id: currentUser.data.user.id,
-            action: 'approved',
-            previous_status: 'pending',
-            new_status: 'approved',
-            notes: reviewNotes.trim() || 'Documento aprovado manualmente pelo administrador'
-          });
-      } catch (auditError) {
-        console.warn('Erro ao criar log de auditoria:', auditError);
-      }
 
       toast({
         title: "Documento aprovado",
@@ -284,16 +279,12 @@ const AdminKYCEnhanced = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      const { data, error } = await supabase
-        .from('kyc_documents')
-        .update({
-          is_verified: false,
-          notes: `REJEITADO: ${reviewNotes}`,
-          verified_at: new Date().toISOString(),
-          verified_by: currentUser.data.user.id
-        })
-        .eq('id', docId)
-        .select();
+      // Usar a nova função SQL que corrige o problema do enum
+      const { data, error } = await supabase.rpc('reject_kyc_document_manual', {
+        doc_id: docId,
+        admin_id: currentUser.data.user.id,
+        rejection_reason: reviewNotes.trim()
+      });
 
       if (error) {
         console.error('Erro SQL ao rejeitar:', error);
@@ -301,22 +292,6 @@ const AdminKYCEnhanced = () => {
       }
 
       console.log('Documento rejeitado com sucesso:', data);
-
-      // Log da auditoria
-      try {
-        await supabase
-          .from('kyc_admin_actions')
-          .insert({
-            document_id: docId,
-            admin_id: currentUser.data.user.id,
-            action: 'rejected',
-            previous_status: 'pending',
-            new_status: 'rejected',
-            notes: reviewNotes
-          });
-      } catch (auditError) {
-        console.warn('Erro ao criar log de auditoria:', auditError);
-      }
 
       toast({
         title: "Documento rejeitado",
@@ -409,34 +384,14 @@ const AdminKYCEnhanced = () => {
     (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
   ).length;
 
-  // Função para análise de IA em massa
+  // Função para análise de IA em massa - Desabilitada temporariamente
   const bulkAIAnalysis = async () => {
-    if (selectedDocuments.length === 0) return;
-
-    setBulkActionLoading(true);
-    try {
-      const documentsToAnalyze = documents.filter(doc => 
-        selectedDocuments.includes(doc.id) && 
-        (!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0)
-      );
-
-      for (const doc of documentsToAnalyze) {
-        await runAIAnalysis(doc.id);
-      }
-
-      toast({
-        title: "Análises concluídas",
-        description: `${documentsToAnalyze.length} documentos foram analisados pela IA.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao analisar documentos em massa.",
-        variant: "destructive",
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
+    toast({
+      title: "Análise de IA indisponível",
+      description: "A análise automática está temporariamente desabilitada. Faça análises manuais.",
+      variant: "destructive",
+    });
+    return;
   };
 
   // Funções para ações em massa
@@ -450,31 +405,19 @@ const AdminKYCEnhanced = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({
-          is_verified: true,
-          notes: 'Aprovado em massa pelo administrador',
-          verified_at: new Date().toISOString(),
-          verified_by: currentUser.data.user.id
-        })
-        .in('id', selectedDocuments);
+      // Usar a função SQL para cada documento
+      for (const docId of selectedDocuments) {
+        const { error } = await supabase.rpc('approve_kyc_document_manual', {
+          doc_id: docId,
+          admin_id: currentUser.data.user.id,
+          approval_notes: 'Aprovação em massa'
+        });
 
-      if (error) throw error;
-
-      // Log da auditoria em massa
-      const auditLogs = selectedDocuments.map(docId => ({
-        document_id: docId,
-        admin_id: currentUser.data.user!.id,
-        action: 'approved',
-        previous_status: 'pending',
-        new_status: 'approved',
-        notes: 'Aprovação em massa'
-      }));
-
-      await supabase
-        .from('kyc_admin_actions')
-        .insert(auditLogs);
+        if (error) {
+          console.error(`Erro ao aprovar documento ${docId}:`, error);
+          throw error;
+        }
+      }
 
       await fetchDocuments();
       setSelectedDocuments([]);
@@ -639,12 +582,12 @@ const AdminKYCEnhanced = () => {
                   <Button
                     size="sm"
                     onClick={() => bulkAIAnalysis()}
-                    disabled={bulkActionLoading}
+                    disabled={true}
                     variant="outline"
-                    className="border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700"
+                    className="border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
                   >
                     <Brain className="h-4 w-4 mr-1" />
-                    Analisar IA (Todos)
+                    IA Indisponível
                   </Button>
                   <Button
                     size="sm"
@@ -804,21 +747,15 @@ const AdminKYCEnhanced = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0 ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => runAIAnalysis(doc.id)}
-                          disabled={analysisLoading === doc.id}
-                        >
-                          {analysisLoading === doc.id ? (
-                            <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                          ) : (
-                            <Zap className="h-4 w-4" />
-                          )}
-                          Analisar IA
-                        </Button>
-                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={true}
+                        className="cursor-not-allowed opacity-50"
+                      >
+                        <Brain className="h-4 w-4" />
+                        IA Indisponível
+                      </Button>
                       
                       <Dialog>
                         <DialogTrigger asChild>
@@ -874,34 +811,16 @@ const AdminKYCEnhanced = () => {
                                      Abrir em nova aba
                                    </Button>
                                  </div>
-                                 <div className="absolute top-2 right-2 flex gap-2">
-                                   <Button
-                                     variant="secondary"
-                                     size="sm"
-                                     onClick={() => window.open(doc.file_url, '_blank')}
-                                   >
-                                     <Eye className="h-4 w-4 mr-2" />
-                                     Abrir original
-                                   </Button>
-                                   <Button
-                                     variant="outline"
-                                     size="sm"
-                                     onClick={() => runAIAnalysis(doc.id)}
-                                     disabled={analysisLoading === doc.id}
-                                   >
-                                     {analysisLoading === doc.id ? (
-                                       <>
-                                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1"></div>
-                                         Analisando...
-                                       </>
-                                     ) : (
-                                       <>
-                                         <Brain className="h-3 w-3 mr-1" />
-                                         Analisar IA
-                                       </>
-                                     )}
-                                   </Button>
-                                 </div>
+                                  <div className="absolute top-2 right-2 flex gap-2">
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => window.open(doc.file_url, '_blank')}
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      Abrir original
+                                    </Button>
+                                  </div>
                                </div>
                             </div>
                             
