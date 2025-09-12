@@ -48,8 +48,9 @@ export const KYCGate = ({ children }: KYCGateProps) => {
   }
 
   // BLOQUEIO RIGOROSO: Verificar se pode usar a plataforma
-  // Não permitir nenhuma ação se KYC não estiver aprovado
-  if (!status || !status.canUsePlatform) {
+  // Não permitir nenhuma ação se KYC não estiver aprovado ou status for inadequado
+  if (!status || !status.canUsePlatform || 
+      ['rejected', 'bloqueado', 'suspeito'].includes(status.kyc_status)) {
     return <Navigate to="/kyc/verify" replace />;
   }
 

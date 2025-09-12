@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { cn } from '@/lib/utils';
 import {
   Menu,
@@ -27,7 +28,8 @@ import {
   TrendingUp,
   CreditCard,
   UserCheck,
-  Crown
+  Crown,
+  Bell
 } from 'lucide-react';
 
 export function MobileHamburgerMenu() {
@@ -169,6 +171,14 @@ export function MobileHamburgerMenu() {
           </ScrollArea>
 
           <div className="border-t p-4 space-y-4">
+            {/* Notificações */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Notificações</span>
+              <NotificationCenter />
+            </div>
+            
+            <Separator />
+            
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Tema</span>
               <ThemeToggle />

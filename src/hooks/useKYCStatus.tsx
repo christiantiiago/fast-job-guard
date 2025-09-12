@@ -93,11 +93,18 @@ export const useKYCStatus = () => {
         completedDocs.includes(doc as any)
       );
 
-      // Verificar se pode usar a plataforma (KYC completo + certidão válida para prestadores)
-      let canUsePlatform = isComplete;
-      if (userRole === 'provider' && profile?.criminal_background_expires_at) {
-        const expiryDate = new Date(profile.criminal_background_expires_at);
-        canUsePlatform = isComplete && expiryDate > new Date();
+      // Verificar se pode usar a plataforma (KYC completo + status aprovado + certidão válida para prestadores)
+      let canUsePlatform = false;
+      
+      // Primeiro verificar se o status permite usar a plataforma
+      if (profile?.kyc_status === 'approved' && isComplete) {
+        canUsePlatform = true;
+        
+        // Para prestadores, verificar também a certidão criminal
+        if (userRole === 'provider' && profile?.criminal_background_expires_at) {
+          const expiryDate = new Date(profile.criminal_background_expires_at);
+          canUsePlatform = expiryDate > new Date();
+        }
       }
 
       // Calcular progresso

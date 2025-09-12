@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 import { MobileHamburgerMenu } from "./MobileHamburgerMenu";
 import { ChatHeaderButton } from "./ChatHeaderButton";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
-import { useRealTimeNotifications } from "@/hooks/useRealTimeNotifications";
 
 interface MobileHeaderProps {
   title?: string;
@@ -39,7 +37,6 @@ const MobileHeader = ({
   children,
   transparent = false
 }: MobileHeaderProps) => {
-  const { unreadCount } = useRealTimeNotifications();
   
   return (
     <header className={cn(
@@ -83,8 +80,6 @@ const MobileHeader = ({
           {/* Right side */}
           <div className="flex items-center gap-1">
             <ChatHeaderButton />
-            
-            <NotificationCenter />
             
             {showSearch && (
               <Button

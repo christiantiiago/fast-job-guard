@@ -59,26 +59,26 @@ export const NotificationCenter = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="relative">
       <Button 
         variant="ghost" 
         size="icon" 
-        className="relative"
+        className="relative h-8 w-8"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <Badge 
             variant="destructive" 
-            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-xs"
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </Badge>
         )}
       </Button>
 
       {isOpen && (
-        <div className="absolute top-12 right-0 w-80 max-h-96 overflow-hidden">
+        <div className="absolute top-10 right-0 w-80 max-h-96 overflow-hidden z-50">
           <Card className="border shadow-lg">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">

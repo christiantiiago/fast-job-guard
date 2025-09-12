@@ -3,7 +3,7 @@ import { useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import {
   Home, 
@@ -82,15 +82,14 @@ export const Sidebar = () => {
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card border-r border-border px-6 pb-4">
-        {/* Logo and Notifications */}
-        <div className="flex h-16 shrink-0 items-center justify-between">
+        {/* Logo */}
+        <div className="flex h-16 shrink-0 items-center">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 primary-gradient rounded-lg flex items-center justify-center">
               <Briefcase className="h-4 w-4 text-white" />
             </div>
             <span className="text-lg font-bold text-foreground">Job Fast</span>
           </div>
-          <NotificationCenter />
         </div>
 
       {/* User Profile */}
