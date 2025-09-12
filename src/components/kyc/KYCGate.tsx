@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { Navigate, useLocation } from 'react-router-dom';
+import { KYCBlockedMessage } from './KYCBlockedMessage';
 
 interface KYCGateProps {
   children: ReactNode;
@@ -48,9 +49,13 @@ export const KYCGate = ({ children }: KYCGateProps) => {
   }
 
   // BLOQUEIO RIGOROSO: Verificar se pode usar a plataforma
+  // Usuários bloqueados, suspeitos ou rejeitados são redirecionados para tela específica
+  if (status && ['bloqueado', 'suspeito'].includes(status.kyc_status)) {
+    return <KYCBlockedMessage />;
+  }
+
   // Não permitir nenhuma ação se KYC não estiver aprovado ou status for inadequado
-  if (!status || !status.canUsePlatform || 
-      ['rejected', 'bloqueado', 'suspeito'].includes(status.kyc_status)) {
+  if (!status || !status.canUsePlatform || status.kyc_status === 'rejected') {
     return <Navigate to="/kyc/verify" replace />;
   }
 

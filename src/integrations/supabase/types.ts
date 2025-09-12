@@ -1915,7 +1915,11 @@ export type Database = {
         Returns: string
       }
       approve_kyc_document_manual: {
-        Args: { admin_id: string; approval_notes?: string; doc_id: string }
+        Args: {
+          admin_user_id: string
+          approval_notes?: string
+          document_id: string
+        }
         Returns: boolean
       }
       auto_release_escrow: {
@@ -2501,7 +2505,11 @@ export type Database = {
         Returns: string
       }
       reject_kyc_document_manual: {
-        Args: { admin_id: string; doc_id: string; rejection_reason: string }
+        Args: {
+          admin_user_id: string
+          document_id: string
+          rejection_reason: string
+        }
         Returns: boolean
       }
       search_providers_optimized: {

@@ -82,11 +82,7 @@ export default function JobNew() {
     return (
       <AppLayout showKYCBanner={false}>
         <div className="min-h-screen flex items-center justify-center p-4">
-          <KYCBlockedMessage 
-            status={kycStatus} 
-            userRole={userRole} 
-            action="job_creation" 
-          />
+          <KYCBlockedMessage />
         </div>
       </AppLayout>
     );

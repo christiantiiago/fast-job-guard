@@ -1,134 +1,105 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useToast } from '@/components/ui/use-toast';
-import { useBackgroundJobProcessor } from '@/hooks/useBackgroundJobProcessor';
+import { useToast } from '@/hooks/use-toast';
 import { 
   CheckCircle, 
   XCircle, 
   Clock, 
-  Search, 
-  Filter,
-  Eye,
+  FileText, 
+  User, 
   AlertTriangle,
-  Shield,
-  FileText,
-  User,
-  Calendar,
-  Brain,
-  Zap
+  Search,
+  Eye,
+  UserX
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface KYCDocument {
   id: string;
   user_id: string;
   document_type: string;
   file_url: string;
-  file_name: string | null;
   is_verified: boolean;
-  notes: string | null;
   created_at: string;
-  verified_at?: string | null;
-  verified_by?: string | null;
-  profiles: {
-    full_name: string | null;
-    phone: string | null;
+  verified_at?: string;
+  verified_by?: string;
+  notes?: string;
+  file_name?: string;
+  user_profile?: {
+    full_name: string;
+    document_number: string;
     kyc_status: string;
   } | null;
-  user_roles: {
-    role: string;
-  } | null;
-  kyc_ai_analysis?: {
-    id: string;
-    confidence_score: number;
-    fraud_indicators: string[];
-    recommendations: string;
-    analysis_result: any;
-    processed_at: string;
-  }[];
 }
 
-const AdminKYCEnhanced = () => {
+const DOCUMENT_TYPE_LABELS = {
+  rg: 'RG',
+  cpf: 'CPF', 
+  selfie: 'Selfie com Documento',
+  address_proof: 'Comprovante de Residência',
+  bank_info: 'Dados Bancários',
+  criminal_background: 'Certidão de Antecedentes'
+};
+
+const KYC_STATUS_LABELS = {
+  incomplete: 'Incompleto',
+  em_analise: 'Em Análise',
+  approved: 'Aprovado',
+  rejected: 'Rejeitado',
+  bloqueado: 'Bloqueado',
+  suspeito: 'Suspeito'
+};
+
+export default function KYCEnhanced() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [documents, setDocuments] = useState<KYCDocument[]>([]);
-  const [filteredDocuments, setFilteredDocuments] = useState<KYCDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDocument, setSelectedDocument] = useState<KYCDocument | null>(null);
-  const [reviewNotes, setReviewNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [analysisLoading, setAnalysisLoading] = useState<string | null>(null);
-  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
-  const [exportLoading, setExportLoading] = useState(false);
-  
-  // Ativar processamento automático de jobs em background
-  useBackgroundJobProcessor();
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchDocuments = async () => {
-    setLoading(true);
     try {
-      // Primeiro, buscar os documentos KYC
-      const { data: kycData, error: kycError } = await supabase
+      setLoading(true);
+      
+      const { data, error } = await supabase
         .from('kyc_documents')
-        .select('*')
+        .select(`
+          *,
+          user_profile:profiles!kyc_documents_user_id_fkey (
+            full_name,
+            document_number,
+            kyc_status
+          )
+        `)
         .order('created_at', { ascending: false });
 
-      if (kycError) throw kycError;
-
-      // Buscar análises de IA separadamente
-      const { data: aiAnalyses, error: aiError } = await supabase
-        .from('kyc_ai_analysis')
-        .select('*');
-
-      if (aiError) console.warn('Erro ao buscar análises de IA:', aiError);
-
-      // Buscar informações dos usuários separadamente
-      const documentsWithUserInfo = await Promise.all(
-        (kycData || []).map(async (doc) => {
-          // Buscar perfil do usuário
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, phone, kyc_status')
-            .eq('user_id', doc.user_id)
-            .single();
-
-          // Buscar role do usuário
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', doc.user_id)
-            .single();
-
-          // Encontrar análises de IA para este documento
-          const docAIAnalyses = aiAnalyses?.filter(ai => ai.document_id === doc.id) || [];
-
-          return {
-            ...doc,
-            profiles: profileData,
-            user_roles: roleData,
-            kyc_ai_analysis: docAIAnalyses
-          };
-        })
-      );
-
-      setDocuments(documentsWithUserInfo as any);
-      setFilteredDocuments(documentsWithUserInfo as any);
+      if (error) throw error;
+      
+      setDocuments((data as any[])?.map(doc => ({
+        ...doc,
+        user_profile: doc.user_profile || null
+      })) || []);
     } catch (error) {
       console.error('Erro ao buscar documentos:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar os documentos.",
+        title: "Erro ao carregar documentos",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
     } finally {
@@ -136,733 +107,397 @@ const AdminKYCEnhanced = () => {
     }
   };
 
-  // Filtrar documentos
-  useEffect(() => {
-    let filtered = documents;
-
-    if (searchTerm) {
-      filtered = filtered.filter(doc => 
-        doc.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.file_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.document_type.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (statusFilter !== 'all') {
-      if (statusFilter === 'pending') {
-        filtered = filtered.filter(doc => !doc.is_verified && !doc.notes);
-      } else if (statusFilter === 'approved') {
-        filtered = filtered.filter(doc => doc.is_verified);
-      } else if (statusFilter === 'rejected') {
-        filtered = filtered.filter(doc => !doc.is_verified && doc.notes);
-      } else if (statusFilter === 'suspicious') {
-        filtered = filtered.filter(doc => 
-          doc.kyc_ai_analysis && doc.kyc_ai_analysis.length > 0 && 
-          (doc.kyc_ai_analysis[0].confidence_score < 0.3 || doc.kyc_ai_analysis[0].fraud_indicators.length > 0)
-        );
-      }
-    }
-
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(doc => doc.document_type === typeFilter);
-    }
-
-    setFilteredDocuments(filtered);
-  }, [documents, searchTerm, statusFilter, typeFilter]);
-
-  const runAIAnalysis = async (documentId: string) => {
-    setAnalysisLoading(documentId);
+  const approveDocument = async (documentId: string, notes?: string) => {
+    if (!user?.id) return;
+    
     try {
-      const document = documents.find(d => d.id === documentId);
-      if (!document) return;
-
-      const { data, error } = await supabase.functions.invoke('analyze-document-ai', {
-        body: {
-          documentId: document.id,
-          documentType: document.document_type,
-          imageUrl: document.file_url
-        }
+      setActionLoading(true);
+      
+      const { error } = await supabase.rpc('approve_kyc_document_manual', {
+        document_id: documentId,
+        admin_user_id: user.id,
+        approval_notes: notes || null
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Análise concluída",
-        description: "O documento foi analisado pela IA.",
-      });
-
-      // Recarregar documentos para ver a nova análise
-      await fetchDocuments();
-    } catch (error) {
-      console.error('Erro na análise de IA:', error);
-      toast({
-        title: "Erro na análise",
-        description: "Não foi possível analisar o documento.",
-        variant: "destructive",
-      });
-    } finally {
-      setAnalysisLoading(null);
-    }
-  };
-
-  const approveDocument = async (docId: string) => {
-    try {
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({
-          is_verified: true,
-          notes: 'Aprovado pelo administrador',
-          verified_at: new Date().toISOString(),
-          verified_by: (await supabase.auth.getUser()).data.user?.id
-        })
-        .eq('id', docId);
-
-      if (error) throw error;
-
-      // Log da auditoria
-      await supabase
-        .from('kyc_admin_actions')
-        .insert({
-          document_id: docId,
-          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
-          action: 'approved',
-          previous_status: 'pending',
-          new_status: 'approved',
-          notes: 'Documento aprovado manualmente pelo administrador'
-        });
-
+      
       toast({
         title: "Documento aprovado",
         description: "O documento foi aprovado com sucesso.",
       });
-
-      await fetchDocuments();
+      
       setSelectedDocument(null);
+      setApprovalNotes('');
+      await fetchDocuments();
     } catch (error) {
       console.error('Erro ao aprovar documento:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível aprovar o documento.",
+        title: "Erro ao aprovar documento",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const rejectDocument = async (docId: string) => {
-    if (!reviewNotes.trim()) {
-      toast({
-        title: "Motivo obrigatório",
-        description: "Por favor, informe o motivo da rejeição.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const rejectDocument = async (documentId: string, reason: string) => {
+    if (!user?.id || !reason.trim()) return;
+    
     try {
-      const { error } = await supabase
-        .from('kyc_documents')
-        .update({
-          is_verified: false,
-          notes: reviewNotes,
-          verified_at: null,
-          verified_by: (await supabase.auth.getUser()).data.user?.id
-        })
-        .eq('id', docId);
+      setActionLoading(true);
+      
+      const { error } = await supabase.rpc('reject_kyc_document_manual', {
+        document_id: documentId,
+        admin_user_id: user.id,
+        rejection_reason: reason
+      });
 
       if (error) throw error;
-
-      // Log da auditoria
-      await supabase
-        .from('kyc_admin_actions')
-        .insert({
-          document_id: docId,
-          admin_id: (await supabase.auth.getUser()).data.user?.id || '',
-          action: 'rejected',
-          previous_status: 'pending',
-          new_status: 'rejected',
-          notes: reviewNotes
-        });
-
+      
       toast({
         title: "Documento rejeitado",
-        description: "O documento foi rejeitado.",
+        description: "O documento foi rejeitado. O usuário pode reenviar.",
       });
-
-      await fetchDocuments();
+      
       setSelectedDocument(null);
-      setReviewNotes('');
+      setRejectionReason('');
+      await fetchDocuments();
     } catch (error) {
       console.error('Erro ao rejeitar documento:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível rejeitar o documento.",
+        title: "Erro ao rejeitar documento",
+        description: "Tente novamente em alguns instantes.",
         variant: "destructive",
       });
+    } finally {
+      setActionLoading(false);
     }
   };
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = !searchTerm || 
+      doc.user_profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.user_profile?.document_number?.includes(searchTerm) ||
+      DOCUMENT_TYPE_LABELS[doc.document_type as keyof typeof DOCUMENT_TYPE_LABELS]?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'pending' && !doc.is_verified && !doc.notes) ||
+      (statusFilter === 'approved' && doc.is_verified) ||
+      (statusFilter === 'rejected' && !doc.is_verified && doc.notes);
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusBadge = (doc: KYCDocument) => {
     if (doc.is_verified) {
-      return <Badge className="bg-green-100 text-green-800 border-green-300">Aprovado</Badge>;
-    }
-    
-    if (doc.notes) {
+      return <Badge className="bg-green-100 text-green-800">Aprovado</Badge>;
+    } else if (doc.notes) {
       return <Badge variant="destructive">Rejeitado</Badge>;
+    } else {
+      return <Badge variant="secondary">Pendente</Badge>;
     }
-
-    // Verificar se tem análise de IA suspeita
-    const hasAIAnalysis = doc.kyc_ai_analysis && doc.kyc_ai_analysis.length > 0;
-    if (hasAIAnalysis) {
-      const analysis = doc.kyc_ai_analysis[0];
-      if (analysis.confidence_score < 0.3 || analysis.fraud_indicators.length > 0) {
-        return <Badge className="bg-red-100 text-red-800 border-red-300">Suspeito</Badge>;
-      }
-    }
-
-    return <Badge variant="outline">Pendente</Badge>;
   };
 
-  const getAIRecommendation = (doc: KYCDocument) => {
-    if (!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0) return null;
-    
-    const analysis = doc.kyc_ai_analysis[0];
-    const confidence = Math.round(analysis.confidence_score * 100);
-    
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Brain className="h-4 w-4 text-blue-500" />
-          <span className="text-sm font-medium">Análise de IA</span>
-          <Badge variant={confidence > 80 ? "default" : confidence > 50 ? "secondary" : "destructive"}>
-            {confidence}% confiança
-          </Badge>
-        </div>
-        
-        {analysis.fraud_indicators.length > 0 && (
-          <Alert className="border-red-200">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="text-sm">
-              <strong>Indicadores de fraude:</strong> {analysis.fraud_indicators.join(', ')}
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <p className="text-sm text-muted-foreground">{analysis.recommendations}</p>
-      </div>
-    );
+  const getStatusIcon = (doc: KYCDocument) => {
+    if (doc.is_verified) {
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
+    } else if (doc.notes) {
+      return <XCircle className="h-4 w-4 text-red-600" />;
+    } else {
+      return <Clock className="h-4 w-4 text-orange-600" />;
+    }
   };
 
   useEffect(() => {
     fetchDocuments();
   }, []);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  const pendingCount = documents.filter(d => !d.is_verified && !d.notes).length;
-  const approvedCount = documents.filter(d => d.is_verified).length;
-  const rejectedCount = documents.filter(d => !d.is_verified && d.notes).length;
-  const suspiciousCount = documents.filter(d => 
-    d.kyc_ai_analysis && d.kyc_ai_analysis.length > 0 && 
-    (d.kyc_ai_analysis[0].confidence_score < 0.3 || d.kyc_ai_analysis[0].fraud_indicators.length > 0)
-  ).length;
-
-  // Funções para ações em massa
-  const bulkApproveDocuments = async () => {
-    if (selectedDocuments.length === 0) return;
-
-    setBulkActionLoading(true);
-    try {
-      for (const docId of selectedDocuments) {
-        await approveDocument(docId);
-      }
-      setSelectedDocuments([]);
-      toast({
-        title: "Documentos aprovados",
-        description: `${selectedDocuments.length} documentos foram aprovados.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao aprovar documentos em massa.",
-        variant: "destructive",
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  const bulkRejectDocuments = async () => {
-    if (selectedDocuments.length === 0) return;
-
-    setBulkActionLoading(true);
-    try {
-      for (const docId of selectedDocuments) {
-        await rejectDocument(docId);
-      }
-      setSelectedDocuments([]);
-      toast({
-        title: "Documentos rejeitados",
-        description: `${selectedDocuments.length} documentos foram rejeitados.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao rejeitar documentos em massa.",
-        variant: "destructive",
-      });
-    } finally {
-      setBulkActionLoading(false);
-    }
-  };
-
-  const exportDocuments = async () => {
-    setExportLoading(true);
-    try {
-      const csvContent = [
-        ['Nome do Usuário', 'Tipo de Documento', 'Status', 'Data de Criação', 'Data de Verificação', 'Observações'].join(','),
-        ...filteredDocuments.map(doc => [
-          doc.profiles?.full_name || 'Nome não informado',
-          doc.document_type,
-          doc.is_verified ? 'Aprovado' : (doc.notes ? 'Rejeitado' : 'Pendente'),
-          new Date(doc.created_at).toLocaleDateString('pt-BR'),
-          doc.verified_at ? new Date(doc.verified_at).toLocaleDateString('pt-BR') : '',
-          doc.notes || ''
-        ].map(field => `"${field}"`).join(','))
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `documentos-kyc-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast({
-        title: "Exportação concluída",
-        description: "Os documentos foram exportados com sucesso.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro na exportação",
-        description: "Não foi possível exportar os documentos.",
-        variant: "destructive",
-      });
-    } finally {
-      setExportLoading(false);
-    }
+  const statsData = {
+    total: documents.length,
+    pending: documents.filter(d => !d.is_verified && !d.notes).length,
+    approved: documents.filter(d => d.is_verified).length,
+    rejected: documents.filter(d => !d.is_verified && d.notes).length
   };
 
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Gestão KYC Avançada</h1>
+            <h1 className="text-3xl font-bold">Gestão KYC</h1>
             <p className="text-muted-foreground">
-              Gerencie documentos com análise de IA e ferramentas anti-fraude
+              Analise e aprove documentos de verificação de identidade
             </p>
           </div>
-          <Button onClick={fetchDocuments} variant="outline">
+          <Button onClick={fetchDocuments} disabled={loading}>
             Atualizar
           </Button>
         </div>
 
-        {/* Estatísticas */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Pendentes</p>
-                  <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+                  <p className="text-2xl font-bold">{statsData.total}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
-                <Clock className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
-          
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-orange-600" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Aprovados</p>
-                  <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+                  <p className="text-2xl font-bold">{statsData.pending}</p>
+                  <p className="text-xs text-muted-foreground">Pendentes</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
-          
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Rejeitados</p>
-                  <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                  <p className="text-2xl font-bold">{statsData.approved}</p>
+                  <p className="text-xs text-muted-foreground">Aprovados</p>
                 </div>
-                <XCircle className="h-8 w-8 text-red-600" />
               </div>
             </CardContent>
           </Card>
-          
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <XCircle className="h-4 w-4 text-red-600" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Suspeitos</p>
-                  <p className="text-2xl font-bold text-red-800">{suspiciousCount}</p>
+                  <p className="text-2xl font-bold">{statsData.rejected}</p>
+                  <p className="text-xs text-muted-foreground">Rejeitados</p>
                 </div>
-                <Shield className="h-8 w-8 text-red-800" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Ações em massa e exportação */}
-        {selectedDocuments.length > 0 && (
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {selectedDocuments.length} documento(s) selecionado(s)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => bulkApproveDocuments()}
-                    disabled={bulkActionLoading}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Aprovar Selecionados
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => bulkRejectDocuments()}
-                    disabled={bulkActionLoading}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Rejeitar Selecionados
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedDocuments([])}
-                  >
-                    Limpar Seleção
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filtros */}
+        {/* Filters */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtros e Busca
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por usuário ou documento..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, documento ou tipo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="pending">Pendentes</SelectItem>
-                  <SelectItem value="approved">Aprovados</SelectItem>
-                  <SelectItem value="rejected">Rejeitados</SelectItem>
-                  <SelectItem value="suspicious">Suspeitos</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Tipo de documento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os tipos</SelectItem>
-                  <SelectItem value="rg">RG</SelectItem>
-                  <SelectItem value="cpf">CPF</SelectItem>
-                  <SelectItem value="selfie">Selfie</SelectItem>
-                  <SelectItem value="address_proof">Comprovante de Endereço</SelectItem>
-                  <SelectItem value="criminal_background">Antecedentes Criminais</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button onClick={() => {
-                setSearchTerm('');
-                setStatusFilter('all');
-                setTypeFilter('all');
-              }} variant="outline">
-                Limpar Filtros
-              </Button>
-            </div>
-            
-            <div className="flex gap-2 mt-4">
-              <Button 
-                onClick={() => exportDocuments()}
-                disabled={exportLoading}
-                variant="outline"
-              >
-                {exportLoading ? 'Exportando...' : 'Exportar CSV'}
-              </Button>
-              
-              {filteredDocuments.length > 0 && (
-                <Button
-                  onClick={() => {
-                    const allIds = filteredDocuments.map(d => d.id);
-                    setSelectedDocuments(
-                      selectedDocuments.length === allIds.length ? [] : allIds
-                    );
-                  }}
-                  variant="outline"
+              <div className="flex gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border rounded-md bg-background"
                 >
-                  {selectedDocuments.length === filteredDocuments.length ? 'Desmarcar Todos' : 'Selecionar Todos'}
-                </Button>
-              )}
+                  <option value="all">Todos os Status</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="approved">Aprovados</option>
+                  <option value="rejected">Rejeitados</option>
+                </select>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Lista de Documentos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Documentos ({filteredDocuments.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredDocuments.map((doc) => (
-                <div key={doc.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedDocuments.includes(doc.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedDocuments([...selectedDocuments, doc.id]);
-                          } else {
-                            setSelectedDocuments(selectedDocuments.filter(id => id !== doc.id));
-                          }
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{doc.profiles?.full_name || 'Nome não informado'}</span>
-                          <Badge variant="outline">{doc.user_roles?.role}</Badge>
-                          {getStatusBadge(doc)}
-                        </div>
-                      
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <FileText className="h-4 w-4" />
-                            {doc.document_type.toUpperCase()}
+        {/* Document List */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Documents List */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Documentos ({filteredDocuments.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[600px]">
+                {loading ? (
+                  <div className="p-4 text-center">Carregando...</div>
+                ) : filteredDocuments.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    Nenhum documento encontrado
+                  </div>
+                ) : (
+                  <div className="space-y-2 p-4">
+                    {filteredDocuments.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedDocument?.id === doc.id 
+                            ? 'border-primary bg-primary/5' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={() => setSelectedDocument(doc)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              {getStatusIcon(doc)}
+                              <span className="font-medium">
+                                {DOCUMENT_TYPE_LABELS[doc.document_type as keyof typeof DOCUMENT_TYPE_LABELS]}
+                              </span>
+                              {getStatusBadge(doc)}
+                            </div>
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              <p className="flex items-center gap-2">
+                                <User className="h-3 w-3" />
+                                {doc.user_profile?.full_name || 'Nome não informado'}
+                              </p>
+                              <p>
+                                {formatDistanceToNow(new Date(doc.created_at), { 
+                                  addSuffix: true, 
+                                  locale: ptBR 
+                                })}
+                              </p>
+                              {doc.user_profile?.kyc_status && (
+                                <Badge variant="outline" className="text-xs">
+                                  {KYC_STATUS_LABELS[doc.user_profile.kyc_status as keyof typeof KYC_STATUS_LABELS]}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {new Date(doc.created_at).toLocaleDateString('pt-BR')}
-                          </div>
+                          <Eye className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
-                    </div>
-                    
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Document Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalhes do Documento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {selectedDocument ? (
+                <div className="space-y-4">
+                  {/* Document Info */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold">
+                      {DOCUMENT_TYPE_LABELS[selectedDocument.document_type as keyof typeof DOCUMENT_TYPE_LABELS]}
+                    </h3>
                     <div className="flex items-center gap-2">
-                      {!doc.kyc_ai_analysis || doc.kyc_ai_analysis.length === 0 ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => runAIAnalysis(doc.id)}
-                          disabled={analysisLoading === doc.id}
-                        >
-                          {analysisLoading === doc.id ? (
-                            <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                          ) : (
-                            <Zap className="h-4 w-4" />
-                          )}
-                          Analisar IA
-                        </Button>
-                      ) : null}
-                      
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedDocument(doc)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Revisar
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Revisar Documento</DialogTitle>
-                            <DialogDescription>
-                              {doc.profiles?.full_name} - {doc.document_type.toUpperCase()}
-                            </DialogDescription>
-                          </DialogHeader>
-                          
-                          <div className="space-y-4">
-                            {/* Análise de IA */}
-                            {getAIRecommendation(doc)}
-                            
-                            {/* Documento */}
-                            <div className="space-y-2">
-                              <h4 className="font-medium">Documento</h4>
-                               <div className="relative bg-gray-50 border rounded-lg p-4">
-                                 <img
-                                   src={doc.file_url}
-                                   alt="Documento KYC"
-                                   className="max-w-full h-auto max-h-[400px] mx-auto rounded shadow-sm"
-                                   onError={(e) => {
-                                     console.error('Erro ao carregar imagem:', doc.file_url);
-                                     e.currentTarget.style.display = 'none';
-                                     const errorDiv = e.currentTarget.parentElement?.querySelector('.error-fallback');
-                                     if (errorDiv) {
-                                       (errorDiv as HTMLElement).style.display = 'block';
-                                     }
-                                   }}
-                                   onLoad={() => console.log('Imagem carregada:', doc.file_url)}
-                                 />
-                                 <div className="error-fallback hidden text-center p-8 text-red-600">
-                                   <AlertTriangle className="h-16 w-16 mx-auto mb-4" />
-                                   <p className="font-medium">Erro ao carregar imagem</p>
-                                   <p className="text-sm text-muted-foreground mt-2 break-all">URL: {doc.file_url}</p>
-                                   <Button
-                                     variant="outline"
-                                     className="mt-4"
-                                     onClick={() => window.open(doc.file_url, '_blank')}
-                                   >
-                                     <Eye className="h-4 w-4 mr-2" />
-                                     Abrir em nova aba
-                                   </Button>
-                                 </div>
-                                 <div className="absolute top-2 right-2 flex gap-2">
-                                   <Button
-                                     variant="secondary"
-                                     size="sm"
-                                     onClick={() => window.open(doc.file_url, '_blank')}
-                                   >
-                                     <Eye className="h-4 w-4 mr-2" />
-                                     Abrir original
-                                   </Button>
-                                   <Button
-                                     variant="outline"
-                                     size="sm"
-                                     onClick={() => runAIAnalysis(doc.id)}
-                                     disabled={analysisLoading === doc.id}
-                                   >
-                                     {analysisLoading === doc.id ? (
-                                       <>
-                                         <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1"></div>
-                                         Analisando...
-                                       </>
-                                     ) : (
-                                       <>
-                                         <Brain className="h-3 w-3 mr-1" />
-                                         Analisar IA
-                                       </>
-                                     )}
-                                   </Button>
-                                 </div>
-                               </div>
-                            </div>
-                            
-                            {/* Notas existentes */}
-                            {doc.notes && (
-                              <div className="space-y-2">
-                                <h4 className="font-medium">Notas existentes</h4>
-                                <p className="text-sm bg-muted p-3 rounded">{doc.notes}</p>
-                              </div>
-                            )}
-                            
-                            {/* Ações */}
-                            {!doc.is_verified && (
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <h4 className="font-medium">Motivo da ação</h4>
-                                  <Textarea
-                                    placeholder="Descreva o motivo da aprovação ou rejeição..."
-                                    value={reviewNotes}
-                                    onChange={(e) => setReviewNotes(e.target.value)}
-                                  />
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                  <Button
-                                    onClick={() => approveDocument(doc.id)}
-                                    className="bg-green-600 hover:bg-green-700"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Aprovar
-                                  </Button>
-                                  <Button
-                                    onClick={() => rejectDocument(doc.id)}
-                                    variant="destructive"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-1" />
-                                    Rejeitar
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      {getStatusIcon(selectedDocument)}
+                      {getStatusBadge(selectedDocument)}
                     </div>
                   </div>
-                  
-                  {/* Análise de IA resumida */}
-                  {doc.kyc_ai_analysis && doc.kyc_ai_analysis.length > 0 && (
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      {getAIRecommendation(doc)}
+
+                  <Separator />
+
+                  {/* User Info */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Informações do Usuário</h4>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Nome:</strong> {selectedDocument.user_profile?.full_name || 'N/A'}</p>
+                      <p><strong>Documento:</strong> {selectedDocument.user_profile?.document_number || 'N/A'}</p>
+                      <p><strong>Status KYC:</strong> {selectedDocument.user_profile?.kyc_status ? KYC_STATUS_LABELS[selectedDocument.user_profile.kyc_status as keyof typeof KYC_STATUS_LABELS] : 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Document Image */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Visualizar Documento</h4>
+                    <div className="border rounded-lg p-4 bg-muted/20">
+                      <img 
+                        src={selectedDocument.file_url} 
+                        alt="Documento" 
+                        className="w-full max-h-64 object-contain rounded"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.parentElement!.innerHTML = '<p class="text-center text-muted-foreground">Erro ao carregar imagem</p>';
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Notes */}
+                  {selectedDocument.notes && (
+                    <>
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-red-600">Motivo da Rejeição</h4>
+                        <Alert>
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{selectedDocument.notes}</AlertDescription>
+                        </Alert>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+
+                  {/* Actions */}
+                  {!selectedDocument.is_verified && (
+                    <div className="space-y-4">
+                      {/* Approval Section */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Aprovar Documento</h4>
+                        <Textarea
+                          placeholder="Notas de aprovação (opcional)..."
+                          value={approvalNotes}
+                          onChange={(e) => setApprovalNotes(e.target.value)}
+                        />
+                        <Button
+                          onClick={() => approveDocument(selectedDocument.id, approvalNotes)}
+                          disabled={actionLoading}
+                          className="w-full"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Aprovar Documento
+                        </Button>
+                      </div>
+
+                      <Separator />
+
+                      {/* Rejection Section */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Rejeitar Documento</h4>
+                        <Textarea
+                          placeholder="Motivo da rejeição (obrigatório)..."
+                          value={rejectionReason}
+                          onChange={(e) => setRejectionReason(e.target.value)}
+                        />
+                        <Button
+                          variant="destructive"
+                          onClick={() => rejectDocument(selectedDocument.id, rejectionReason)}
+                          disabled={actionLoading || !rejectionReason.trim()}
+                          className="w-full"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Rejeitar Documento
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-              ))}
-              
-              {filteredDocuments.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhum documento encontrado com os filtros aplicados.
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  Selecione um documento para visualizar os detalhes
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppLayout>
   );
-};
-
-export default AdminKYCEnhanced;
+}
