@@ -54,8 +54,13 @@ export const KYCGate = ({ children }: KYCGateProps) => {
     return <KYCBlockedMessage />;
   }
 
-  // Não permitir nenhuma ação se KYC não estiver aprovado ou status for inadequado
-  if (!status || !status.canUsePlatform || status.kyc_status === 'rejected') {
+  // Bloquear se rejeitado explicitamente
+  if (status && status.kyc_status === 'rejected') {
+    return <Navigate to="/kyc/verify" replace />;
+  }
+
+  // Bloquear se não pode usar a plataforma (nem todos os documentos aprovados)
+  if (!status || !status.canUsePlatform) {
     return <Navigate to="/kyc/verify" replace />;
   }
 

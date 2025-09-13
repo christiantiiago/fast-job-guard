@@ -2029,6 +2029,10 @@ export type Database = {
         Args: { content: string }
         Returns: Json
       }
+      force_kyc_status_update: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       geography: {
         Args: { "": string } | { "": unknown }
         Returns: unknown

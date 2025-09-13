@@ -121,9 +121,17 @@ export default function KYCEnhanced() {
 
       if (error) throw error;
       
+      // Forçar atualização do status KYC após aprovação
+      const document = selectedDocument;
+      if (document?.user_id) {
+        await supabase.rpc('force_kyc_status_update', {
+          target_user_id: document.user_id
+        });
+      }
+      
       toast({
         title: "Documento aprovado",
-        description: "O documento foi aprovado com sucesso.",
+        description: "O documento foi aprovado e o status do usuário foi atualizado.",
       });
       
       setSelectedDocument(null);
@@ -154,6 +162,14 @@ export default function KYCEnhanced() {
       });
 
       if (error) throw error;
+      
+      // Forçar atualização do status KYC após rejeição
+      const document = selectedDocument;
+      if (document?.user_id) {
+        await supabase.rpc('force_kyc_status_update', {
+          target_user_id: document.user_id
+        });
+      }
       
       toast({
         title: "Documento rejeitado",
@@ -231,9 +247,30 @@ export default function KYCEnhanced() {
               Analise e aprove documentos de verificação de identidade
             </p>
           </div>
-          <Button onClick={fetchDocuments} disabled={loading}>
-            Atualizar
-          </Button>
+                  <Button onClick={fetchDocuments} disabled={loading}>
+                    Atualizar
+                  </Button>
+                  
+                  {/* Botão de Debug - Forçar Atualização Status KYC */}
+                  {selectedDocument && (
+                    <Button 
+                      variant="outline"
+                      onClick={async () => {
+                        if (selectedDocument.user_id) {
+                          await supabase.rpc('force_kyc_status_update', {
+                            target_user_id: selectedDocument.user_id
+                          });
+                          toast({
+                            title: "Status atualizado",
+                            description: "Status KYC do usuário foi recalculado.",
+                          });
+                          await fetchDocuments();
+                        }
+                      }}
+                    >
+                      Forçar Atualização Status
+                    </Button>
+                  )}
         </div>
 
         {/* Stats Cards */}

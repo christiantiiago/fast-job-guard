@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { ProtectedJobCreation } from "@/components/layout/ProtectedJobCreation";
 import { ProtectedClientRoute } from "@/components/layout/ProtectedClientRoute";
 import { ProtectedProviderRoute } from "@/components/layout/ProtectedProviderRoute";
+import { ProtectedKYCRoute } from "@/components/layout/ProtectedKYCRoute";
 import { KYCGate } from "@/components/kyc/KYCGate";
 
 // Public pages
@@ -98,9 +99,9 @@ const App = () => (
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <Dashboard />
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
@@ -124,9 +125,9 @@ const App = () => (
               path="/jobs"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <Jobs />
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
@@ -134,9 +135,9 @@ const App = () => (
               path="/jobs/:id"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <JobDetails />
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
@@ -154,11 +155,11 @@ const App = () => (
               path="/jobs/new"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <ProtectedJobCreation>
                       <JobNew />
                     </ProtectedJobCreation>
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
@@ -166,9 +167,9 @@ const App = () => (
               path="/jobs/:id/proposals"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <JobProposals />
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
@@ -206,9 +207,9 @@ const App = () => (
               path="/chat/:jobId"
               element={
                 <ProtectedRoute>
-                  <KYCGate>
+                  <ProtectedKYCRoute>
                     <Chat />
-                  </KYCGate>
+                  </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
             />
