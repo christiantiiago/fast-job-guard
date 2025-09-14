@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
 import { ProposalApprovalCard } from './ProposalApprovalCard';
+import { DirectProposalNotificationCard } from '@/components/direct-proposals/DirectProposalNotificationCard';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -120,7 +121,7 @@ export const NotificationCenter = () => {
               ) : (
                 <ScrollArea className="h-80">
                   <div className="space-y-1">
-                    {notifications.map((notification) => 
+                     {notifications.map((notification) => 
                       notification.type === 'proposal_accepted_for_approval' ? (
                         <div key={notification.id} className="p-3">
                           <ProposalApprovalCard 
@@ -128,6 +129,16 @@ export const NotificationCenter = () => {
                             onClose={() => {
                               markAsRead(notification.id);
                               deleteNotification(notification.id);
+                              setIsOpen(false);
+                            }}
+                          />
+                        </div>
+                      ) : notification.type === 'direct_proposal_accepted' ? (
+                        <div key={notification.id} className="p-3">
+                          <DirectProposalNotificationCard
+                            notification={notification as any}
+                            onUpdate={() => {
+                              markAsRead(notification.id);
                               setIsOpen(false);
                             }}
                           />
