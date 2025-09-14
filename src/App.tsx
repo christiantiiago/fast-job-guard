@@ -56,7 +56,6 @@ import AdminActivity from "./pages/admin/Activity";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminEnhanced from "./pages/admin/AdminEnhanced";
 import Checkout from "./pages/Checkout";
-import DirectProposalCheckout from "./pages/DirectProposalCheckout";
 import CheckoutSuccess from "./pages/checkout/Success";
 import CheckoutCancel from "./pages/checkout/Cancel";
 
@@ -251,17 +250,6 @@ const App = () => (
                 <ProtectedRoute>
                   <KYCGate>
                     <Checkout />
-                  </KYCGate>
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/direct-proposal-checkout"
-              element={
-                <ProtectedRoute>
-                  <KYCGate>
-                    <DirectProposalCheckout />
                   </KYCGate>
                 </ProtectedRoute>
               }

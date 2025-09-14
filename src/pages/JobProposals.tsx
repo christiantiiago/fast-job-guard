@@ -92,7 +92,7 @@ export default function JobProposals() {
         .from('proposals')
         .select(`
           *,
-          profiles:provider_id (
+          profiles!proposals_provider_id_fkey (
             full_name,
             avatar_url,
             rating_avg,

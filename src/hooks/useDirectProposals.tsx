@@ -82,10 +82,10 @@ export const useDirectProposals = () => {
 
       // Send notification to client with detailed info
       const { error: notificationError } = await supabase
-        .from('notifications')
+        .from('real_time_notifications')
         .insert([{
           user_id: proposal.client_id,
-          type: 'direct_proposal_accepted',
+          type: 'proposal_accepted_for_approval',
           title: 'Prestador Aceitou sua Proposta!',
           message: `${proposal.provider_profile?.full_name || 'Prestador'} aceitou sua proposta "${proposal.title}". Revise e confirme para prosseguir com o pagamento.`,
           data: {
@@ -96,9 +96,9 @@ export const useDirectProposals = () => {
             title: proposal.title,
             proposed_price: proposal.proposed_price,
             estimated_hours: proposal.estimated_hours,
-            deadline: proposal.deadline,
-            action_url: `/direct-proposals/${proposalId}/checkout`
-          }
+            deadline: proposal.deadline
+          },
+          priority: 3
         }]);
 
       if (notificationError) {
@@ -159,7 +159,7 @@ export const useDirectProposals = () => {
 
       // Send notification to provider
       const { error: notificationError } = await supabase
-        .from('notifications')
+        .from('real_time_notifications')
         .insert([{
           user_id: proposal.provider_id,
           type: 'direct_proposal_rejected',
@@ -171,7 +171,8 @@ export const useDirectProposals = () => {
             title: proposal.title,
             reason: reason,
             blocked_until: blockUntil.toISOString()
-          }
+          },
+          priority: 2
         }]);
 
       if (notificationError) {
@@ -208,7 +209,6 @@ export const useDirectProposals = () => {
           proposalId,
           providerId: proposal.provider_id,
           providerName: proposal.provider_profile?.full_name || 'Prestador',
-          providerAvatar: proposal.provider_profile?.avatar_url,
           title: proposal.title,
           description: proposal.description,
           price: proposal.proposed_price,
@@ -259,7 +259,7 @@ export const useDirectProposals = () => {
 
       // Send notification to provider
       const { error: notificationError } = await supabase
-        .from('notifications')
+        .from('real_time_notifications')
         .insert([{
           user_id: proposal.provider_id,
           type: 'job_started',
@@ -270,7 +270,8 @@ export const useDirectProposals = () => {
             proposal_id: proposalId,
             client_name: proposal.client_profile?.full_name,
             title: proposal.title
-          }
+          },
+          priority: 3
         }]);
 
       if (notificationError) {
