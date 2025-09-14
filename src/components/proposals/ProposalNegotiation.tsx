@@ -235,7 +235,7 @@ const ProposalNegotiation = ({
               <div className="flex items-center gap-2">
                 <CardTitle className="text-lg cursor-pointer hover:text-primary transition-colors">
                   <a href={`/profile/${proposal.provider_id}`} className="flex items-center gap-2">
-                    {providerProfile?.full_name || 'Prestador Anônimo'}
+                    {providerProfile?.full_name || 'Carregando...'}
                   </a>
                 </CardTitle>
                 {providerProfile?.rating_avg && (
