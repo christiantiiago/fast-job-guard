@@ -5,18 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  FileText, 
-  Download, 
-  Eye, 
-  Calendar, 
-  DollarSign, 
-  User, 
+import {
+  FileText,
+  Download,
+  Eye,
+  Calendar,
+  DollarSign,
+  User,
   MapPin,
   Clock,
   CheckCircle,
   AlertCircle,
-  XCircle
+  XCircle,
+  PenLine,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,7 +88,7 @@ export default function Contracts() {
 
       if (error) throw error;
 
-      const formattedContracts = data?.map(contract => {
+      const formattedContracts = data?.map((contract) => {
         const job = Array.isArray(contract.jobs) ? contract.jobs[0] : contract.jobs;
         const client = Array.isArray(contract.client) ? contract.client[0] : contract.client;
         const provider = Array.isArray(contract.provider) ? contract.provider[0] : contract.provider;
@@ -104,9 +105,19 @@ export default function Contracts() {
           created_at: contract.created_at,
           client_signed: contract.client_signed,
           provider_signed: contract.provider_signed,
-          terms_and_conditions: contract.terms_and_conditions,
+          terms_and_conditions:
+            contract.terms_and_conditions ||
+            `CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n
+1. O prestador se compromete a realizar o serviço descrito no título do trabalho.
+2. O cliente concorda em pagar o valor acordado de ${contract.agreed_price} até a data combinada.
+3. O valor ficará retido em ESCROW até a conclusão do serviço.
+4. A plataforma atua apenas como intermediadora e não se responsabiliza por falhas na execução do serviço.
+5. Em caso de disputa, ambas as partes devem apresentar evidências, e a plataforma decidirá sobre a liberação do valor.
+6. Este contrato só é válido após assinatura digital de ambas as partes.`,
           escrow_amount: contract.escrow_amount,
-          job_address: address ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}` : 'Endereço não disponível'
+          job_address: address
+            ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`
+            : 'Endereço não disponível',
         };
       }) || [];
 
@@ -114,12 +125,35 @@ export default function Contracts() {
     } catch (error) {
       console.error('Erro ao buscar contratos:', error);
       toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar os contratos.",
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar os contratos.',
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSignContract = async (contractId: string, role: 'client' | 'provider') => {
+    try {
+      const fieldToUpdate = role === 'client' ? 'client_signed' : 'provider_signed';
+      const { error } = await supabase.from('contracts').update({ [fieldToUpdate]: true }).eq('id', contractId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Sucesso',
+        description: 'Assinatura registrada com sucesso.',
+      });
+
+      fetchContracts();
+    } catch (error) {
+      console.error('Erro ao assinar contrato:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível registrar a assinatura.',
+      });
     }
   };
 
@@ -127,11 +161,11 @@ export default function Contracts() {
     if (status === 'cancelled') {
       return <Badge variant="destructive">Cancelado</Badge>;
     }
-    
+
     if (!clientSigned || !providerSigned) {
       return <Badge variant="secondary">Aguardando Assinatura</Badge>;
     }
-    
+
     switch (status) {
       case 'pending':
         return <Badge variant="secondary">Pendente</Badge>;
@@ -147,7 +181,7 @@ export default function Contracts() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
+      currency: 'BRL',
     }).format(value);
   };
 
@@ -155,7 +189,7 @@ export default function Contracts() {
     return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -194,9 +228,7 @@ export default function Contracts() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">Meus Contratos</h1>
-            <p className="text-muted-foreground">
-              Gerencie e visualize todos os seus contratos de serviço
-            </p>
+            <p className="text-muted-foreground">Gerencie e visualize todos os seus contratos de serviço</p>
           </div>
 
           {contracts.length === 0 ? (
@@ -217,14 +249,12 @@ export default function Contracts() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-xl">{contract.job_title}</CardTitle>
-                        <CardDescription>
-                          Contrato #{contract.id.slice(0, 8)}
-                        </CardDescription>
+                        <CardDescription>Contrato #{contract.id.slice(0, 8)}</CardDescription>
                       </div>
                       {getStatusBadge(contract.status, contract.client_signed, contract.provider_signed)}
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="space-y-6">
                     {/* Contract Details */}
                     <div className="grid md:grid-cols-2 gap-6">
@@ -248,7 +278,7 @@ export default function Contracts() {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -284,6 +314,16 @@ export default function Contracts() {
                           <span className="text-sm">
                             Cliente {contract.client_signed ? 'assinou' : 'não assinou'}
                           </span>
+                          {!contract.client_signed && user && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => handleSignContract(contract.id, 'client')}
+                            >
+                              <PenLine className="h-3 w-3 mr-1" />
+                              Assinar
+                            </Button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           {contract.provider_signed ? (
@@ -294,6 +334,16 @@ export default function Contracts() {
                           <span className="text-sm">
                             Prestador {contract.provider_signed ? 'assinou' : 'não assinou'}
                           </span>
+                          {!contract.provider_signed && user && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => handleSignContract(contract.id, 'provider')}
+                            >
+                              <PenLine className="h-3 w-3 mr-1" />
+                              Assinar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -303,12 +353,11 @@ export default function Contracts() {
                       <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div className="flex items-center gap-2 mb-2">
                           <AlertCircle className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-900 dark:text-blue-100">
-                            Valor em Escrow
-                          </span>
+                          <span className="font-medium text-blue-900 dark:text-blue-100">Valor em Escrow</span>
                         </div>
                         <p className="text-sm text-blue-800 dark:text-blue-200">
-                          {formatCurrency(contract.escrow_amount)} está protegido em nossa garantia e será liberado após a conclusão do serviço.
+                          {formatCurrency(contract.escrow_amount)} está protegido em nossa garantia e será liberado
+                          após a conclusão do serviço.
                         </p>
                       </div>
                     )}
@@ -317,11 +366,7 @@ export default function Contracts() {
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedContract(contract)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setSelectedContract(contract)}>
                         <Eye className="mr-2 h-4 w-4" />
                         Visualizar Completo
                       </Button>
@@ -336,18 +381,14 @@ export default function Contracts() {
             </div>
           )}
 
-          {/* Contract Detail Modal would go here */}
+          {/* Contract Detail Modal */}
           {selectedContract && (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
               <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Detalhes do Contrato</CardTitle>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setSelectedContract(null)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedContract(null)}>
                       ✕
                     </Button>
                   </div>
