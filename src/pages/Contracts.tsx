@@ -317,7 +317,7 @@ export default function Contracts() {
                           {!contract.client_signed && user && (
                             <Button
                               variant="outline"
-                              size="xs"
+                              size="sm"
                               onClick={() => handleSignContract(contract.id, 'client')}
                             >
                               <PenLine className="h-3 w-3 mr-1" />
@@ -337,7 +337,7 @@ export default function Contracts() {
                           {!contract.provider_signed && user && (
                             <Button
                               variant="outline"
-                              size="xs"
+                              size="sm"
                               onClick={() => handleSignContract(contract.id, 'provider')}
                             >
                               <PenLine className="h-3 w-3 mr-1" />

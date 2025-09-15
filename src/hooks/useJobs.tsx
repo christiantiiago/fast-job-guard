@@ -63,7 +63,7 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          service_categories(name, icon_name),
+          service_categories!fk_jobs_category(name, icon_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
@@ -109,7 +109,7 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          service_categories(name, icon_name),
+          service_categories!fk_jobs_category(name, icon_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
@@ -147,7 +147,7 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          service_categories(name, icon_name),
+          service_categories!fk_jobs_category(name, icon_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,
@@ -181,7 +181,7 @@ export const useJobs = () => {
         .from('jobs')
         .select(`
           *,
-          service_categories(name, icon_name),
+          service_categories!fk_jobs_category(name, icon_name),
           addresses(street, city, state, neighborhood),
           proposals(
             id,

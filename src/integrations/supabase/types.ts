@@ -807,24 +807,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "jobs_address_id_fkey"
+            foreignKeyName: "fk_jobs_address"
             columns: ["address_id"]
             isOneToOne: false
             referencedRelation: "addresses"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "jobs_category_id_fkey"
+            foreignKeyName: "fk_jobs_category"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "service_categories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "jobs_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: false
-            referencedRelation: "contracts"
             referencedColumns: ["id"]
           },
         ]
