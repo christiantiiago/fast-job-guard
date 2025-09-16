@@ -42,9 +42,13 @@ export function MobileHamburgerMenu() {
     { name: 'Início', href: '/dashboard', icon: Home },
     { name: 'Trabalhos', href: '/jobs', icon: Briefcase },
     { name: 'Descobrir Prestadores', href: '/providers/discover', icon: Search },
+    { name: 'Chat', href: '/chat', icon: MessageCircle },
+    { name: 'Contratos', href: '/contracts', icon: FileText },
     { name: 'Carteira', href: '/wallet', icon: Wallet },
     { name: 'Avaliações', href: '/reviews', icon: Star },
     { name: 'Documentos', href: '/kyc/documents', icon: FileText },
+    { name: 'Premium', href: '/premium', icon: Crown },
+    { name: 'Ajuda e Suporte', href: '/help', icon: Settings },
     { name: 'Perfil', href: '/profile', icon: User },
   ];
 
@@ -52,19 +56,28 @@ export function MobileHamburgerMenu() {
     { name: 'Início', href: '/dashboard', icon: Home },
     { name: 'Descobrir Trabalhos', href: '/discover', icon: Search },
     { name: 'Meus Trabalhos', href: '/jobs', icon: Briefcase },
+    { name: 'Chat', href: '/chat', icon: MessageCircle },
+    { name: 'Contratos', href: '/contracts', icon: FileText },
     { name: 'Financeiro', href: '/provider/finance', icon: TrendingUp },
     { name: 'Avaliações', href: '/reviews', icon: Star },
     { name: 'Documentos', href: '/kyc/documents', icon: FileText },
+    { name: 'Premium', href: '/premium', icon: Crown },
+    { name: 'Ajuda e Suporte', href: '/help', icon: Settings },
     { name: 'Perfil', href: '/profile', icon: User },
   ];
 
   const adminNavigation = [
     { name: 'Dashboard', href: '/admin', icon: Shield },
+    { name: 'Admin Avançado', href: '/admin/enhanced', icon: Activity },
     { name: 'Usuários', href: '/admin/users', icon: Users },
     { name: 'KYC', href: '/admin/kyc', icon: UserCheck },
+    { name: 'Analytics', href: '/admin/analytics', icon: TrendingUp },
     { name: 'Atividades', href: '/admin/activity', icon: Activity },
+    { name: 'Disputas', href: '/admin/disputes', icon: MessageCircle },
     { name: 'Pagamentos', href: '/admin/payments', icon: CreditCard },
     { name: 'Configurações', href: '/admin/settings', icon: Settings },
+    { name: 'Relatório do Sistema', href: '/system-report', icon: FileText },
+    { name: 'Ajuda e Suporte', href: '/help', icon: Settings },
   ];
 
   const getNavigation = () => {
@@ -171,14 +184,6 @@ export function MobileHamburgerMenu() {
           </ScrollArea>
 
           <div className="border-t p-4 space-y-4">
-            {/* Notificações */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Notificações</span>
-              <NotificationCenter />
-            </div>
-            
-            <Separator />
-            
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Tema</span>
               <ThemeToggle />
