@@ -4,6 +4,7 @@ import { ArrowLeft, Menu, Bell, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MobileHamburgerMenu } from "./MobileHamburgerMenu";
 import { ChatHeaderButton } from "./ChatHeaderButton";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface MobileHeaderProps {
@@ -79,6 +80,7 @@ const MobileHeader = ({
 
           {/* Right side */}
           <div className="flex items-center gap-1">
+            <NotificationCenter />
             <ChatHeaderButton />
             
             {showSearch && (

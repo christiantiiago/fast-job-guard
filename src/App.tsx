@@ -38,6 +38,7 @@ import Reviews from "./pages/Reviews";
 import Finance from "./pages/provider/Finance";
 import Premium from "./pages/Premium";
 import ProviderOnboarding from "./pages/provider/Onboarding";
+import SystemReport from "./pages/SystemReport";
 import HelpSupport from "./pages/HelpSupport";
 import Contracts from "./pages/Contracts";
 
@@ -302,6 +303,14 @@ const App = () => (
                   <KYCGate>
                     <HelpSupport />
                   </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/system-report"
+              element={
+                <ProtectedRoute>
+                  <SystemReport />
                 </ProtectedRoute>
               }
             />

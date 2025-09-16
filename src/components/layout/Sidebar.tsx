@@ -3,6 +3,8 @@ import { useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { Separator } from '@/components/ui/separator';
 
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import {
@@ -201,7 +203,15 @@ export const Sidebar = () => {
           </li>
           
           {/* Bottom actions */}
-          <li className="mt-auto">
+          <li className="mt-auto space-y-4">
+            {/* Notifications */}
+            <div className="flex items-center justify-between px-2">
+              <span className="text-sm font-medium text-muted-foreground">Notificações</span>
+              <NotificationCenter />
+            </div>
+            
+            <Separator />
+            
             <Button 
               variant="ghost" 
               onClick={signOut}
