@@ -345,6 +345,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contracts_proposal_id_fkey"
             columns: ["proposal_id"]
             isOneToOne: false
@@ -489,6 +496,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -734,6 +748,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_messages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1066,6 +1087,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payments_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payouts: {
@@ -1307,6 +1335,13 @@ export type Database = {
             referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "proposals_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
+            referencedColumns: ["id"]
+          },
         ]
       }
       provider_bank_details: {
@@ -1469,6 +1504,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1755,6 +1797,59 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      public_jobs: {
+        Row: {
+          budget_max: number | null
+          budget_min: number | null
+          category_id: string | null
+          created_at: string | null
+          deadline_at: string | null
+          description: string | null
+          id: string | null
+          latitude: number | null
+          longitude: number | null
+          scheduled_at: string | null
+          status: Database["public"]["Enums"]["job_status"] | null
+          title: string | null
+        }
+        Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          deadline_at?: string | null
+          description?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title?: string | null
+        }
+        Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          deadline_at?: string | null
+          description?: string | null
+          id?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          scheduled_at?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_jobs_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
