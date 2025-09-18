@@ -3706,6 +3706,10 @@ export type Database = {
         Args: { "": string }
         Returns: number
       }
+      update_updated_at_column: {
+        Args: { tbl_name: string }
+        Returns: undefined
+      }
       updategeometrysrid: {
         Args: {
           catalogn_name: string
@@ -3739,6 +3743,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "disputed"
+        | "public"
       kyc_status:
         | "pending"
         | "approved"
@@ -3918,6 +3923,7 @@ export const Constants = {
         "completed",
         "cancelled",
         "disputed",
+        "public",
       ],
       kyc_status: [
         "pending",
