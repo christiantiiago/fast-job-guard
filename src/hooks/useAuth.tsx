@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (!isMounted) return;
         
         console.log('Auth state change:', event, session?.user?.id);
@@ -59,6 +59,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Log security event for authentication
+          if (event === 'SIGNED_IN') {
+            try {
+              await supabase.rpc('log_security_event', {
+                event_type: 'USER_SIGNED_IN',
+                event_data: {
+                  timestamp: new Date().toISOString(),
+                  user_id: session.user.id,
+                  ip_address: 'client_side'
+                }
+              });
+            } catch (error) {
+              console.warn('Failed to log security event:', error);
+            }
+          }
+          
           // Fetch role in a separate async operation to avoid blocking
           setTimeout(async () => {
             if (!isMounted) return;
@@ -71,6 +87,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           setUserRole(null);
           setLoading(false);
+          
+          // Log security event for sign out
+          if (event === 'SIGNED_OUT') {
+            try {
+              await supabase.rpc('log_security_event', {
+                event_type: 'USER_SIGNED_OUT',
+                event_data: {
+                  timestamp: new Date().toISOString()
+                }
+              });
+            } catch (error) {
+              console.warn('Failed to log security event:', error);
+            }
+          }
         }
       }
     );
@@ -155,10 +185,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
+      // Log security event before signing out
+      await supabase.rpc('log_security_event', {
+        event_type: 'USER_INITIATED_SIGNOUT',
+        event_data: {
+          timestamp: new Date().toISOString(),
+          user_id: user?.id
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to log security event:', error);
+    }
+    
+    try {
       await supabase.auth.signOut();
-      // Limpar localStorage
-      localStorage.clear();
-      sessionStorage.clear();
+      // Clear sensitive data from localStorage
+      localStorage.removeItem('rememberedEmail');
+      // Clear secure storage items
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('secure_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
       // Reset estados
       setUser(null);
       setSession(null);

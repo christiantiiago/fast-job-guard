@@ -2386,6 +2386,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_authenticated: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_kyc_complete: {
         Args: { user_id_input: string }
         Returns: boolean
@@ -2401,6 +2405,10 @@ export type Database = {
       jsonb: {
         Args: { "": unknown }
         Returns: Json
+      }
+      log_security_event: {
+        Args: { event_data?: Json; event_type: string }
+        Returns: string
       }
       longtransactionsenabled: {
         Args: Record<PropertyKey, never>
@@ -3719,6 +3727,10 @@ export type Database = {
           table_name: string
         }
         Returns: string
+      }
+      validate_password_strength: {
+        Args: { password_text: string }
+        Returns: Json
       }
     }
     Enums: {
