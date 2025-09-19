@@ -11,6 +11,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, MapPin, Star, Filter, Navigation, MessageSquare, Circle } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 
 interface Provider {
@@ -239,14 +240,24 @@ export default function ProvidersDiscover() {
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                            <span className="text-primary font-semibold">
-                              {provider.full_name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
+                          <Avatar className="w-12 h-12">
+                            {provider.avatar_url ? (
+                              <AvatarImage 
+                                src={provider.avatar_url} 
+                                alt={provider.full_name}
+                                className="object-cover"
+                              />
+                            ) : (
+                              <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                                {provider.full_name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
                           <div className="absolute -bottom-1 -right-1">
-                            <Circle 
-                              className={`h-4 w-4 ${provider.is_online ? 'text-green-500 fill-current' : 'text-gray-400 fill-current'}`} 
+                            <div 
+                              className={`h-4 w-4 rounded-full border-2 border-white ${
+                                provider.is_online ? 'bg-green-500' : 'bg-gray-400'
+                              }`} 
                             />
                           </div>
                         </div>

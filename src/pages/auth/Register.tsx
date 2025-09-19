@@ -19,6 +19,17 @@ export default function Register() {
     confirmPassword: '',
     fullName: '',
     phone: '',
+    documentNumber: '',
+    birthDate: '',
+    address: {
+      street: '',
+      number: '',
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      zipcode: ''
+    },
     role: 'client' as 'client' | 'provider'
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -47,6 +58,14 @@ export default function Register() {
       return;
     }
 
+    if (!formData.fullName || !formData.documentNumber || !formData.birthDate || !formData.phone || 
+        !formData.address.street || !formData.address.number || !formData.address.neighborhood || 
+        !formData.address.city || !formData.address.state || !formData.address.zipcode) {
+      setError('Preencha todos os campos obrigatórios');
+      setIsLoading(false);
+      return;
+    }
+
     if (!acceptTerms) {
       setError('Você deve aceitar os termos de serviço');
       setIsLoading(false);
@@ -64,7 +83,10 @@ export default function Register() {
       const { error } = await signUp(formData.email, formData.password, {
         role: formData.role,
         full_name: formData.fullName,
-        phone: formData.phone
+        phone: formData.phone,
+        document_number: formData.documentNumber,
+        birth_date: formData.birthDate,
+        address: formData.address
       });
       
       if (error) {
@@ -171,99 +193,249 @@ export default function Register() {
               </div>
 
               {/* Personal Data */}
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nome completo</Label>
-                  <Input
-                    id="fullName"
-                    placeholder="Seu nome completo"
-                    value={formData.fullName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="(11) 99999-9999"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nome completo *</Label>
                     <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Mínimo 6 caracteres"
-                      value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      id="fullName"
+                      placeholder="Seu nome completo"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
                       required
-                      minLength={6}
                       disabled={isLoading}
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={isLoading}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="documentNumber">CPF *</Label>
+                      <Input
+                        id="documentNumber"
+                        placeholder="000.000.000-00"
+                        value={formData.documentNumber}
+                        onChange={(e) => setFormData(prev => ({ ...prev, documentNumber: e.target.value }))}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Data de nascimento *</Label>
+                      <Input
+                        id="birthDate"
+                        type="date"
+                        value={formData.birthDate}
+                        onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefone *</Label>
+                      <Input
+                        id="phone"
+                        placeholder="(11) 99999-9999"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">E-mail *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar senha</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Digite a senha novamente"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      required
-                      disabled={isLoading}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      disabled={isLoading}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                {/* Address Section */}
+                <div className="space-y-3 border-t pt-4">
+                  <h4 className="font-medium text-sm">Endereço *</h4>
+                  
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="col-span-3 space-y-2">
+                        <Label htmlFor="street">Rua/Avenida *</Label>
+                        <Input
+                          id="street"
+                          placeholder="Nome da rua"
+                          value={formData.address.street}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, street: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="number">Nº *</Label>
+                        <Input
+                          id="number"
+                          placeholder="123"
+                          value={formData.address.number}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, number: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="complement">Complemento</Label>
+                        <Input
+                          id="complement"
+                          placeholder="Apto, bloco, etc."
+                          value={formData.address.complement}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, complement: e.target.value }
+                          }))}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="neighborhood">Bairro *</Label>
+                        <Input
+                          id="neighborhood"
+                          placeholder="Nome do bairro"
+                          value={formData.address.neighborhood}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, neighborhood: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Cidade *</Label>
+                        <Input
+                          id="city"
+                          placeholder="Nome da cidade"
+                          value={formData.address.city}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, city: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="state">Estado *</Label>
+                        <Input
+                          id="state"
+                          placeholder="SP"
+                          value={formData.address.state}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, state: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                          maxLength={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipcode">CEP *</Label>
+                        <Input
+                          id="zipcode"
+                          placeholder="00000-000"
+                          value={formData.address.zipcode}
+                          onChange={(e) => setFormData(prev => ({ 
+                            ...prev, 
+                            address: { ...prev.address, zipcode: e.target.value }
+                          }))}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Password Section */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="font-medium text-sm">Dados de Acesso</h4>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Senha *</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Mínimo 6 caracteres"
+                        value={formData.password}
+                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                        required
+                        minLength={6}
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar senha *</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Digite a senha novamente"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        required
+                        disabled={isLoading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={isLoading}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -148,7 +148,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          data: userData
+          data: {
+            ...userData,
+            email: email
+          }
         }
       });
 
@@ -157,7 +160,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // The trigger will automatically create user_roles and profiles
+      // Se o usuário foi criado com sucesso, criar o perfil e endereço
+      if (data.user) {
+        try {
+          // Criar perfil
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([{
+              user_id: data.user.id,
+              full_name: userData.full_name,
+              phone: userData.phone,
+              document_number: userData.document_number,
+              birth_date: userData.birth_date
+            }]);
+
+          if (profileError) {
+            console.log('Profile creation error:', profileError);
+          }
+
+          // Criar endereço se fornecido
+          if (userData.address) {
+            const { error: addressError } = await supabase
+              .from('addresses')
+              .insert([{
+                user_id: data.user.id,
+                street: userData.address.street,
+                number: userData.address.number,
+                complement: userData.address.complement,
+                neighborhood: userData.address.neighborhood,
+                city: userData.address.city,
+                state: userData.address.state,
+                zipcode: userData.address.zipcode,
+                is_primary: true,
+                label: 'Principal'
+              }]);
+
+            if (addressError) {
+              console.log('Address creation error:', addressError);
+            }
+          }
+        } catch (setupError) {
+          console.log('Setup error:', setupError);
+        }
+      }
+
       console.log('User signed up successfully:', data.user?.id);
       
       return { error: null };

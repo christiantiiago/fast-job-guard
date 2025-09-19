@@ -18,9 +18,7 @@ import {
   Key, 
   Bell,
   ArrowLeft,
-  Upload,
-  Eye,
-  EyeOff
+  MapPin
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -37,22 +35,64 @@ export default function ProfileEdit() {
     birth_date: ''
   });
   
+  const [addressData, setAddressData] = useState({
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zipcode: ''
+  });
+  
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
   const [passwordData, setPasswordData] = useState({
     current: '',
     new: '',
     confirm: ''
   });
 
+  // Fetch address data
+  useEffect(() => {
+    const fetchAddress = async () => {
+      if (user) {
+        try {
+          const { data: address, error } = await supabase
+            .from('addresses')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_primary', true)
+            .maybeSingle();
+          
+          if (address && !error) {
+            setAddressData({
+              street: address.street || '',
+              number: address.number || '',
+              complement: address.complement || '',
+              neighborhood: address.neighborhood || '',
+              city: address.city || '',
+              state: address.state || '',
+              zipcode: address.zipcode || ''
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching address:', error);
+        }
+      }
+    };
+
+    fetchAddress();
+  }, [user]);
+
   useEffect(() => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || '',
         phone: profile.phone || '',
-        bio: '',  // Default value since bio might not exist in profile type
+        bio: (profile as any).bio || '',
         document_number: (profile as any).document_number || '',
         birth_date: (profile as any).birth_date || ''
       });
@@ -63,10 +103,13 @@ export default function ProfileEdit() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAddressChange = (field: string, value: string) => {
+    setAddressData(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         toast({
           title: "Tipo de arquivo inválido",
@@ -76,7 +119,6 @@ export default function ProfileEdit() {
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Arquivo muito grande",
@@ -128,11 +170,71 @@ export default function ProfileEdit() {
     }
   };
 
+  const handleSaveAddress = async () => {
+    if (!user) return false;
+
+    try {
+      setAddressLoading(true);
+      
+      const { data: existingAddress } = await supabase
+        .from('addresses')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_primary', true)
+        .maybeSingle();
+
+      if (existingAddress) {
+        const { error } = await supabase
+          .from('addresses')
+          .update({
+            street: addressData.street,
+            number: addressData.number,
+            complement: addressData.complement,
+            neighborhood: addressData.neighborhood,
+            city: addressData.city,
+            state: addressData.state,
+            zipcode: addressData.zipcode
+          })
+          .eq('id', existingAddress.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('addresses')
+          .insert([{
+            user_id: user.id,
+            street: addressData.street,
+            number: addressData.number,
+            complement: addressData.complement,
+            neighborhood: addressData.neighborhood,
+            city: addressData.city,
+            state: addressData.state,
+            zipcode: addressData.zipcode,
+            is_primary: true,
+            label: 'Principal'
+          }]);
+
+        if (error) throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error saving address:', error);
+      toast({
+        title: "Erro ao salvar endereço",
+        description: "Não foi possível salvar o endereço. Tente novamente.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       let avatarUrl = profile?.avatar_url;
 
-      // Upload new avatar if selected
       if (avatarFile) {
         const uploadedUrl = await uploadAvatar();
         if (uploadedUrl) avatarUrl = uploadedUrl;
@@ -143,7 +245,9 @@ export default function ProfileEdit() {
         avatar_url: avatarUrl
       });
 
-      if (success) {
+      const addressSaved = await handleSaveAddress();
+
+      if (success && addressSaved) {
         toast({
           title: "Perfil atualizado!",
           description: "Suas informações foram salvas com sucesso.",
@@ -193,7 +297,6 @@ export default function ProfileEdit() {
       });
 
       setPasswordData({ current: '', new: '', confirm: '' });
-      setShowChangePassword(false);
     } catch (error: any) {
       toast({
         title: "Erro ao alterar senha",
@@ -206,7 +309,6 @@ export default function ProfileEdit() {
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link to="/profile">
@@ -225,8 +327,8 @@ export default function ProfileEdit() {
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile">Perfil</TabsTrigger>
+            <TabsTrigger value="address">Endereço</TabsTrigger>
             <TabsTrigger value="security">Segurança</TabsTrigger>
-            <TabsTrigger value="notifications">Notificações</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -302,7 +404,12 @@ export default function ProfileEdit() {
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="(11) 99999-9999"
+                      disabled
+                      className="bg-muted cursor-not-allowed"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      ⚠️ Para alterar o telefone, entre em contato com o suporte
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -347,6 +454,100 @@ export default function ProfileEdit() {
             </Card>
           </TabsContent>
 
+          {/* Address Tab */}
+          <TabsContent value="address" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Endereço Principal
+                </CardTitle>
+                <CardDescription>
+                  Atualize seu endereço principal
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="col-span-3 space-y-2">
+                    <Label htmlFor="street">Rua/Avenida</Label>
+                    <Input
+                      id="street"
+                      placeholder="Nome da rua"
+                      value={addressData.street}
+                      onChange={(e) => handleAddressChange('street', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="number">Número</Label>
+                    <Input
+                      id="number"
+                      placeholder="123"
+                      value={addressData.number}
+                      onChange={(e) => handleAddressChange('number', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="complement">Complemento</Label>
+                    <Input
+                      id="complement"
+                      placeholder="Apto, bloco, etc."
+                      value={addressData.complement}
+                      onChange={(e) => handleAddressChange('complement', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="neighborhood">Bairro</Label>
+                    <Input
+                      id="neighborhood"
+                      placeholder="Nome do bairro"
+                      value={addressData.neighborhood}
+                      onChange={(e) => handleAddressChange('neighborhood', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Cidade</Label>
+                    <Input
+                      id="city"
+                      placeholder="Nome da cidade"
+                      value={addressData.city}
+                      onChange={(e) => handleAddressChange('city', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">Estado</Label>
+                    <Input
+                      id="state"
+                      placeholder="SP"
+                      value={addressData.state}
+                      onChange={(e) => handleAddressChange('state', e.target.value)}
+                      maxLength={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="zipcode">CEP</Label>
+                    <Input
+                      id="zipcode"
+                      placeholder="00000-000"
+                      value={addressData.zipcode}
+                      onChange={(e) => handleAddressChange('zipcode', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={handleSaveAddress} disabled={addressLoading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {addressLoading ? 'Salvando...' : 'Salvar Endereço'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-6">
             <Card>
@@ -361,154 +562,35 @@ export default function ProfileEdit() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">Alterar Senha</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Última alteração há mais de 30 dias
-                      </p>
+                  <h4 className="font-medium">Alterar Senha</h4>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="new_password">Nova Senha</Label>
+                      <Input
+                        id="new_password"
+                        type="password"
+                        value={passwordData.new}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, new: e.target.value }))}
+                        placeholder="Mínimo 6 caracteres"
+                      />
                     </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowChangePassword(!showChangePassword)}
-                    >
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm_password">Confirmar Nova Senha</Label>
+                      <Input
+                        id="confirm_password"
+                        type="password"
+                        value={passwordData.confirm}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirm: e.target.value }))}
+                        placeholder="Digite a senha novamente"
+                      />
+                    </div>
+                    <Button onClick={handlePasswordChange} size="sm">
                       <Key className="w-4 h-4 mr-2" />
-                      Alterar
-                    </Button>
-                  </div>
-
-                  {showChangePassword && (
-                    <Card className="bg-muted/50">
-                      <CardContent className="pt-6 space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="current_password">Senha Atual</Label>
-                          <Input
-                            id="current_password"
-                            type="password"
-                            value={passwordData.current}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, current: e.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="new_password">Nova Senha</Label>
-                          <Input
-                            id="new_password"
-                            type="password"
-                            value={passwordData.new}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, new: e.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="confirm_password">Confirmar Nova Senha</Label>
-                          <Input
-                            id="confirm_password"
-                            type="password"
-                            value={passwordData.confirm}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, confirm: e.target.value }))}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handlePasswordChange} size="sm">
-                            Salvar Nova Senha
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setShowChangePassword(false)}
-                          >
-                            Cancelar
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">Autenticação de Dois Fatores</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Adicione uma camada extra de segurança
-                      </p>
-                    </div>
-                    <Button variant="outline" disabled>
-                      Em Breve
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">Verificação Facial</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Configure verificação biométrica
-                      </p>
-                    </div>
-                    <Button variant="outline" disabled>
-                      Configurar
+                      Alterar Senha
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Preferências de Notificação
-                </CardTitle>
-                <CardDescription>
-                  Configure como você quer receber notificações
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">Novos trabalhos</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Receber notificações sobre novos trabalhos
-                      </p>
-                    </div>
-                    <input type="checkbox" defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">Propostas recebidas</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Notificar quando receber novas propostas
-                      </p>
-                    </div>
-                    <input type="checkbox" defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">Mensagens</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Notificações de chat e mensagens
-                      </p>
-                    </div>
-                    <input type="checkbox" defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">Atualizações do KYC</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Status dos seus documentos
-                      </p>
-                    </div>
-                    <input type="checkbox" defaultChecked />
-                  </div>
-                </div>
-
-                <Button className="w-full">
-                  Salvar Preferências
-                </Button>
               </CardContent>
             </Card>
           </TabsContent>
