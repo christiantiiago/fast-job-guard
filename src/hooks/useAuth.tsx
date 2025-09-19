@@ -58,48 +58,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Always set loading to false first to unblock UI
+        setLoading(false);
+        
         if (session?.user) {
-          // Log security event for authentication
+          // Log security event for authentication (simplified)
           if (event === 'SIGNED_IN') {
-            try {
-              await supabase.rpc('log_security_event', {
-                event_type: 'USER_SIGNED_IN',
-                event_data: {
-                  timestamp: new Date().toISOString(),
-                  user_id: session.user.id,
-                  ip_address: 'client_side'
-                }
-              });
-            } catch (error) {
-              console.warn('Failed to log security event:', error);
-            }
+            console.log('User signed in:', session.user.id);
           }
           
-          // Fetch role in a separate async operation to avoid blocking
-          setTimeout(async () => {
-            if (!isMounted) return;
-            const role = await fetchUserRole(session.user.id);
+          // Fetch role in background (non-blocking)
+          fetchUserRole(session.user.id).then(role => {
             if (isMounted) {
               setUserRole(role);
-              setLoading(false);
             }
-          }, 0);
+          }).catch(error => {
+            console.warn('Failed to fetch user role:', error);
+            if (isMounted) {
+              setUserRole('client'); // Default fallback
+            }
+          });
         } else {
           setUserRole(null);
-          setLoading(false);
           
-          // Log security event for sign out
+          // Log security event for sign out (simplified)
           if (event === 'SIGNED_OUT') {
-            try {
-              await supabase.rpc('log_security_event', {
-                event_type: 'USER_SIGNED_OUT',
-                event_data: {
-                  timestamp: new Date().toISOString()
-                }
-              });
-            } catch (error) {
-              console.warn('Failed to log security event:', error);
-            }
+            console.log('User signed out');
           }
         }
       }
