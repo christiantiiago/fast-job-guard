@@ -92,7 +92,7 @@ export default function JobProposals() {
         .from('proposals')
         .select(`
           *,
-          provider_profile:profiles!provider_id (
+          profiles!provider_id (
             full_name,
             avatar_url,
             rating_avg,
@@ -104,10 +104,14 @@ export default function JobProposals() {
 
       if (proposalsError) throw proposalsError;
 
-      const proposalsWithProfiles = proposalsData?.map(proposal => ({
-        ...proposal,
-        provider_profile: proposal.provider_profile || {}
-      })) || [];
+      const proposalsWithProfiles = proposalsData?.map(proposal => {
+        console.log('Proposal data:', proposal);
+        console.log('Provider profile:', proposal.profiles);
+        return {
+          ...proposal,
+          provider_profile: proposal.profiles || {}
+        };
+      }) || [];
 
       setProposals(proposalsWithProfiles);
     } catch (error) {
