@@ -29,7 +29,7 @@ import {
 
 export default function Profile() {
   const { user, userRole } = useAuth();
-  const { profile, stats, loading, updating } = useProfile();
+  const { profile, address, stats, loading, updating } = useProfile();
   const { status: kycStatus } = useKYCStatus();
   const { premiumStatus } = usePremiumStatus();
 
@@ -152,11 +152,19 @@ export default function Profile() {
               <CardContent className="space-y-6">
                  <div className="flex items-center space-x-4">
                    <Avatar className="w-16 h-16">
-                     <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                       {profile?.full_name 
-                         ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
-                         : user?.email?.[0].toUpperCase() || '?'}
-                     </AvatarFallback>
+                     {profile?.avatar_url ? (
+                       <img 
+                         src={profile.avatar_url} 
+                         alt={profile?.full_name || 'Avatar'}
+                         className="w-full h-full object-cover rounded-full"
+                       />
+                     ) : (
+                       <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+                         {profile?.full_name 
+                           ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
+                           : user?.email?.[0].toUpperCase() || '?'}
+                       </AvatarFallback>
+                     )}
                    </Avatar>
                      <div>
                        <div className="flex items-center gap-2">
@@ -213,7 +221,13 @@ export default function Profile() {
                   <MapPin className="w-5 h-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">Endereço</p>
-                    <p className="text-sm text-muted-foreground">São Paulo, SP - Brasil</p>
+                    <p className="text-sm text-muted-foreground">
+                      {address ? (
+                        `${address.street}${address.number ? `, ${address.number}` : ''}, ${address.neighborhood}, ${address.city} - ${address.state}, ${address.country}`
+                      ) : (
+                        'Não informado'
+                      )}
+                    </p>
                   </div>
                 </div>
               </CardContent>

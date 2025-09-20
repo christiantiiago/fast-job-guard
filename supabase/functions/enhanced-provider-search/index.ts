@@ -36,8 +36,8 @@ serve(async (req) => {
 
     logStep("Search parameters", { category, latitude, longitude, maxDistance, minRating, limit });
 
-    // Build the query to get providers with addresses instead of online status
-    let query = supabaseClient
+    // Simplified query - fetch profiles first, then get related data
+    const { data: profiles, error: profilesError } = await supabaseClient
       .from('profiles')
       .select(`
         id,
@@ -48,58 +48,87 @@ serve(async (req) => {
         rating_count,
         created_at,
         verified_at,
-        kyc_status,
-        subscriptions!left(
-          status
-        ),
-        services!inner(
-          id,
-          title,
-          description,
-          base_price,
-          service_categories!inner(
-            name,
-            slug
-          )
-        ),
-        addresses!left(
-          id,
-          street,
-          number,
-          neighborhood,
-          city,
-          state,
-          latitude,
-          longitude,
-          is_primary
-        )
+        kyc_status
       `)
       .eq('kyc_status', 'approved')
       .gte('rating_avg', minRating);
 
-    // Add category filter if specified
-    if (category) {
-      query = query.eq('services.service_categories.slug', category);
+    if (profilesError) {
+      logStep("Profiles query error", profilesError);
+      throw new Error(`Profile query failed: ${profilesError.message}`);
     }
 
-    const { data: rawProviders, error } = await query;
-
-    if (error) {
-      logStep("Database error", error);
-      throw error;
+    if (!profiles || profiles.length === 0) {
+      logStep("No approved profiles found");
+      return new Response(JSON.stringify({
+        providers: [],
+        metadata: { total: 0, hasLocation: !!latitude && !!longitude }
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    logStep("Raw providers fetched", { count: rawProviders?.length });
+    // Get services for each profile
+    const { data: services, error: servicesError } = await supabaseClient
+      .from('services')
+      .select(`
+        id,
+        title,
+        description,
+        base_price,
+        provider_id,
+        service_categories(name, slug)
+      `)
+      .in('provider_id', profiles.map(p => p.user_id))
+      .eq('is_active', true);
+
+    if (servicesError) {
+      logStep("Services query error", servicesError);
+    }
+
+    // Get addresses for each profile
+    const { data: addresses, error: addressesError } = await supabaseClient
+      .from('addresses')
+      .select('*')
+      .in('user_id', profiles.map(p => p.user_id));
+
+    if (addressesError) {
+      logStep("Addresses query error", addressesError);
+    }
+
+    // Get subscriptions for premium status
+    const { data: subscriptions, error: subscriptionsError } = await supabaseClient
+      .from('subscriptions')
+      .select('user_id, status')
+      .in('user_id', profiles.map(p => p.user_id))
+      .eq('status', 'active');
+
+    if (subscriptionsError) {
+      logStep("Subscriptions query error", subscriptionsError);
+    }
+
+    logStep("Data fetched", { 
+      profilesCount: profiles?.length,
+      servicesCount: services?.length,
+      addressesCount: addresses?.length,
+      subscriptionsCount: subscriptions?.length
+    });
 
     // Process and enhance the data
-    const providers = rawProviders?.map(provider => {
-      const subscription = Array.isArray(provider.subscriptions) 
-        ? provider.subscriptions[0] 
-        : provider.subscriptions;
-
-      const primaryAddress = Array.isArray(provider.addresses) 
-        ? provider.addresses.find(addr => addr.is_primary) || provider.addresses[0]
-        : provider.addresses;
+    const providers = profiles.map(profile => {
+      const profileServices = services?.filter(s => s.provider_id === profile.user_id) || [];
+      const profileAddresses = addresses?.filter(a => a.user_id === profile.user_id) || [];
+      const primaryAddress = profileAddresses.find(addr => addr.is_primary) || profileAddresses[0];
+      const subscription = subscriptions?.find(s => s.user_id === profile.user_id);
+      
+      // Filter by category if specified
+      if (category) {
+        const hasCategory = profileServices.some(service => 
+          service.service_categories?.slug === category
+        );
+        if (!hasCategory) return null;
+      }
 
       let distance_km = 999999;
       let priority_score = 0;
@@ -119,19 +148,19 @@ serve(async (req) => {
       // Calculate priority score
       const isPremium = subscription?.status === 'active';
       if (isPremium) priority_score += 1000;
-      priority_score += Math.floor((provider.rating_avg || 0) * 20);
+      priority_score += Math.floor((profile.rating_avg || 0) * 20);
       if (distance_km < 999999) {
         priority_score += Math.max(0, 500 - Math.floor(distance_km * 10));
       }
 
       return {
-        id: provider.id,
-        user_id: provider.user_id,
-        full_name: provider.full_name,
-        avatar_url: provider.avatar_url,
-        rating_avg: provider.rating_avg || 0,
-        rating_count: provider.rating_count || 0,
-        is_premium: isPremium,
+        id: profile.id,
+        user_id: profile.user_id,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url,
+        rating_avg: profile.rating_avg || 0,
+        rating_count: profile.rating_count || 0,
+        is_premium: isPremium || false,
         address: primaryAddress ? {
           street: primaryAddress.street,
           number: primaryAddress.number,
@@ -143,12 +172,18 @@ serve(async (req) => {
         } : null,
         distance_km,
         priority_score,
-        services: Array.isArray(provider.services) ? provider.services : [provider.services].filter(Boolean),
-        created_at: provider.created_at,
-        verified_at: provider.verified_at,
-        kyc_status: provider.kyc_status
+        services: profileServices.map(s => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          base_price: s.base_price,
+          category: s.service_categories
+        })),
+        created_at: profile.created_at,
+        verified_at: profile.verified_at,
+        kyc_status: profile.kyc_status
       };
-    }) || [];
+    }).filter(Boolean); // Remove nulls from category filtering
 
     // Filter by distance and sort by priority
     const filteredProviders = providers
@@ -180,8 +215,13 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in enhanced provider search", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const errorStack = error instanceof Error ? error.stack : '';
+    logStep("ERROR in enhanced provider search", { message: errorMessage, stack: errorStack });
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? errorStack : undefined
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

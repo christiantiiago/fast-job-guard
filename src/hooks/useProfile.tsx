@@ -15,6 +15,22 @@ interface Profile {
   kyc_status: 'incomplete' | 'pending' | 'approved' | 'rejected' | 'em_analise' | 'bloqueado' | 'suspeito';
   created_at: string;
   updated_at: string;
+  birth_date?: string | null;
+  document_number?: string | null;
+}
+
+interface Address {
+  id: string;
+  user_id: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zipcode: string;
+  country: string;
+  is_primary: boolean;
 }
 
 interface ProfileStats {
@@ -31,6 +47,7 @@ export const useProfile = () => {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [address, setAddress] = useState<Address | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -74,6 +91,18 @@ export const useProfile = () => {
         }
       } else {
         setProfile(profileData);
+      }
+
+      // Fetch address data
+      const { data: addressData, error: addressError } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_primary', { ascending: false })
+        .maybeSingle();
+
+      if (!addressError && addressData) {
+        setAddress(addressData);
       }
 
       // Fetch statistics
@@ -211,6 +240,7 @@ export const useProfile = () => {
 
   return {
     profile,
+    address,
     stats,
     loading,
     updating,
