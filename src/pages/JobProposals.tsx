@@ -92,7 +92,7 @@ export default function JobProposals() {
         .from('proposals')
         .select(`
           *,
-          profiles:provider_id (
+          provider_profile:profiles!provider_id (
             full_name,
             avatar_url,
             rating_avg,
@@ -106,7 +106,7 @@ export default function JobProposals() {
 
       const proposalsWithProfiles = proposalsData?.map(proposal => ({
         ...proposal,
-        provider_profile: proposal.profiles || {}
+        provider_profile: proposal.provider_profile || {}
       })) || [];
 
       setProposals(proposalsWithProfiles);
