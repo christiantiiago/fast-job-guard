@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import Map from '@/components/ui/map';
+import { ProviderMap } from '@/components/discover/ProviderMap';
 import { DirectProposalModal } from '@/components/providers/DirectProposalModal';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,12 +22,18 @@ interface Provider {
   rating_avg: number;
   rating_count: number;
   is_premium: boolean;
+  is_online?: boolean;
+  last_activity_minutes?: number;
   distance_km: number;
   services: any[];
   priority_score: number;
-  is_online?: boolean;
-  location_lat?: number;
-  location_lng?: number;
+  latitude?: number;
+  longitude?: number;
+  address?: {
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+  };
 }
 
 interface MapMarker {
@@ -77,8 +83,9 @@ export default function ProvidersDiscover() {
       const processedProviders = (data?.providers || []).map((provider: any) => ({
         ...provider,
         is_online: provider.is_online || false,
-        location_lat: provider.location_lat || null,
-        location_lng: provider.location_lng || null
+        latitude: provider.latitude || null,
+        longitude: provider.longitude || null,
+        last_activity_minutes: provider.last_activity_minutes || null
       }));
 
       setProviders(processedProviders);
@@ -104,15 +111,18 @@ export default function ProvidersDiscover() {
     )
   );
 
-  const mapMarkers: MapMarker[] = filteredProviders
-    .filter(provider => provider.location_lat && provider.location_lng)
-    .slice(0, 20) // Limitar a 20 markers para performance
-    .map(provider => ({
-      latitude: provider.location_lat || 0,
-      longitude: provider.location_lng || 0,
-      title: provider.full_name,
-      description: `${provider.rating_avg.toFixed(1)} ⭐ • ${provider.services.length} serviços${provider.is_online ? ' • Online' : ' • Offline'}`
-    }));
+  const formatLastActivity = (minutes: number | null) => {
+    if (!minutes) return 'Nunca ativo';
+    
+    if (minutes < 1) return 'Online';
+    if (minutes < 60) return `${minutes}min atrás`;
+    
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h atrás`;
+    
+    const days = Math.floor(hours / 24);
+    return `${days}d atrás`;
+  };
 
   if (geoError) {
     return (
@@ -194,12 +204,13 @@ export default function ProvidersDiscover() {
               <CardContent className="p-0">
                 <div className="h-[500px] rounded-b-lg overflow-hidden">
                   {position && (
-                    <Map
-                      center={[position.latitude, position.longitude]}
-                      zoom={13}
-                      markers={mapMarkers}
-                      height="100%"
-                      interactive
+                    <ProviderMap
+                      providers={filteredProviders.filter(p => p.latitude && p.longitude)}
+                      position={position}
+                      onProviderSelect={(provider) => {
+                        setSelectedProviderForProposal(provider);
+                        setProposalModalOpen(true);
+                      }}
                     />
                   )}
                 </div>
@@ -270,9 +281,9 @@ export default function ProvidersDiscover() {
                             )}
                             <Badge 
                               variant={provider.is_online ? "default" : "secondary"} 
-                              className={`text-xs ${provider.is_online ? 'bg-green-500' : 'bg-gray-400'}`}
+                              className={`text-xs ${provider.is_online ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}
                             >
-                              {provider.is_online ? 'Online' : 'Offline'}
+                              {formatLastActivity(provider.last_activity_minutes)}
                             </Badge>
                           </div>
                           

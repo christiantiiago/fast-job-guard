@@ -115,12 +115,23 @@ serve(async (req) => {
       subscriptionsCount: subscriptions?.length
     });
 
+    // Get provider status (online/offline) from profiles table  
+    const { data: providerStatus, error: statusError } = await supabaseClient
+      .from('profiles')
+      .select('user_id, updated_at')
+      .in('user_id', profiles.map(p => p.user_id));
+
+    if (statusError) {
+      logStep("Provider status query error", statusError);
+    }
+
     // Process and enhance the data
     const providers = profiles.map(profile => {
       const profileServices = services?.filter(s => s.provider_id === profile.user_id) || [];
       const profileAddresses = addresses?.filter(a => a.user_id === profile.user_id) || [];
       const primaryAddress = profileAddresses.find(addr => addr.is_primary) || profileAddresses[0];
       const subscription = subscriptions?.find(s => s.user_id === profile.user_id);
+      const status = providerStatus?.find(s => s.user_id === profile.user_id);
       
       // Filter by category if specified
       if (category) {
@@ -153,6 +164,17 @@ serve(async (req) => {
         priority_score += Math.max(0, 500 - Math.floor(distance_km * 10));
       }
 
+      // Determine if provider is online (updated within last 30 minutes)
+      const lastUpdate = status?.updated_at ? new Date(status.updated_at) : null;
+      const now = new Date();
+      const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+      const isOnline = lastUpdate ? lastUpdate > thirtyMinutesAgo : false;
+
+      // Calculate minutes since last activity
+      const minutesSinceLastActivity = lastUpdate 
+        ? Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60))
+        : null;
+
       return {
         id: profile.id,
         user_id: profile.user_id,
@@ -161,6 +183,8 @@ serve(async (req) => {
         rating_avg: profile.rating_avg || 0,
         rating_count: profile.rating_count || 0,
         is_premium: isPremium || false,
+        is_online: isOnline,
+        last_activity_minutes: minutesSinceLastActivity,
         address: primaryAddress ? {
           street: primaryAddress.street,
           number: primaryAddress.number,
@@ -170,6 +194,8 @@ serve(async (req) => {
           latitude: primaryAddress.latitude,
           longitude: primaryAddress.longitude
         } : null,
+        latitude: primaryAddress?.latitude || null,
+        longitude: primaryAddress?.longitude || null,
         distance_km,
         priority_score,
         services: profileServices.map(s => ({
