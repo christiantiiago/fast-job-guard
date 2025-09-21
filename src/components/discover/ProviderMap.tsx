@@ -104,7 +104,7 @@ export function ProviderMap({ providers, position, onProviderSelect }: ProviderM
           mapContainer.current.style.cssText = `
             width: 100%;
             height: 100%;
-            min-height: 500px;
+            min-height: 70vh;
             position: relative;
             background: #f0f0f0;
           `;
@@ -480,15 +480,15 @@ export function ProviderMap({ providers, position, onProviderSelect }: ProviderM
   }
 
   return (
-    <div className="relative w-full h-full min-h-[500px]">
+    <div className="relative w-full h-full min-h-[70vh]">
       <div 
         ref={mapContainer} 
-        className="w-full h-full min-h-[500px] bg-gray-100" 
+        className="w-full h-full min-h-[70vh] bg-gray-100" 
         style={{
           position: 'relative',
           width: '100%',
           height: '100%',
-          minHeight: '500px'
+          minHeight: '70vh'
         }}
       />
       

@@ -90,12 +90,17 @@ serve(async (req) => {
     // Get addresses for each profile
     const { data: addresses, error: addressesError } = await supabaseClient
       .from('addresses')
-      .select('*')
+      .select('user_id, latitude, longitude, street, number, neighborhood, city, state, is_primary')
       .in('user_id', profiles.map(p => p.user_id));
 
     if (addressesError) {
       logStep("Addresses query error", addressesError);
     }
+
+    logStep("Addresses found", { 
+      addressesCount: addresses?.length,
+      addressesWithCoords: addresses?.filter(a => a.latitude && a.longitude).length
+    });
 
     // Get subscriptions for premium status
     const { data: subscriptions, error: subscriptionsError } = await supabaseClient
@@ -112,6 +117,7 @@ serve(async (req) => {
       profilesCount: profiles?.length,
       servicesCount: services?.length,
       addressesCount: addresses?.length,
+      addressesWithCoords: addresses?.filter(a => a.latitude && a.longitude).length,
       subscriptionsCount: subscriptions?.length
     });
 
@@ -226,7 +232,11 @@ serve(async (req) => {
       })
       .slice(0, limit);
 
-    logStep("Processed providers", { count: filteredProviders.length });
+    logStep("Processed providers", { 
+      count: filteredProviders.length,
+      withCoordinates: filteredProviders.filter(p => p.latitude && p.longitude).length,
+      coordinates: filteredProviders.map(p => ({ id: p.id, name: p.full_name, lat: p.latitude, lng: p.longitude }))
+    });
 
     return new Response(JSON.stringify({
       providers: filteredProviders,

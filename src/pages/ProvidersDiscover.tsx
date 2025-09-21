@@ -66,6 +66,15 @@ export default function ProvidersDiscover() {
     try {
       setLoading(true);
       
+      console.log('[PROVIDERS] Searching with params:', {
+        category: selectedCategory || null,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+        maxDistance: 20,
+        minRating: 0,
+        limit: 50
+      });
+      
       const { data, error } = await supabase.functions.invoke('enhanced-provider-search', {
         body: {
           category: selectedCategory || null,
@@ -77,16 +86,23 @@ export default function ProvidersDiscover() {
         }
       });
 
+      console.log('[PROVIDERS] API Response:', { data, error });
+
       if (error) throw error;
 
       // Process the data to ensure all required fields are present
       const processedProviders = (data?.providers || []).map((provider: any) => ({
         ...provider,
         is_online: provider.is_online || false,
-        latitude: provider.latitude || null,
-        longitude: provider.longitude || null,
+        latitude: provider.address?.latitude || provider.latitude || null,
+        longitude: provider.address?.longitude || provider.longitude || null,
         last_activity_minutes: provider.last_activity_minutes || null
       }));
+
+      console.log('[PROVIDERS] Processed providers:', processedProviders);
+      console.log('[PROVIDERS] Providers with coordinates:', 
+        processedProviders.filter(p => p.latitude && p.longitude)
+      );
 
       setProviders(processedProviders);
     } catch (error) {
@@ -110,6 +126,17 @@ export default function ProvidersDiscover() {
       service.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
   );
+
+  useEffect(() => {
+    console.log('[DEBUG] Providers state updated:', {
+      totalProviders: providers.length,
+      providersWithCoords: providers.filter(p => p.latitude && p.longitude).length,
+      filteredProviders: filteredProviders.length,
+      filteredWithCoords: filteredProviders.filter(p => p.latitude && p.longitude).length,
+      position: position,
+      sampleProvider: providers[0]
+    });
+  }, [providers, filteredProviders, position]);
 
   const formatLastActivity = (minutes: number | null) => {
     if (!minutes) return 'Nunca ativo';
@@ -147,7 +174,7 @@ export default function ProvidersDiscover() {
 
   return (
     <AppLayout>
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">Prestadores Próximos</h1>
@@ -191,9 +218,9 @@ export default function ProvidersDiscover() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-5 gap-6">
           {/* Mapa */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -202,16 +229,22 @@ export default function ProvidersDiscover() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="h-[500px] rounded-b-lg overflow-hidden">
+                <div className="h-[70vh] min-h-[600px] rounded-b-lg overflow-hidden">
                   {position && (
                     <ProviderMap
                       providers={filteredProviders.filter(p => p.latitude && p.longitude)}
                       position={position}
                       onProviderSelect={(provider) => {
+                        console.log('[PROVIDER] Selected provider:', provider);
                         setSelectedProviderForProposal(provider);
                         setProposalModalOpen(true);
                       }}
                     />
+                  )}
+                  {!position && (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-muted-foreground">Aguardando localização...</p>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -219,10 +252,15 @@ export default function ProvidersDiscover() {
           </div>
 
           {/* Lista de Prestadores */}
-          <div className="space-y-4">
+          <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">
                 {filteredProviders.length} prestadores encontrados
+                {filteredProviders.filter(p => p.latitude && p.longitude).length > 0 && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    ({filteredProviders.filter(p => p.latitude && p.longitude).length} no mapa)
+                  </span>
+                )}
               </h3>
               <Button variant="outline" size="sm">
                 <Filter className="h-4 w-4 mr-2" />
@@ -230,7 +268,7 @@ export default function ProvidersDiscover() {
               </Button>
             </div>
 
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            <div className="space-y-3 max-h-[70vh] min-h-[600px] overflow-y-auto">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <Card key={i}>
