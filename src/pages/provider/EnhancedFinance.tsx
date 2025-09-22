@@ -267,7 +267,7 @@ export default function EnhancedFinance() {
                   {showBalance ? formatCurrency(stats.pendingAmount) : '••••••'}
                 </p>
                 <div className="text-sm text-white/80">
-                  <span>Taxa atual: {currentFeeRate.toFixed(1)}%</span>
+                  <span>Em escrow: {formatCurrency(stats.pendingAmount)}</span>
                   {isPremiumUser && (
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3 w-3 text-yellow-400" />
@@ -346,26 +346,22 @@ export default function EnhancedFinance() {
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+              <Card className="border-0 shadow-md bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 bg-purple-500/10 rounded-full">
-                      <CreditCard className="h-6 w-6 text-purple-600" />
+                    <div className="p-3 bg-orange-500/10 rounded-full">
+                      <Clock className="h-6 w-6 text-orange-600" />
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground font-medium">TAXA</p>
+                      <p className="text-xs text-muted-foreground font-medium">EM ESCROW</p>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                      {currentFeeRate.toFixed(1)}%
+                    <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                      {formatCurrency(stats.pendingAmount)}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {isPremiumUser ? (
-                        <span className="text-green-600 font-medium">✨ Premium</span>
-                      ) : (
-                        <span className="text-amber-600">Padrão</span>
-                      )}
+                      Pagamentos retidos
                     </p>
                   </div>
                 </CardContent>

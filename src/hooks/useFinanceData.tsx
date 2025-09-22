@@ -54,7 +54,8 @@ export const useFinanceData = () => {
     if (!user || userRole !== 'provider') return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch regular payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
           id,
@@ -72,14 +73,67 @@ export const useFinanceData = () => {
         .eq('provider_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (paymentsError) throw paymentsError;
 
-      const formattedPayments = (data || []).map(payment => ({
+      // Fetch escrow payments for provider
+      const { data: escrowData, error: escrowError } = await supabase
+        .from('escrow_payments')
+        .select(`
+          id,
+          amount,
+          platform_fee,
+          status,
+          created_at,
+          completed_at,
+          job_id
+        `)
+        .eq('provider_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (escrowError) throw escrowError;
+
+      // Get job titles for escrow payments
+      const jobIds = [...(paymentsData || []).map(p => p.job_id), ...(escrowData || []).map(p => p.job_id)].filter(Boolean);
+      let jobTitles: Record<string, string> = {};
+      
+      if (jobIds.length > 0) {
+        const { data: jobsData } = await supabase
+          .from('jobs')
+          .select('id, title')
+          .in('id', jobIds);
+        
+        jobTitles = (jobsData || []).reduce((acc, job) => {
+          acc[job.id] = job.title;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
+      // Format regular payments
+      const formattedPayments = (paymentsData || []).map(payment => ({
         ...payment,
-        job_title: payment.jobs?.title || 'Trabalho removido'
+        job_title: payment.jobs?.title || jobTitles[payment.job_id] || 'Trabalho removido'
       }));
 
-      setPayments(formattedPayments);
+      // Format escrow payments as payments
+      const formattedEscrowPayments = (escrowData || []).map(escrow => ({
+        id: escrow.id,
+        amount: escrow.amount,
+        net_amount: escrow.amount, // Provider gets the amount minus platform fee
+        client_fee: 0,
+        provider_fee: escrow.platform_fee,
+        platform_fee: escrow.platform_fee,
+        status: escrow.status === 'held' ? 'pending' : escrow.status,
+        created_at: escrow.created_at,
+        processed_at: escrow.completed_at || escrow.created_at,
+        job_id: escrow.job_id,
+        job_title: jobTitles[escrow.job_id] || 'Trabalho removido'
+      }));
+
+      // Combine and sort all payments
+      const allPayments = [...formattedPayments, ...formattedEscrowPayments]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setPayments(allPayments);
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
@@ -103,17 +157,28 @@ export const useFinanceData = () => {
   };
 
   const calculateStats = () => {
-    if (!payments.length) return;
+    if (!payments.length) {
+      setStats({
+        totalEarnings: 0,
+        availableBalance: 0,
+        pendingAmount: 0,
+        totalWithdrawn: 0,
+        totalJobs: 0,
+        currentMonthEarnings: 0,
+        avgRating: 4.8
+      });
+      return;
+    }
 
-    const completedPayments = payments.filter(p => p.status === 'completed');
+    const completedPayments = payments.filter(p => p.status === 'completed' || p.status === 'released');
     const pendingPayments = payments.filter(p => p.status === 'pending' || p.status === 'held');
     const totalWithdrawn = payouts
-      .filter(p => p.status === 'completed')
+      .filter(p => p.status === 'completed' || p.status === 'paid')
       .reduce((sum, p) => sum + p.amount, 0);
 
     const totalEarnings = completedPayments.reduce((sum, p) => sum + p.net_amount, 0);
     const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.net_amount, 0);
-    const availableBalance = totalEarnings - totalWithdrawn;
+    const availableBalance = Math.max(0, totalEarnings - totalWithdrawn);
 
     // Ganhos do mês atual
     const currentMonth = new Date().getMonth();
@@ -127,10 +192,10 @@ export const useFinanceData = () => {
 
     setStats({
       totalEarnings,
-      availableBalance: Math.max(0, availableBalance),
+      availableBalance,
       pendingAmount,
       totalWithdrawn,
-      totalJobs: payments.length,
+      totalJobs: completedPayments.length,
       currentMonthEarnings,
       avgRating: 4.8 // Pode ser calculado a partir das reviews
     });

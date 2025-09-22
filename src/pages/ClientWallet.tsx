@@ -254,15 +254,15 @@ export default function ClientWallet() {
       .filter(p => p.status === 'completed').length;
 
     const escrowHeld = escrowData
-      .filter(e => e.status === 'held')
-      .reduce((sum, e) => sum + e.amount, 0);
+      .filter(e => e.status === 'pending' || e.status === 'held')
+      .reduce((sum, e) => sum + e.total_amount, 0);
 
     const escrowReleased = escrowData
       .filter(e => e.status === 'released')
-      .reduce((sum, e) => sum + e.amount, 0);
+      .reduce((sum, e) => sum + e.total_amount, 0);
 
     setStats({
-      totalSpent: totalSpent + escrowReleased,
+      totalSpent: totalSpent + escrowReleased + escrowHeld,
       totalTransactions,
       pendingPayments: pendingPayments + escrowHeld,
       completedPayments,
@@ -484,7 +484,7 @@ export default function ClientWallet() {
                       isClient={true}
                       onUpdate={() => {
                         fetchEscrowPayments();
-                        calculateStats(payments, escrowPayments);
+                        fetchPayments();
                       }}
                     />
                   </div>

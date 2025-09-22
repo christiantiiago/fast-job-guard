@@ -78,6 +78,7 @@ export default function Wallet() {
 
     try {
       setLoading(true);
+      let transformedPayments: Payment[] = [];
 
       // Fetch real payments and escrow data
       if (userRole === 'client') {
@@ -106,7 +107,7 @@ export default function Wallet() {
           }
           
           // Transform escrow payments to match Payment interface
-          const transformedPayments = escrowPaymentsData?.map(payment => ({
+          transformedPayments = escrowPaymentsData?.map(payment => ({
             id: payment.id,
             amount: payment.total_amount,
             platform_fee: payment.platform_fee,
@@ -118,8 +119,6 @@ export default function Wallet() {
               title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
             }
           })) || [];
-          
-          setPayments(transformedPayments);
 
         } else if (userRole === 'provider') {
           const { data: escrowPaymentsData, error: escrowError } = await supabase
@@ -147,7 +146,7 @@ export default function Wallet() {
           }
           
           // Transform escrow payments to match Payment interface for provider
-          const transformedPayments = escrowPaymentsData?.map(payment => ({
+          transformedPayments = escrowPaymentsData?.map(payment => ({
             id: payment.id,
             amount: payment.amount, // Provider gets the amount minus platform fee
             platform_fee: payment.platform_fee,
@@ -159,8 +158,6 @@ export default function Wallet() {
               title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
             }
           })) || [];
-          
-          setPayments(transformedPayments);
 
           const { data: payoutsData, error: payoutsError } = await supabase
             .from('payouts')
@@ -172,33 +169,55 @@ export default function Wallet() {
           setPayouts(payoutsData || []);
         }
         
+        setPayments(transformedPayments);
+        
         // Update stats calculation for escrow system
         if (userRole === 'client') {
-          const totalSpent = payments.reduce((sum, payment) => {
-            return payment.status === 'captured' || payment.status === 'held' ? sum + payment.amount : sum;
-          }, 0);
+          const clientStats = {
+            totalSpent: 0,
+            totalTransactions: transformedPayments.length,
+            pendingPayments: 0,
+            completedPayments: 0
+          };
+          
+          transformedPayments.forEach(payment => {
+            if (payment.status === 'captured') {
+              clientStats.totalSpent += payment.amount;
+              clientStats.completedPayments += 1;
+            } else if (payment.status === 'pending') {
+              clientStats.pendingPayments += payment.amount;
+            }
+          });
 
-          setStats(prev => ({
-            ...prev,
-            totalSpent
-          }));
+          setStats({
+            availableBalance: 0,
+            pendingBalance: clientStats.pendingPayments,
+            totalEarnings: 0,
+            totalSpent: clientStats.totalSpent
+          });
         } else if (userRole === 'provider') {
-          const totalEarnings = payments.reduce((sum, payment) => {
-            return payment.status === 'released' ? sum + payment.net_amount : sum;
-          }, 0);
-
-          const pendingBalance = payments.reduce((sum, payment) => {
-            return payment.status === 'pending' || payment.status === 'held' ? sum + payment.net_amount : sum;
-          }, 0);
+          const providerStats = {
+            totalEarnings: 0,
+            pendingBalance: 0,
+            availableBalance: 0
+          };
+          
+          transformedPayments.forEach(payment => {
+            if (payment.status === 'captured') {
+              providerStats.totalEarnings += payment.net_amount;
+            } else if (payment.status === 'pending') {
+              providerStats.pendingBalance += payment.net_amount;
+            }
+          });
 
           const withdrawnAmount = payouts.reduce((sum, payout) => {
             return payout.status === 'paid' ? sum + payout.amount : sum;
           }, 0);
 
           setStats({
-            availableBalance: totalEarnings - withdrawnAmount,
-            pendingBalance,
-            totalEarnings,
+            availableBalance: providerStats.totalEarnings - withdrawnAmount,
+            pendingBalance: providerStats.pendingBalance,
+            totalEarnings: providerStats.totalEarnings,
             totalSpent: 0
           });
         }
