@@ -1,6 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { ProviderFinanceDashboard } from '@/components/finance/ProviderFinanceDashboard';
+import { AdvancedProviderDashboard } from '@/components/finance/AdvancedProviderDashboard';
 import { ClientFinanceDashboard } from '@/components/finance/ClientFinanceDashboard';
 
 export default function Wallet() {
@@ -10,7 +10,7 @@ export default function Wallet() {
     <AppLayout>
       <div className="p-6">
         {userRole === 'provider' ? (
-          <ProviderFinanceDashboard />
+          <AdvancedProviderDashboard />
         ) : (
           <ClientFinanceDashboard />
         )}
