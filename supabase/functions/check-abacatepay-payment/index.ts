@@ -65,7 +65,7 @@ serve(async (req) => {
       // Find records with this external payment ID
       const { data: escrowPayments, error: escrowError } = await serviceRoleClient
         .from("escrow_payments")
-        .select("*, jobs:job_id(id, client_id, provider_id, status)")
+        .select("*")
         .eq("external_payment_id", paymentId)
         .eq("status", "pending");
 

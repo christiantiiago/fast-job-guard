@@ -27,19 +27,13 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
 
         // Strategy 1: Call edge function to verify with AbacatePay and process
         try {
-          const checkResponse = await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
-            },
-            body: JSON.stringify({ paymentId: externalPaymentId })
+          const { data: checkResult, error: checkError } = await supabase.functions.invoke('check-abacatepay-payment', {
+            body: { paymentId: externalPaymentId }
           });
 
-          const checkResult = await checkResponse.json();
-          console.log(`[PaymentChecker] Edge function response:`, checkResult);
+          console.log(`[PaymentChecker] Edge function response:`, { checkResult, checkError });
           
-          if (checkResponse.ok && checkResult?.isPaid) {
+          if (!checkError && checkResult?.isPaid) {
             console.log(`[PaymentChecker] Payment confirmed by AbacatePay!`);
             
             toast({
@@ -93,13 +87,8 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
                 
                 // Try to trigger contract creation
                 try {
-                  await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
-                    },
-                    body: JSON.stringify({ paymentId: externalPaymentId })
+                  await supabase.functions.invoke('check-abacatepay-payment', {
+                    body: { paymentId: externalPaymentId }
                   });
                 } catch (e) {
                   console.error(`[PaymentChecker] Error triggering contract creation:`, e);
@@ -118,16 +107,9 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
         if (checkCount > 6 && checkCount % 6 === 0) { // Every 30 seconds after first minute
           console.log(`[PaymentChecker] Forcing payment fallback processing...`);
           try {
-            await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/process-payment-fallbacks`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
-              },
-              body: JSON.stringify({})
-            });
+            await supabase.functions.invoke('sync-pending-payments');
           } catch (e) {
-            console.error(`[PaymentChecker] Error calling fallback processor:`, e);
+            console.error(`[PaymentChecker] Error calling sync:`, e);
           }
         }
 

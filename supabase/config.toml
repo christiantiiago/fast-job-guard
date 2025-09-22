@@ -93,3 +93,9 @@ verify_jwt = false
 
 [functions.sync-pending-payments]
 verify_jwt = false
+
+[functions.abacatepay-webhook]
+verify_jwt = false
+
+[functions.force-process-payment]
+verify_jwt = false

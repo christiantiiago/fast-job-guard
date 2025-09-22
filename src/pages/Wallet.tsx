@@ -402,6 +402,43 @@ export default function Wallet() {
               )}
               {syncing ? 'Sincronizando...' : 'Sincronizar'}
             </Button>
+            <Button 
+              onClick={async () => {
+                try {
+                  setSyncing(true);
+                  console.log('[Wallet] Forçando processamento de pagamentos...');
+                  
+                  const { data, error } = await supabase.functions.invoke('force-process-payment');
+                  
+                  if (error) {
+                    console.error('[Wallet] Erro no processamento forçado:', error);
+                    throw error;
+                  }
+                  
+                  console.log('[Wallet] Processamento forçado:', data);
+                  
+                  toast.success(`${data?.processedCount || 0} pagamentos processados manualmente!`);
+                  
+                  // Atualizar dados após processamento
+                  setTimeout(fetchWalletData, 2000);
+                } catch (error: any) {
+                  console.error('[Wallet] Erro no processamento forçado:', error);
+                  toast.error(error.message || 'Falha ao forçar processamento.');
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              disabled={syncing}
+              variant="destructive"
+              size="sm"
+            >
+              {syncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <AlertCircle className="w-4 h-4 mr-2" />
+              )}
+              Forçar Pagamentos
+            </Button>
             <Button onClick={fetchWalletData} variant="outline" size="sm">
               <RefreshCw className="w-4 h-4 mr-2" />
               Atualizar
