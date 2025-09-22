@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { PaymentDebugPanel } from '@/components/debug/PaymentDebugPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,9 @@ import {
   Download,
   Upload,
   CreditCard,
-  PiggyBank
+  PiggyBank,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,6 +68,7 @@ export default function Wallet() {
   });
   const [loading, setLoading] = useState(true);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [syncing, setSyncing] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -266,6 +270,39 @@ export default function Wallet() {
     }
   };
 
+  const forceSync = async () => {
+    try {
+      setSyncing(true);
+      console.log('[Wallet] Forçando sincronização de pagamentos...');
+      
+      const { data, error } = await supabase.functions.invoke('sync-pending-payments');
+      
+      if (error) {
+        console.error('[Wallet] Erro na sincronização:', error);
+        throw error;
+      }
+      
+      console.log('[Wallet] Resultado da sincronização:', data);
+      
+      toast.success('Sincronização Iniciada', {
+        description: `Verificando ${data?.processed || 0} pagamentos pendentes...`
+      });
+      
+      // Atualizar dados após 3 segundos
+      setTimeout(() => {
+        fetchWalletData();
+      }, 3000);
+      
+    } catch (error) {
+      console.error('[Wallet] Erro na sincronização forçada:', error);
+      toast.error('Erro na sincronização', {
+        description: "Não foi possível sincronizar os pagamentos."
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchWalletData();
   }, [user, userRole]);
@@ -338,17 +375,38 @@ export default function Wallet() {
     <AppLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <WalletIcon className="h-6 w-6" />
-            Carteira
-          </h1>
-          <p className="text-muted-foreground">
-            {userRole === 'client' 
-              ? 'Gerencie seus pagamentos e histórico de gastos'
-              : 'Acompanhe seus ganhos, saques e pagamentos recebidos'
-            }
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <WalletIcon className="h-6 w-6" />
+              Carteira
+            </h1>
+            <p className="text-muted-foreground">
+              {userRole === 'client' 
+                ? 'Gerencie seus pagamentos e histórico de gastos'
+                : 'Acompanhe seus ganhos, saques e pagamentos recebidos'
+              }
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={forceSync} 
+              disabled={syncing}
+              variant="outline"
+              size="sm"
+            >
+              {syncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Zap className="w-4 h-4 mr-2" />
+              )}
+              {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+            <Button onClick={fetchWalletData} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -617,6 +675,9 @@ export default function Wallet() {
             </TabsContent>
           )}
         </Tabs>
+        
+        {/* Debug Panel */}
+        <PaymentDebugPanel />
       </div>
     </AppLayout>
   );

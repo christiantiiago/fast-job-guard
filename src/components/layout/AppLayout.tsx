@@ -6,6 +6,7 @@ import { useFacialAuth } from '@/hooks/useFacialAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { usePremiumPopup } from '@/hooks/usePremiumPopup';
+import { useContractSync } from '@/hooks/useContractSync';
 import { KYCBanner } from '@/components/kyc/KYCBanner';
 import MobileBottomNav from './MobileBottomNav';
 import MobileHeader from './MobileHeader';
@@ -22,6 +23,9 @@ export const AppLayout = ({ children, className, showKYCBanner = true }: AppLayo
   const { userRole } = useAuth();
   const { status } = useKYCStatus();
   const { showPopup, closePopup } = usePremiumPopup();
+  
+  // Sincronização automática de pagamentos
+  useContractSync();
 
   return (
     <div className="min-h-screen bg-background">
