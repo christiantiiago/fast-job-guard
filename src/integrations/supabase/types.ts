@@ -341,8 +341,12 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           client_id: string
+          client_signature_data: string | null
+          client_signature_ip: unknown | null
+          client_signature_timestamp: string | null
           client_signed: boolean | null
           client_signed_at: string | null
+          contract_pdf_url: string | null
           created_at: string
           escrow_amount: number | null
           escrow_released: boolean | null
@@ -352,6 +356,9 @@ export type Database = {
           milestones: Json | null
           proposal_id: string
           provider_id: string
+          provider_signature_data: string | null
+          provider_signature_ip: unknown | null
+          provider_signature_timestamp: string | null
           provider_signed: boolean | null
           provider_signed_at: string | null
           status: string | null
@@ -364,8 +371,12 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           client_id: string
+          client_signature_data?: string | null
+          client_signature_ip?: unknown | null
+          client_signature_timestamp?: string | null
           client_signed?: boolean | null
           client_signed_at?: string | null
+          contract_pdf_url?: string | null
           created_at?: string
           escrow_amount?: number | null
           escrow_released?: boolean | null
@@ -375,6 +386,9 @@ export type Database = {
           milestones?: Json | null
           proposal_id: string
           provider_id: string
+          provider_signature_data?: string | null
+          provider_signature_ip?: unknown | null
+          provider_signature_timestamp?: string | null
           provider_signed?: boolean | null
           provider_signed_at?: string | null
           status?: string | null
@@ -387,8 +401,12 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           client_id?: string
+          client_signature_data?: string | null
+          client_signature_ip?: unknown | null
+          client_signature_timestamp?: string | null
           client_signed?: boolean | null
           client_signed_at?: string | null
+          contract_pdf_url?: string | null
           created_at?: string
           escrow_amount?: number | null
           escrow_released?: boolean | null
@@ -398,6 +416,9 @@ export type Database = {
           milestones?: Json | null
           proposal_id?: string
           provider_id?: string
+          provider_signature_data?: string | null
+          provider_signature_ip?: unknown | null
+          provider_signature_timestamp?: string | null
           provider_signed?: boolean | null
           provider_signed_at?: string | null
           status?: string | null
@@ -860,6 +881,7 @@ export type Database = {
           attachment_url: string | null
           content: string | null
           created_at: string | null
+          has_attachments: boolean | null
           id: string
           is_read: boolean | null
           job_id: string
@@ -870,6 +892,7 @@ export type Database = {
           attachment_url?: string | null
           content?: string | null
           created_at?: string | null
+          has_attachments?: boolean | null
           id?: string
           is_read?: boolean | null
           job_id: string
@@ -880,6 +903,7 @@ export type Database = {
           attachment_url?: string | null
           content?: string | null
           created_at?: string | null
+          has_attachments?: boolean | null
           id?: string
           is_read?: boolean | null
           job_id?: string

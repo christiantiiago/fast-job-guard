@@ -33,6 +33,7 @@ import ProvidersDiscover from "./pages/ProvidersDiscover";
 import UserProfile from "./pages/UserProfile";
 import ClientWallet from "./pages/ClientWallet";
 import Chat from "./pages/Chat";
+import Chats from "./pages/Chats";
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
 import Finance from "./pages/provider/Finance";
@@ -198,11 +199,11 @@ const App = () => (
               }
             />
             <Route
-              path="/chat"
+              path="/chats"
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <Chat />
+                    <Chats />
                   </KYCGate>
                 </ProtectedRoute>
               }

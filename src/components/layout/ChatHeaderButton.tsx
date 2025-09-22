@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MessageCircle, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useMessages } from '@/hooks/useMessages';
 
 export function ChatHeaderButton() {
-  const [unreadCount] = useState(0); // This would come from a real chat context/hook
+  const { unreadCount } = useMessages();
 
   return (
     <Popover>
@@ -40,7 +41,7 @@ export function ChatHeaderButton() {
                 Nenhuma conversa ativa
               </p>
               <Button asChild variant="outline" size="sm" className="mt-2">
-                <Link to="/chat">
+                <Link to="/chats">
                   Ver todas as conversas
                 </Link>
               </Button>
@@ -49,13 +50,10 @@ export function ChatHeaderButton() {
             <div className="space-y-2">
               {/* This would be populated with actual conversations */}
               <Button asChild variant="ghost" className="w-full justify-start h-auto p-3">
-                <Link to="/chat">
-                  <div className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex-shrink-0" />
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium">Conversa exemplo</p>
-                      <p className="text-xs text-muted-foreground">Última mensagem...</p>
-                    </div>
+                <Link to="/chats">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    <span className="text-sm">Ver todas as conversas</span>
                   </div>
                 </Link>
               </Button>
