@@ -107,8 +107,13 @@ serve(async (req) => {
       : (feeRules?.provider_fee_standard || 7.5);
 
     // Calculate amounts for transfer - provider receives amount minus platform fee
-    const platformFee = Math.round((escrowPayment.amount * feePercentage) / 100 * 100) / 100;
+    const platformFee = Math.round((escrowPayment.amount * feePercentage / 100) * 100) / 100;
     const providerAmount = Math.round((escrowPayment.amount - platformFee) * 100) / 100;
+
+    // Validation to ensure provider never receives more than the job amount
+    if (providerAmount > escrowPayment.amount) {
+      throw new Error(`Invalid calculation: provider amount (${providerAmount}) cannot exceed job amount (${escrowPayment.amount})`);
+    }
 
     logStep("Amount calculation", { 
       providerAmount, 
