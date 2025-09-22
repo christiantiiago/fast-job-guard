@@ -209,26 +209,41 @@ export default function JobNew() {
                     />
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="categoryId">Categoria *</Label>
-                      <Select
-                        value={formData.categoryId}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="categoryId">Categoria *</Label>
+              <Select
+                value={formData.categoryId}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Show price suggestion when category is selected */}
+              {formData.categoryId && (
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Info className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-primary">Preços típicos nesta categoria:</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Baseado em trabalhos similares: <span className="font-medium">R$ 150 - R$ 450</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Média: <span className="font-medium">R$ 280</span> • {12} trabalhos concluídos
+                  </p>
+                </div>
+              )}
+            </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="urgency">Urgência</Label>

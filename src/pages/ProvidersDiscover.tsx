@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, MapPin, Star, Filter, Navigation, MessageSquare, Circle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProviderDetailsCard } from '@/components/discover/ProviderDetailsCard';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface Provider {
@@ -51,8 +53,10 @@ export default function ProvidersDiscover() {
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [proposalModalOpen, setProposalModalOpen] = useState(false);
   const [selectedProviderForProposal, setSelectedProviderForProposal] = useState<Provider | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const { position, error: geoError } = useGeolocation();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const categories = [
     { slug: 'limpeza', name: 'Limpeza' },
@@ -225,7 +229,10 @@ export default function ProvidersDiscover() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="h-5 w-5" />
-                  Mapa de Prestadores
+                  Prestadores na sua região
+                  <Badge variant="secondary" className="ml-auto">
+                    {filteredProviders.filter(p => p.latitude && p.longitude).length} no mapa
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -236,14 +243,18 @@ export default function ProvidersDiscover() {
                       position={position}
                       onProviderSelect={(provider) => {
                         console.log('[PROVIDER] Selected provider:', provider);
-                        setSelectedProviderForProposal(provider);
-                        setProposalModalOpen(true);
+                        setSelectedProvider(provider);
                       }}
                     />
                   )}
                   {!position && (
                     <div className="flex items-center justify-center h-full">
-                      <p className="text-muted-foreground">Aguardando localização...</p>
+                      <div className="text-center space-y-4">
+                        <div className="animate-pulse">
+                          <MapPin className="h-8 w-8 mx-auto text-muted-foreground" />
+                        </div>
+                        <p className="text-muted-foreground">Obtendo sua localização...</p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -357,7 +368,10 @@ export default function ProvidersDiscover() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setSelectedProvider(provider)}
+                              onClick={() => {
+                                setSelectedProvider(provider);
+                                setDetailsModalOpen(true);
+                              }}
                               className="text-xs"
                             >
                               Ver Detalhes
@@ -385,6 +399,21 @@ export default function ProvidersDiscover() {
             </div>
           </div>
         </div>
+
+        <ProviderDetailsCard
+          provider={selectedProvider}
+          isOpen={detailsModalOpen}
+          onClose={() => {
+            setDetailsModalOpen(false);
+            setSelectedProvider(null);
+          }}
+          onViewProfile={(provider) => navigate(`/user/${provider.user_id}`)}
+          onDirectContract={(provider) => {
+            setSelectedProviderForProposal(provider);
+            setProposalModalOpen(true);
+            setDetailsModalOpen(false);
+          }}
+        />
 
         <DirectProposalModal
           provider={selectedProviderForProposal}

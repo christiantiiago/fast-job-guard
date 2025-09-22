@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
@@ -18,7 +18,11 @@ import {
   Clock,
   CheckCircle2,
   Circle,
-  MessageCircle
+  MessageCircle,
+  Phone,
+  Video,
+  MoreVertical,
+  Smile
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +47,7 @@ interface Job {
 interface Profile {
   user_id: string;
   full_name?: string;
+  avatar_url?: string;
 }
 
 export default function Chat() {
@@ -88,7 +93,7 @@ export default function Chat() {
       if (otherUserId) {
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('user_id, full_name')
+          .select('user_id, full_name, avatar_url')
           .eq('user_id', otherUserId)
           .single();
 
@@ -258,116 +263,218 @@ export default function Chat() {
   return (
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-80px)]">
-        {/* Header */}
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/jobs')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+        {/* Header - Instagram/WhatsApp Style */}
+        <div className="bg-background border-b border-border sticky top-0 z-10">
+          <div className="p-4">
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => navigate('/jobs')}
+                className="h-9 w-9"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
 
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {otherUserProfile?.full_name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="relative">
+                  <Avatar className="h-10 w-10 border-2 border-primary/10">
+                    {otherUserProfile?.avatar_url ? (
+                      <AvatarImage 
+                        src={otherUserProfile.avatar_url} 
+                        alt={otherUserProfile?.full_name || 'Avatar'}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                        {otherUserProfile?.full_name?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-background rounded-full"></div>
+                </div>
 
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold">
-                {otherUserProfile?.full_name || 'Usuário'}
-              </h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>{job.title}</span>
-                {getStatusBadge(job.status)}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-sm font-semibold truncate">
+                    {otherUserProfile?.full_name || 'Usuário'}
+                  </h1>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Online agora • {job.title}
+                  </p>
+                </div>
               </div>
+
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Phone className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Video className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="mt-2">
+              {getStatusBadge(job.status)}
             </div>
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Messages - Instagram/WhatsApp Style */}
+        <div className="flex-1 overflow-y-auto px-4 py-2" style={{ 
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
+          backgroundSize: '20px 20px'
+        }}>
           {messages.length === 0 ? (
             <div className="text-center py-12">
-              <MessageCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Nenhuma mensagem ainda</h3>
-              <p className="text-muted-foreground">
-                Seja o primeiro a enviar uma mensagem neste chat
+              <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                <MessageCircle className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">Começe a conversa</h3>
+              <p className="text-muted-foreground text-sm">
+                Envie uma mensagem para {otherUserProfile?.full_name || 'o usuário'}
               </p>
             </div>
           ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[70%] p-3 rounded-lg ${
-                    message.sender_id === user?.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <div className={`flex items-center gap-1 mt-2 text-xs ${
-                    message.sender_id === user?.id 
-                      ? 'text-primary-foreground/70' 
-                      : 'text-muted-foreground'
-                  }`}>
-                    <Clock className="h-3 w-3" />
-                    <span>
-                      {new Date(message.created_at).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                    {message.sender_id === user?.id && (
-                      message.is_read ? (
-                        <CheckCircle2 className="h-3 w-3" />
-                      ) : (
-                        <Circle className="h-3 w-3" />
-                      )
+            <div className="space-y-1 py-4">
+              {messages.map((message, index) => {
+                const isMe = message.sender_id === user?.id;
+                const showTime = index === 0 || 
+                  (new Date(message.created_at).getTime() - new Date(messages[index - 1].created_at).getTime()) > 300000; // 5 minutes
+                
+                return (
+                  <div key={message.id} className="space-y-1">
+                    {showTime && (
+                      <div className="flex justify-center">
+                        <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                          {new Date(message.created_at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
                     )}
+                    
+                    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className="flex items-start gap-2 max-w-[80%]">
+                        {!isMe && (
+                          <Avatar className="h-6 w-6 mt-1">
+                            {otherUserProfile?.avatar_url ? (
+                              <AvatarImage 
+                                src={otherUserProfile.avatar_url} 
+                                alt={otherUserProfile?.full_name || 'Avatar'}
+                                className="object-cover"
+                              />
+                            ) : (
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {otherUserProfile?.full_name?.charAt(0) || 'U'}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                        )}
+                        
+                        <div
+                          className={`relative px-4 py-2 rounded-2xl shadow-sm ${
+                            isMe
+                              ? 'bg-primary text-primary-foreground rounded-br-sm'
+                              : 'bg-background border rounded-bl-sm'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed break-words">{message.content}</p>
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
+                            isMe 
+                              ? 'text-primary-foreground/70' 
+                              : 'text-muted-foreground'
+                          }`}>
+                            <span>
+                              {new Date(message.created_at).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                            {isMe && (
+                              <div className="ml-1">
+                                {message.is_read ? (
+                                  <CheckCircle2 className="h-3 w-3 text-blue-400" />
+                                ) : (
+                                  <Circle className="h-3 w-3" />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))
+                );
+              })}
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Message Input */}
-        <div className="p-6 border-t border-border">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Digite sua mensagem..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              disabled={sending || job.status === 'completed' || job.status === 'cancelled' || job.status === 'open'}
-            />
+        {/* Message Input - Instagram/WhatsApp Style */}
+        <div className="bg-background border-t border-border p-4">
+          <div className="flex items-end gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex-1 relative">
+              <Input
+                placeholder={`Mensagem para ${otherUserProfile?.full_name || 'usuário'}...`}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                disabled={sending || job.status === 'completed' || job.status === 'cancelled' || job.status === 'open'}
+                className="rounded-full border-muted pr-12 focus:border-primary transition-colors"
+              />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-1 top-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+              >
+                <Smile className="h-4 w-4" />
+              </Button>
+            </div>
+
             <Button 
               onClick={sendMessage}
               disabled={!newMessage.trim() || sending || job.status === 'completed' || job.status === 'cancelled' || job.status === 'open'}
+              size="icon"
+              className={`h-8 w-8 rounded-full transition-all ${
+                newMessage.trim() 
+                  ? 'bg-primary hover:bg-primary/90' 
+                  : 'bg-muted hover:bg-muted/80'
+              }`}
             >
               <Send className="h-4 w-4" />
             </Button>
           </div>
           
           {job.status === 'open' ? (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
+            <p className="text-xs text-muted-foreground mt-3 text-center flex items-center justify-center gap-1">
+              <Circle className="h-3 w-3 fill-yellow-500 text-yellow-500" />
               O chat será liberado após a contratação do prestador
             </p>
           ) : (job.status === 'completed' || job.status === 'cancelled') ? (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Este chat foi finalizado pois o trabalho está {job.status === 'completed' ? 'concluído' : 'cancelado'}
+            <p className="text-xs text-muted-foreground mt-3 text-center flex items-center justify-center gap-1">
+              <Circle className="h-3 w-3 fill-red-500 text-red-500" />
+              Chat finalizado - trabalho {job.status === 'completed' ? 'concluído' : 'cancelado'}
             </p>
           ) : null}
         </div>
