@@ -29,13 +29,7 @@ interface Contract {
   updated_at: string;
   jobs?: {
     title: string;
-    client_profile?: {
-      full_name: string;
-    };
-    provider_profile?: {
-      full_name: string;
-    };
-  };
+  } | null;
 }
 
 export default function Contracts() {
@@ -59,10 +53,8 @@ export default function Contracts() {
         .from('contracts')
         .select(`
           *,
-          jobs(
-            title,
-            client_profile:profiles!client_id(full_name),
-            provider_profile:profiles!provider_id(full_name)
+          jobs!inner(
+            title
           )
         `)
         .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)

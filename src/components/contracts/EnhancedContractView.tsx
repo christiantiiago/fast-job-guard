@@ -44,13 +44,7 @@ interface Contract {
   updated_at: string;
   jobs?: {
     title: string;
-    client_profile?: {
-      full_name: string;
-    };
-    provider_profile?: {
-      full_name: string;
-    };
-  };
+  } | null;
 }
 
 interface EnhancedContractViewProps {
@@ -69,8 +63,8 @@ export function EnhancedContractView({ contract, onUpdate }: EnhancedContractVie
   const canSign = (isClient && !contract.client_signed) || (!isClient && !contract.provider_signed);
   const bothSigned = contract.client_signed && contract.provider_signed;
   
-  const clientName = contract.jobs?.client_profile?.full_name || 'Cliente';
-  const providerName = contract.jobs?.provider_profile?.full_name || 'Prestador';
+  const clientName = 'Cliente';
+  const providerName = 'Prestador';
   const jobTitle = contract.jobs?.title || 'Trabalho';
 
   const handleSignContract = async (signatureData: string) => {
