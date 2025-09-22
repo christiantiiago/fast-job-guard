@@ -38,7 +38,72 @@ export const AbacatePayModal = ({
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [autoCheckInterval, setAutoCheckInterval] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+
+  // Chave única para localStorage
+  const storageKey = `pix_payment_${paymentType}_${amount}_${Date.now()}`;
+
+  // Carregar dados do localStorage ao abrir modal
+  useEffect(() => {
+    if (isOpen) {
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          const expirationTime = new Date(parsedData.expiresAt).getTime();
+          const now = new Date().getTime();
+          
+          // Verificar se ainda não expirou
+          if (expirationTime > now) {
+            setFormData(parsedData.formData);
+            setQrCode(parsedData.qrCode);
+            setPixCopyPasteCode(parsedData.pixCopyPasteCode);
+            setPaymentId(parsedData.paymentId);
+            setExpiresAt(parsedData.expiresAt);
+            
+            toast({
+              title: "PIX Ativo Restaurado",
+              description: "Seus dados de pagamento foram restaurados",
+            });
+          } else {
+            // Limpar dados expirados
+            localStorage.removeItem(storageKey);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar dados salvos:', error);
+          localStorage.removeItem(storageKey);
+        }
+      }
+    }
+  }, [isOpen, storageKey, toast]);
+
+  // Salvar dados no localStorage
+  const saveToLocalStorage = (data: any) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        ...data,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error('Erro ao salvar dados:', error);
+    }
+  };
+
+  // Auto-verificação de pagamento
+  useEffect(() => {
+    if (paymentId && !paymentConfirmed && isOpen) {
+      const interval = setInterval(async () => {
+        await checkPaymentStatus(true); // silent check
+      }, 10000); // Verificar a cada 10 segundos
+      
+      setAutoCheckInterval(interval);
+      
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }
+  }, [paymentId, paymentConfirmed, isOpen]);
 
   // Timer effect para expiração do QR Code
   useEffect(() => {
@@ -155,6 +220,18 @@ export const AbacatePayModal = ({
       setPaymentId(data.paymentId);
       setExpiresAt(data.expiresAt);
       
+      // Salvar no localStorage para persistência
+      saveToLocalStorage({
+        formData,
+        qrCode: qrCodeUrl,
+        pixCopyPasteCode: pixCode,
+        paymentId: data.paymentId,
+        expiresAt: data.expiresAt,
+        amount,
+        description,
+        paymentType
+      });
+      
       console.log('PIX Code gerado:', {
         pixCode: pixCode,
         paymentId: data.paymentId,
@@ -181,10 +258,10 @@ export const AbacatePayModal = ({
     }
   };
 
-  const checkPaymentStatus = async () => {
+  const checkPaymentStatus = async (silent = false) => {
     if (!paymentId) return;
     
-    setCheckingPayment(true);
+    if (!silent) setCheckingPayment(true);
     try {
       const { data, error } = await supabase.functions.invoke('check-abacatepay-payment', {
         body: { paymentId }
@@ -194,11 +271,21 @@ export const AbacatePayModal = ({
 
       if (data.isPaid) {
         setPaymentConfirmed(true);
-        toast({
-          title: "Pagamento confirmado!",
-          description: "Seu pagamento foi processado com sucesso!",
-        });
-      } else {
+        // Limpar localStorage quando pagamento confirmado
+        localStorage.removeItem(storageKey);
+        // Para auto-verificação
+        if (autoCheckInterval) {
+          clearInterval(autoCheckInterval);
+          setAutoCheckInterval(null);
+        }
+        
+        if (!silent) {
+          toast({
+            title: "Pagamento confirmado!",
+            description: "Seu pagamento foi processado com sucesso!",
+          });
+        }
+      } else if (!silent) {
         toast({
           title: "Pagamento não confirmado",
           description: "O pagamento ainda não foi processado. Tente novamente em alguns instantes.",
@@ -207,13 +294,15 @@ export const AbacatePayModal = ({
       }
     } catch (error) {
       console.error('Erro ao verificar pagamento:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível verificar o status do pagamento. Tente novamente.",
-        variant: "destructive"
-      });
+      if (!silent) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível verificar o status do pagamento. Tente novamente.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setCheckingPayment(false);
+      if (!silent) setCheckingPayment(false);
     }
   };
 
@@ -224,6 +313,15 @@ export const AbacatePayModal = ({
   };
 
   const handleClose = () => {
+    // Não limpar localStorage aqui - manter dados para persistência
+    if (autoCheckInterval) {
+      clearInterval(autoCheckInterval);
+      setAutoCheckInterval(null);
+    }
+    onClose();
+  };
+
+  const clearAllData = () => {
     setQrCode(null);
     setPixCopyPasteCode(null);
     setPaymentId(null);
@@ -236,11 +334,16 @@ export const AbacatePayModal = ({
       email: '',
       cpf: ''
     });
-    onClose();
+    localStorage.removeItem(storageKey);
+    if (autoCheckInterval) {
+      clearInterval(autoCheckInterval);
+      setAutoCheckInterval(null);
+    }
   };
 
   const handlePaymentSuccess = () => {
-    handleClose();
+    clearAllData();
+    onClose();
     // Recarregar a página para atualizar os dados
     setTimeout(() => {
       window.location.reload();
@@ -440,7 +543,7 @@ export const AbacatePayModal = ({
                     Copiar Código PIX
                   </Button>
                   <Button 
-                    onClick={checkPaymentStatus}
+                    onClick={() => checkPaymentStatus(false)}
                     disabled={checkingPayment}
                     className="flex-1"
                   >

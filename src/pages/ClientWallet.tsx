@@ -3,6 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EscrowCard } from '@/components/escrow/EscrowCard';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -14,7 +16,8 @@ import {
   XCircle,
   Calendar,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 
 interface Payment {
@@ -35,24 +38,120 @@ interface Payment {
   };
 }
 
+interface EscrowPayment {
+  id: string;
+  amount: number;
+  total_amount: number;
+  platform_fee: number;
+  status: string;
+  release_date: string;
+  created_at: string;
+  completed_at?: string;
+  job_id: string;
+  client_id: string;
+  provider_id: string;
+  job?: {
+    title: string;
+  };
+  provider_profile?: {
+    full_name: string;
+  };
+}
+
 export default function ClientWallet() {
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [escrowPayments, setEscrowPayments] = useState<EscrowPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalSpent: 0,
     totalTransactions: 0,
     pendingPayments: 0,
-    completedPayments: 0
+    completedPayments: 0,
+    escrowHeld: 0,
+    escrowReleased: 0
   });
 
   useEffect(() => {
     if (user) {
       fetchPayments();
+      fetchEscrowPayments();
     }
   }, [user]);
 
-  const fetchPayments = async () => {
+  const fetchEscrowPayments = async () => {
+    try {
+      const { data: escrowData, error } = await supabase
+        .from('escrow_payments')
+        .select(`
+          id,
+          amount,
+          total_amount,
+          platform_fee,
+          status,
+          release_date,
+          created_at,
+          completed_at,
+          job_id,
+          client_id,
+          provider_id
+        `)
+        .eq('client_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching escrow payments:', error);
+        return;
+      }
+
+      if (escrowData) {
+        // Get job titles and provider names
+        const jobIds = escrowData.map(p => p.job_id).filter(Boolean);
+        const providerIds = escrowData.map(p => p.provider_id).filter(Boolean);
+        
+        let jobTitles: Record<string, string> = {};
+        let providerNames: Record<string, string> = {};
+        
+        if (jobIds.length > 0) {
+          const { data: jobsData } = await supabase
+            .from('jobs')
+            .select('id, title')
+            .in('id', jobIds);
+          
+          jobTitles = (jobsData || []).reduce((acc, job) => {
+            acc[job.id] = job.title;
+            return acc;
+          }, {} as Record<string, string>);
+        }
+        
+        if (providerIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('user_id, full_name')
+            .in('user_id', providerIds);
+          
+          providerNames = (profilesData || []).reduce((acc, profile) => {
+            acc[profile.user_id] = profile.full_name || 'Prestador';
+            return acc;
+          }, {} as Record<string, string>);
+        }
+        
+        const processedEscrowPayments = escrowData.map(payment => ({
+          ...payment,
+          job: {
+            title: jobTitles[payment.job_id] || 'Trabalho removido'
+          },
+          provider_profile: {
+            full_name: providerNames[payment.provider_id] || 'Prestador'
+          }
+        }));
+
+        setEscrowPayments(processedEscrowPayments);
+      }
+    } catch (error) {
+      console.error('Error fetching escrow payments:', error);
+    }
+  };
     try {
       setLoading(true);
       
@@ -129,7 +228,7 @@ export default function ClientWallet() {
         }));
 
         setPayments(processedPayments);
-        calculateStats(processedPayments);
+        calculateStats(processedPayments, escrowPayments);
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -138,12 +237,12 @@ export default function ClientWallet() {
     }
   };
 
-  const calculateStats = (paymentsData: Payment[]) => {
+  const calculateStats = (paymentsData: Payment[], escrowData: EscrowPayment[] = []) => {
     const totalSpent = paymentsData
       .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + p.amount, 0);
     
-    const totalTransactions = paymentsData.length;
+    const totalTransactions = paymentsData.length + escrowData.length;
     
     const pendingPayments = paymentsData
       .filter(p => p.status === 'pending')
@@ -152,11 +251,21 @@ export default function ClientWallet() {
     const completedPayments = paymentsData
       .filter(p => p.status === 'completed').length;
 
+    const escrowHeld = escrowData
+      .filter(e => e.status === 'held')
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const escrowReleased = escrowData
+      .filter(e => e.status === 'released')
+      .reduce((sum, e) => sum + e.amount, 0);
+
     setStats({
-      totalSpent,
+      totalSpent: totalSpent + escrowReleased,
       totalTransactions,
-      pendingPayments,
-      completedPayments
+      pendingPayments: pendingPayments + escrowHeld,
+      completedPayments,
+      escrowHeld,
+      escrowReleased
     });
   };
 
@@ -282,61 +391,106 @@ export default function ClientWallet() {
           </Card>
         </div>
 
-        {/* Payments History */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Histórico de Pagamentos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {payments.length === 0 ? (
-              <div className="text-center py-8">
-                <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Nenhum pagamento encontrado</h3>
-                <p className="text-muted-foreground">
-                  Quando você contratar serviços, seus pagamentos aparecerão aqui.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {payments.map((payment) => (
-                  <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-muted p-2 rounded-lg">
-                        {getStatusIcon(payment.status)}
-                      </div>
-                      <div>
-                        <h4 className="font-medium">{payment.job.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Prestador: {payment.provider_profile.full_name}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(payment.created_at)}
+        {/* Escrow Payments Section */}
+        <Tabs defaultValue="payments" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="payments">Histórico de Pagamentos</TabsTrigger>
+            <TabsTrigger value="escrow" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Pagamentos em Garantia
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="payments">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Histórico de Pagamentos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {payments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Nenhum pagamento encontrado</h3>
+                    <p className="text-muted-foreground">
+                      Quando você contratar serviços, seus pagamentos aparecerão aqui.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {payments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="bg-muted p-2 rounded-lg">
+                            {getStatusIcon(payment.status)}
+                          </div>
+                          <div>
+                            <h4 className="font-medium">{payment.job.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              Prestador: {payment.provider_profile.full_name}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(payment.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ArrowUpRight className="h-4 w-4 text-red-600" />
+                            <span className="font-semibold text-red-600">
+                              {formatCurrency(payment.amount)}
+                            </span>
+                            {getStatusBadge(payment.status)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Taxa: {formatCurrency(payment.client_fee)}
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="escrow" className="space-y-4">
+            {escrowPayments.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Nenhum pagamento em garantia</h3>
+                  <p className="text-muted-foreground">
+                    Pagamentos com garantia aparecerão aqui.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {escrowPayments.map((escrow) => (
+                  <div key={escrow.id} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>📋 {escrow.job?.title}</span>
+                      <span>👤 {escrow.provider_profile?.full_name}</span>
                     </div>
-                    
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ArrowUpRight className="h-4 w-4 text-red-600" />
-                        <span className="font-semibold text-red-600">
-                          {formatCurrency(payment.amount)}
-                        </span>
-                        {getStatusBadge(payment.status)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Taxa: {formatCurrency(payment.client_fee)}
-                      </div>
-                    </div>
+                    <EscrowCard 
+                      escrowPayment={escrow} 
+                      isClient={true}
+                      onUpdate={() => {
+                        fetchEscrowPayments();
+                        calculateStats(payments, escrowPayments);
+                      }}
+                    />
                   </div>
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
