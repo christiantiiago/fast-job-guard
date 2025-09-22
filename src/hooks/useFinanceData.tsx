@@ -69,7 +69,7 @@ export const useFinanceData = () => {
     try {
       setLoading(true);
       
-      // Fetch escrow payments (sistema principal de pagamentos)
+      // Fetch escrow payments (sistema principal de pagamentos) - apenas jobs ativos
       const { data: escrowData, error: escrowError } = await supabase
         .from('escrow_payments')
         .select(`
@@ -83,9 +83,11 @@ export const useFinanceData = () => {
           completed_at,
           job_id,
           client_id,
-          provider_id
+          provider_id,
+          jobs!inner(id, title, status)
         `)
         .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .not('jobs.status', 'in', '(cancelled,removed)')
         .order('created_at', { ascending: false });
 
       if (escrowError) {
@@ -114,24 +116,29 @@ export const useFinanceData = () => {
       // Fetch premium subscriptions (simplified)
       const subscriptionPayments: PaymentData[] = [];
 
-      // Get job titles for escrow payments and boosts
-      const allJobIds = [
-        ...(escrowData || []).map(e => e.job_id),
-        ...(boostsData || []).map(b => b.job_id)
-      ].filter(Boolean);
-
+      // Get job titles separately e filtrar jobs cancelados/removidos
+      const jobIds = escrowData?.map(p => p.job_id).filter(Boolean) || [];
       let jobTitles: Record<string, string> = {};
-      if (allJobIds.length > 0) {
+      let validJobIds: string[] = [];
+      
+      if (jobIds.length > 0) {
         const { data: jobsData } = await supabase
           .from('jobs')
-          .select('id, title')
-          .in('id', allJobIds);
+          .select('id, title, status')
+          .in('id', jobIds)
+          .not('status', 'in', '(cancelled,removed)');
         
+        validJobIds = (jobsData || []).map(job => job.id);
         jobTitles = (jobsData || []).reduce((acc, job) => {
           acc[job.id] = job.title;
           return acc;
         }, {} as Record<string, string>);
       }
+
+      // Filtrar apenas pagamentos de jobs válidos
+      const filteredEscrowData = escrowData?.filter(payment => 
+        validJobIds.includes(payment.job_id)
+      ) || [];
 
       // Get client/provider names
       const allUserIds = [
@@ -151,8 +158,8 @@ export const useFinanceData = () => {
         }, {} as Record<string, string>);
       }
 
-      // Convert escrow to payment format
-      const escrowPayments: PaymentData[] = (escrowData || []).map(escrow => {
+      // Convert escrow to payment format - usar dados filtrados
+      const escrowPayments: PaymentData[] = filteredEscrowData.map(escrow => {
         const isClient = escrow.client_id === user.id;
         const otherUserId = isClient ? escrow.provider_id : escrow.client_id;
         
@@ -172,20 +179,39 @@ export const useFinanceData = () => {
         };
       });
 
-      // Convert boosts to payment format
-      const boostPayments: PaymentData[] = (boostsData || []).map(boost => ({
-        id: boost.id,
-        amount: boost.amount,
-        type: 'boost',
-        status: boost.status === 'active' || boost.status === 'expired' ? 'completed' : boost.status,
-        job_title: jobTitles[boost.job_id] || 'Impulsionamento',
-        client_name: 'Job Fast Platform',
-        created_at: boost.created_at,
-        payment_method: 'Impulsionamento',
-        external_id: boost.id,
-        processed_at: boost.activated_at || boost.created_at,
-        net_amount: boost.amount
-      }));
+      // Buscar títulos dos jobs para boosts também, filtrando jobs cancelados
+      let boostJobTitles: Record<string, string> = {};
+      const boostJobIds = (boostsData || []).map(b => b.job_id).filter(Boolean);
+      
+      if (boostJobIds.length > 0) {
+        const { data: boostJobsData } = await supabase
+          .from('jobs')
+          .select('id, title, status')
+          .in('id', boostJobIds)
+          .not('status', 'in', '(cancelled,removed)');
+        
+        boostJobTitles = (boostJobsData || []).reduce((acc, job) => {
+          acc[job.id] = job.title;
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
+      // Convert boosts to payment format - usar apenas boosts de jobs válidos
+      const boostPayments: PaymentData[] = (boostsData || [])
+        .filter(boost => boostJobTitles[boost.job_id]) // Filtrar boosts de jobs válidos
+        .map(boost => ({
+          id: boost.id,
+          amount: boost.amount,
+          type: 'boost',
+          status: boost.status === 'active' || boost.status === 'expired' ? 'completed' : boost.status,
+          job_title: boostJobTitles[boost.job_id] || 'Impulsionamento',
+          client_name: 'Job Fast Platform',
+          created_at: boost.created_at,
+          payment_method: 'Impulsionamento',
+          external_id: boost.id,
+          processed_at: boost.activated_at || boost.created_at,
+          net_amount: boost.amount
+        }));
 
       setPayments([...escrowPayments, ...boostPayments, ...subscriptionPayments]);
       
@@ -214,8 +240,7 @@ export const useFinanceData = () => {
   };
 
   const calculateStats = (paymentsData: PaymentData[], payoutsData: PayoutData[]) => {
-    // Separar por tipo de usuário (cliente vs prestador)
-    const currentUserId = user?.id;
+    let newStats: any = {};
     
     if (userRole === 'client') {
       // Estatísticas para cliente
@@ -227,10 +252,13 @@ export const useFinanceData = () => {
         .filter(p => p.status === 'pending' || p.status === 'held')
         .reduce((sum, p) => sum + p.amount, 0);
       
-      const totalJobs = paymentsData
+      const completedJobs = paymentsData
         .filter(p => (p.status === 'completed' || p.status === 'released') && p.type === 'escrow').length;
       
-      const monthlySpent = paymentsData
+      const pendingJobs = paymentsData
+        .filter(p => (p.status === 'pending' || p.status === 'held') && p.type === 'escrow').length;
+      
+      const currentMonthEarnings = paymentsData
         .filter(p => {
           const paymentDate = new Date(p.created_at);
           const currentDate = new Date();
@@ -240,54 +268,81 @@ export const useFinanceData = () => {
         })
         .reduce((sum, p) => sum + p.amount, 0);
 
-      return {
-        totalEarnings: 0, // Clientes não têm earnings
+      newStats = {
+        totalEarnings: 0,
         totalExpenses: totalSpent,
         availableBalance: 0,
         pendingAmount,
-        totalJobs,
-        monthlyEarnings: monthlySpent // Renomeado para ser mais genérico
+        completedJobs,
+        pendingJobs,
+        totalWithdrawn: 0,
+        pendingWithdrawals: 0,
+        totalTransactions: paymentsData.length,
+        activeBoosts: paymentsData.filter(p => p.type === 'boost' && p.status === 'active').length,
+        currentMonthEarnings,
+        totalJobs: completedJobs + pendingJobs,
+        avgRating: 4.8
       };
     } else {
-      // Estatísticas para prestador (código original)
+      // Estatísticas para prestador
       const totalEarnings = paymentsData
-        .filter(p => p.status === 'completed' || p.status === 'released')
+        .filter(p => (p.status === 'completed' || p.status === 'released') && p.type === 'escrow')
         .reduce((sum, p) => sum + (p.net_amount || p.amount), 0);
       
       const totalExpenses = paymentsData
         .filter(p => p.status === 'completed' && (p.type === 'boost' || p.type === 'subscription'))
         .reduce((sum, p) => sum + p.amount, 0);
       
-      const availableBalance = totalEarnings - payoutsData
+      const totalWithdrawn = payoutsData
         .filter(p => p.status === 'paid')
         .reduce((sum, p) => sum + p.amount, 0);
       
+      const availableBalance = totalEarnings - totalWithdrawn;
+      
       const pendingAmount = paymentsData
-        .filter(p => p.status === 'pending' || p.status === 'held')
+        .filter(p => (p.status === 'pending' || p.status === 'held') && p.type === 'escrow')
+        .reduce((sum, p) => sum + (p.net_amount || p.amount), 0);
+      
+      const pendingWithdrawals = payoutsData
+        .filter(p => p.status === 'pending')
         .reduce((sum, p) => sum + p.amount, 0);
       
-      const totalJobs = paymentsData
+      const completedJobs = paymentsData
         .filter(p => (p.status === 'completed' || p.status === 'released') && p.type === 'escrow').length;
       
-      const monthlyEarnings = paymentsData
+      const pendingJobs = paymentsData
+        .filter(p => (p.status === 'pending' || p.status === 'held') && p.type === 'escrow').length;
+      
+      const currentMonthEarnings = paymentsData
         .filter(p => {
           const paymentDate = new Date(p.created_at);
           const currentDate = new Date();
           return (p.status === 'completed' || p.status === 'released') && 
+                 p.type === 'escrow' &&
                  paymentDate.getMonth() === currentDate.getMonth() &&
                  paymentDate.getFullYear() === currentDate.getFullYear();
         })
         .reduce((sum, p) => sum + (p.net_amount || p.amount), 0);
 
-      return {
+      newStats = {
         totalEarnings,
         totalExpenses,
-        availableBalance,
+        availableBalance: Math.max(0, availableBalance),
         pendingAmount,
-        totalJobs,
-        monthlyEarnings
+        completedJobs,
+        pendingJobs,
+        totalWithdrawn,
+        pendingWithdrawals,
+        totalTransactions: paymentsData.length,
+        activeBoosts: paymentsData.filter(p => p.type === 'boost' && (p.status === 'active' || p.status === 'completed')).length,
+        currentMonthEarnings,
+        totalJobs: completedJobs + pendingJobs,
+        avgRating: 4.8
       };
     }
+    
+    setStats(newStats);
+    return newStats;
   };
 
   const requestWithdrawal = async (amount: number, bankDetails: any) => {

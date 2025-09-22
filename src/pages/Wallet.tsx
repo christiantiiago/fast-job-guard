@@ -62,7 +62,7 @@ export default function Wallet() {
     try {
       setLoading(true);
       
-      // Fetch escrow payments
+      // Fetch escrow payments - buscar dados separadamente para evitar problemas de join
       const { data: escrowData, error: escrowError } = await supabase
         .from('escrow_payments')
         .select('*')
@@ -74,26 +74,34 @@ export default function Wallet() {
         return;
       }
 
-      // Get job titles separately
+      // Buscar títulos dos jobs separadamente e filtrar jobs cancelados/removidos
       const jobIds = escrowData?.map(p => p.job_id).filter(Boolean) || [];
       let jobTitles: Record<string, string> = {};
+      let validJobIds: string[] = [];
       
       if (jobIds.length > 0) {
         const { data: jobsData } = await supabase
           .from('jobs')
-          .select('id, title')
-          .in('id', jobIds);
+          .select('id, title, status')
+          .in('id', jobIds)
+          .not('status', 'in', '(cancelled,removed)');
         
+        validJobIds = (jobsData || []).map(job => job.id);
         jobTitles = (jobsData || []).reduce((acc, job) => {
           acc[job.id] = job.title;
           return acc;
         }, {} as Record<string, string>);
       }
 
+      // Filtrar apenas pagamentos de jobs válidos
+      const filteredEscrowData = escrowData?.filter(payment => 
+        validJobIds.includes(payment.job_id)
+      ) || [];
+
       // Transform escrow payments to match Payment interface
-      const transformedPayments: Payment[] = (escrowData || []).map(payment => ({
+      const transformedPayments: Payment[] = filteredEscrowData.map(payment => ({
         id: payment.id,
-        amount: payment.total_amount,
+        amount: payment.amount, // Usar amount ao invés de total_amount
         platform_fee: payment.platform_fee,
         status: payment.status === 'released' ? 'captured' : payment.status,
         created_at: payment.created_at,

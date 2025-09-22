@@ -1057,8 +1057,187 @@ export default function JobDetails() {
             )}
 
 
-            {/* Client Actions */}
-            {userRole === 'client' && (
+            {/* Provider Actions for In Progress Jobs */}
+            {userRole === 'provider' && job.status === 'in_progress' && job.provider_id === user?.id && (
+              <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+                <CardHeader className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-green-200 rounded-lg">
+                      <MapPin className="h-6 w-6 text-green-700" />
+                    </div>
+                    <span className="text-green-800">Trabalho em Andamento</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  <div className="space-y-3">
+                    {/* Ir até o cliente */}
+                    <Button 
+                      onClick={() => {
+                        if (job.latitude && job.longitude) {
+                          const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}`;
+                          window.open(mapsUrl, '_blank');
+                          
+                          // Enviar notificação que está a caminho
+                          const sendOnTheWayNotification = async () => {
+                            try {
+                              await supabase.from('notifications').insert({
+                                user_id: job.client_id,
+                                type: 'provider_on_way',
+                                title: 'Prestador a Caminho',
+                                message: `O prestador está a caminho para realizar o trabalho "${job.title}".`,
+                                data: { jobId: job.id }
+                              });
+                              toast({
+                                title: "Cliente notificado",
+                                description: "O cliente foi avisado que você está a caminho!",
+                              });
+                            } catch (error) {
+                              console.error('Error sending notification:', error);
+                            }
+                          };
+                          sendOnTheWayNotification();
+                        } else {
+                          toast({
+                            title: "Localização não disponível",
+                            description: "As coordenadas do trabalho não foram encontradas.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
+                    >
+                      <MapPin className="h-5 w-5 mr-2" />
+                      Ir até o Cliente (GPS)
+                    </Button>
+                    
+                    {/* Trabalho concluído */}
+                    <Button 
+                      onClick={() => {
+                        const confirmCompletion = async () => {
+                          try {
+                            // Atualizar status do job
+                            const { error: jobError } = await supabase
+                              .from('jobs')
+                              .update({ status: 'awaiting_completion' })
+                              .eq('id', job.id);
+
+                            if (jobError) throw jobError;
+
+                            // Enviar notificação para o cliente
+                            await supabase.from('notifications').insert({
+                              user_id: job.client_id,
+                              type: 'job_completion_request',
+                              title: 'Trabalho Concluído',
+                              message: `O prestador marcou o trabalho "${job.title}" como concluído. Por favor, confirme para liberar o pagamento.`,
+                              data: { jobId: job.id }
+                            });
+
+                            toast({
+                              title: "Trabalho marcado como concluído!",
+                              description: "O cliente foi notificado para confirmar e liberar o pagamento.",
+                            });
+
+                            // Refresh para atualizar o estado
+                            fetchJobDetails();
+                          } catch (error) {
+                            console.error('Error completing job:', error);
+                            toast({
+                              title: "Erro",
+                              description: "Não foi possível marcar o trabalho como concluído.",
+                              variant: "destructive",
+                            });
+                          }
+                        };
+                        confirmCompletion();
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3"
+                    >
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      Marcar como Concluído
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cliente Actions for Jobs Awaiting Completion */}
+            {userRole === 'client' && job.status === 'awaiting_completion' && job.client_id === user?.id && (
+              <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
+                <CardHeader className="bg-gradient-to-r from-amber-100 to-yellow-100 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-amber-200 rounded-lg">
+                      <Clock className="h-6 w-6 text-amber-700" />
+                    </div>
+                    <span className="text-amber-800">Aguardando Confirmação</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  <div className="bg-amber-100 border border-amber-300 rounded-lg p-4 mb-4">
+                    <p className="text-amber-800 text-sm">
+                      O prestador marcou este trabalho como concluído. Por favor, confirme se o serviço foi realizado satisfatoriamente para liberar o pagamento.
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          // Liberar pagamento escrow
+                          const { data: escrowData } = await supabase
+                            .from('escrow_payments')
+                            .select('id')
+                            .eq('job_id', job.id)
+                            .eq('status', 'held')
+                            .single();
+
+                          if (escrowData) {
+                            const { error: releaseError } = await supabase.functions.invoke('release-escrow-payment', {
+                              body: { escrowPaymentId: escrowData.id, releaseType: 'manual' }
+                            });
+                            
+                            if (releaseError) throw releaseError;
+                          }
+
+                          // Atualizar status do job
+                          const { error: jobError } = await supabase
+                            .from('jobs')
+                            .update({ status: 'completed' })
+                            .eq('id', job.id);
+
+                          if (jobError) throw jobError;
+
+                          // Notificar prestador
+                          await supabase.from('notifications').insert({
+                            user_id: job.provider_id,
+                            type: 'payment_released',
+                            title: 'Pagamento Liberado',
+                            message: `O cliente confirmou a conclusão do trabalho "${job.title}". Seu pagamento foi liberado!`,
+                            data: { jobId: job.id }
+                          });
+
+                          toast({
+                            title: "Trabalho confirmado!",
+                            description: "O pagamento foi liberado para o prestador.",
+                          });
+
+                          fetchJobDetails();
+                        } catch (error) {
+                          console.error('Error confirming completion:', error);
+                          toast({
+                            title: "Erro",
+                            description: "Não foi possível confirmar a conclusão.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3"
+                    >
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      Confirmar Conclusão e Liberar Pagamento
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
