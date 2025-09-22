@@ -1,3 +1,8 @@
+// AbacatePay Webhook Handler
+// Handles payment confirmations from AbacatePay service
+// Current webhook: webh_dev_yacy3jNCcPm1WXdsZgagzEfY
+// Endpoint: https://yelytezcifyrykxvlbok.supabase.co/functions/v1/abacatepay-webhook
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 

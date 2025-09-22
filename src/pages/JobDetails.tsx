@@ -742,7 +742,7 @@ export default function JobDetails() {
               </Card>
             )}
 
-            {/* Provider Proposal Form */}
+            {/* Provider Proposal Form - Custom Proposal */}
             {userRole === 'provider' && job.status === 'open' && showProposalForm && (
               <Card>
                 <CardHeader>
@@ -997,67 +997,65 @@ export default function JobDetails() {
               </div>
             )}
 
-            {/* Hide proposal form for paid jobs */}
-            {job.status !== 'in_progress' && job.status !== 'completed' && showProposalForm && (
-              <div className="space-y-4">
-                <EnhancedJobActions 
-                  job={job} 
-                  userRole={userRole}
-                  onUpdate={() => {
-                    fetchJobDetails();
-                  }}
-                />
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Handshake className="h-5 w-5" />
-                      Proposta Rápida
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {(() => {
-                      const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
-                      
-                      return !canProposeToThisJob && reason ? (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                          <p className="text-sm text-amber-700">{reason}</p>
+            {/* Provider Actions - Always visible for open jobs */}
+            {userRole === 'provider' && job.status === 'open' && (
+              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-primary/20 rounded-lg">
+                      <Handshake className="h-6 w-6 text-primary" />
+                    </div>
+                    <span>Ações do Prestador</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 p-6">
+                  {/* Check if can propose */}
+                  {(() => {
+                    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+                    
+                    return !canProposeToThisJob && reason ? (
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                          <span className="font-medium text-amber-800">Restrição de Proposta</span>
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <Button 
-                            onClick={handleDirectAccept}
-                            disabled={submittingProposal}
-                            className="w-full bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {submittingProposal ? 'Processando...' : 'Aceitar Trabalho'}
-                          </Button>
-                          
-                          <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                              <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                              <span className="bg-background px-2 text-muted-foreground">ou</span>
-                            </div>
+                        <p className="text-sm text-amber-700">{reason}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Button 
+                          onClick={handleDirectAccept}
+                          disabled={submittingProposal}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 text-lg"
+                        >
+                          <CheckCircle2 className="h-5 w-5 mr-2" />
+                          {submittingProposal ? 'Processando...' : 'Aceitar Trabalho'}
+                        </Button>
+                        
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-muted-foreground/20" />
                           </div>
-
-                          <Button 
-                            onClick={() => setShowProposalForm(!showProposalForm)}
-                            variant="outline" 
-                            className="w-full"
-                          >
-                            <Send className="h-4 w-4 mr-2" />
-                            {showProposalForm ? 'Ocultar Formulário' : 'Fazer Proposta'}
-                          </Button>
+                          <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-3 text-muted-foreground font-medium">ou</span>
+                          </div>
                         </div>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-              </div>
+
+                        <Button 
+                          onClick={() => setShowProposalForm(!showProposalForm)}
+                          variant="outline" 
+                          className="w-full py-3 border-2 border-primary/30 hover:border-primary hover:bg-primary/10"
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          {showProposalForm ? 'Ocultar Formulário' : 'Fazer Proposta Personalizada'}
+                        </Button>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
             )}
+
 
             {/* Client Actions */}
             {userRole === 'client' && (
