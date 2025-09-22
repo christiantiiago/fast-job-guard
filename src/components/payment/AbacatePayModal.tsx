@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,44 @@ export const AbacatePayModal = ({
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Timer effect para expiração do QR Code
+  useEffect(() => {
+    if (expiresAt) {
+      const expirationTime = new Date(expiresAt).getTime();
+      const currentTime = new Date().getTime();
+      const initialTimeLeft = Math.max(0, Math.floor((expirationTime - currentTime) / 1000));
+      
+      if (initialTimeLeft > 0) {
+        setTimeLeft(initialTimeLeft);
+        
+        const interval = setInterval(() => {
+          const now = new Date().getTime();
+          const remaining = Math.max(0, Math.floor((expirationTime - now) / 1000));
+          
+          setTimeLeft(remaining);
+          
+          if (remaining <= 0) {
+            clearInterval(interval);
+            setQrCode(null);
+            setPixCopyPasteCode(null);
+            setTimeLeft(null);
+            toast({
+              title: "QR Code expirado",
+              description: "O código PIX expirou. Gere um novo código para continuar.",
+              variant: "destructive"
+            });
+          }
+        }, 1000);
+        
+        return () => clearInterval(interval);
+      }
+    }
+  }, [expiresAt, toast]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -94,7 +131,10 @@ export const AbacatePayModal = ({
       console.log('Payment data received:', { 
         qrCodeBase64: !!qrCodeBase64, 
         pixCode: !!pixCode,
-        paymentId: data.paymentId 
+        paymentId: data.paymentId,
+        debugInfo: data.debugInfo,
+        expiresAt: data.expiresAt,
+        fullData: data
       });
 
       if (!qrCodeBase64 && !pixCode) {
@@ -110,12 +150,20 @@ export const AbacatePayModal = ({
         setQrCode(qrCodeUrl);
       }
       
-      // Salvar código PIX para copia e cola
+      // Salvar código PIX para copia e cola e data de expiração
       setPixCopyPasteCode(pixCode);
       setPaymentId(data.paymentId);
+      setExpiresAt(data.expiresAt);
+      
+      console.log('PIX Code gerado:', {
+        pixCode: pixCode,
+        paymentId: data.paymentId,
+        expiresAt: data.expiresAt
+      });
+      
       toast({
         title: "QR Code gerado!",
-        description: "Escaneie o código para realizar o pagamento",
+        description: "Escaneie o código ou copie o PIX para realizar o pagamento",
       });
     } catch (error) {
       console.error('Erro detalhado ao gerar QR Code:', {
@@ -145,17 +193,11 @@ export const AbacatePayModal = ({
       if (error) throw error;
 
       if (data.isPaid) {
+        setPaymentConfirmed(true);
         toast({
           title: "Pagamento confirmado!",
-          description: "Seu pagamento foi processado com sucesso. Redirecionando...",
+          description: "Seu pagamento foi processado com sucesso!",
         });
-        
-        // Fechar modal e redirecionar após confirmação
-        setTimeout(() => {
-          handleClose();
-          // Recarregar a página ou redirecionar conforme necessário
-          window.location.reload();
-        }, 2000);
       } else {
         toast({
           title: "Pagamento não confirmado",
@@ -175,10 +217,19 @@ export const AbacatePayModal = ({
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   const handleClose = () => {
     setQrCode(null);
     setPixCopyPasteCode(null);
     setPaymentId(null);
+    setTimeLeft(null);
+    setPaymentConfirmed(false);
+    setExpiresAt(null);
     setFormData({
       name: '',
       phone: '',
@@ -186,6 +237,14 @@ export const AbacatePayModal = ({
       cpf: ''
     });
     onClose();
+  };
+
+  const handlePaymentSuccess = () => {
+    handleClose();
+    // Recarregar a página para atualizar os dados
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   return (
@@ -202,7 +261,45 @@ export const AbacatePayModal = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {!qrCode ? (
+          {paymentConfirmed ? (
+            <div className="text-center space-y-6 py-8">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <svg 
+                  className="w-8 h-8 text-green-600" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M5 13l4 4L19 7" 
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-800 mb-2">
+                  Pagamento Confirmado!
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Seu pagamento de R$ {amount.toFixed(2)} foi processado com sucesso.
+                </p>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm">
+                  <p className="font-medium text-green-800 mb-1">Próximos passos:</p>
+                  <p className="text-green-700">
+                    {paymentType === 'boost' ? 
+                      'Seu job foi impulsionado e receberá mais visibilidade!' :
+                      'Seu pagamento foi confirmado e o processo será iniciado.'
+                    }
+                  </p>
+                </div>
+              </div>
+              <Button onClick={handlePaymentSuccess} className="w-full">
+                Continuar
+              </Button>
+            </div>
+          ) : !qrCode ? (
             <>
               <div className="space-y-4">
                 <div>
@@ -269,6 +366,14 @@ export const AbacatePayModal = ({
             </>
           ) : (
             <div className="text-center space-y-4">
+              {timeLeft !== null && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-orange-800">
+                    ⏰ Código expira em: <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
+                  </p>
+                </div>
+              )}
+              
               <div className="bg-white p-4 rounded-lg border">
                 <img 
                   src={qrCode} 
@@ -280,9 +385,28 @@ export const AbacatePayModal = ({
                   }}
                 />
               </div>
-              <p className="text-sm text-muted-foreground">
-                Escaneie o código QR acima ou copie o código PIX abaixo
-              </p>
+              
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Escaneie o código QR acima ou copie o código PIX abaixo:
+                </p>
+                {pixCopyPasteCode && (
+                  <div className="bg-gray-50 border rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-600">Código PIX:</span>
+                      <span className="text-xs text-gray-500">
+                        {pixCopyPasteCode.length} caracteres
+                      </span>
+                    </div>
+                    <p className="text-xs font-mono break-all text-gray-700 mb-2 max-h-20 overflow-y-auto">
+                      {pixCopyPasteCode}
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      💡 Dica: Cole este código no aplicativo do seu banco
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   <Button 

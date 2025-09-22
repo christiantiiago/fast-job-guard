@@ -68,7 +68,7 @@ serve(async (req) => {
     // Preparar dados para a API da AbacatePay (endpoint pixQrCode/create)
     const paymentRequest = {
       amount: Math.round(amount * 100), // AbacatePay trabalha com centavos
-      expiresIn: 900, // 15 minutos em segundos
+      expiresIn: 1800, // 30 minutos em segundos (aumentado de 15 para 30 min)
       description: description,
       customer: {
         name: customer.name,
@@ -77,7 +77,9 @@ serve(async (req) => {
         taxId: customer.cpf.replace(/\D/g, '')
       },
       metadata: {
-        externalId: `${user.id}_${paymentType}_${Date.now()}`
+        externalId: `${user.id}_${paymentType}_${Date.now()}`,
+        paymentType: paymentType,
+        userId: user.id
       }
     };
 
@@ -106,7 +108,11 @@ serve(async (req) => {
       status: abacateData.data?.status,
       error: abacateData.error,
       hasData: !!abacateData.data,
-      hasBrCode: !!abacateData.data?.brCodeBase64
+      hasBrCode: !!abacateData.data?.brCode,
+      hasBrCodeBase64: !!abacateData.data?.brCodeBase64,
+      brCodeLength: abacateData.data?.brCode?.length,
+      expiresAt: abacateData.data?.expiresAt,
+      fullData: abacateData.data // Log completo para debug
     });
 
     // Verificar se houve erro na resposta da AbacatePay
@@ -224,7 +230,13 @@ serve(async (req) => {
       brCode: abacateData.data.brCode, // Código PIX copia e cola (compatibilidade)
       paymentId: abacateData.data.id,
       recordId: recordId,
-      expiresAt: abacateData.data.expiresAt
+      expiresAt: abacateData.data.expiresAt,
+      // Debug info
+      debugInfo: {
+        brCodeLength: abacateData.data.brCode?.length,
+        hasValidBrCode: !!abacateData.data.brCode,
+        apiEnvironment: abacateData.data.environment || 'unknown'
+      }
     };
 
     logStep('Returning success response', responseData);
