@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[AUTO-RELEASE-ESCROW] ${step}${detailsStr}`);
+  console.log(`[AUTO-RELEASE-ESCROW-JOB] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -17,108 +17,98 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Starting auto-release escrow job");
+    logStep("Starting auto-release process");
 
-    // Use service role for database operations
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
 
-    const now = new Date();
-    logStep("Current time", { now: now.toISOString() });
-
-    // Find escrow payments that are ready for auto-release (5 days have passed)
+    // Find escrow payments that need to be auto-released (5 days after job marked as waiting_approval)
     const { data: escrowPayments, error: escrowError } = await supabaseClient
       .from("escrow_payments")
-      .select("*")
+      .select(`
+        *,
+        jobs:job_id(id, title, status, client_id, provider_id)
+      `)
       .eq("status", "held")
-      .lt("release_date", now.toISOString());
+      .lte("release_date", new Date().toISOString());
 
     if (escrowError) {
-      throw escrowError;
+      throw new Error(`Error fetching escrow payments: ${escrowError.message}`);
     }
 
-    logStep("Found escrow payments to release", { count: escrowPayments?.length || 0 });
+    logStep("Found escrow payments to process", { count: escrowPayments?.length || 0 });
 
-    if (!escrowPayments || escrowPayments.length === 0) {
-      return new Response(JSON.stringify({
-        message: "No escrow payments ready for auto-release",
-        released: 0
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
+    let processedCount = 0;
 
-    let releasedCount = 0;
+    if (escrowPayments && escrowPayments.length > 0) {
+      for (const escrow of escrowPayments) {
+        try {
+          logStep("Processing escrow payment", { 
+            escrowId: escrow.id, 
+            jobId: escrow.job_id,
+            jobStatus: escrow.jobs?.status 
+          });
 
-    for (const escrowPayment of escrowPayments) {
-      try {
-        logStep("Processing escrow payment", { id: escrowPayment.id });
+          // Only auto-release if job is in waiting_approval status
+          if (escrow.jobs?.status === 'waiting_approval') {
+            // Call the release-escrow-payment function for auto-release
+            const releaseResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/release-escrow-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                escrowPaymentId: escrow.id,
+                releaseType: 'auto'
+              })
+            });
 
-        // Update escrow payment status to released
-        const { error: updateError } = await supabaseClient
-          .from("escrow_payments")
-          .update({ 
-            status: "released",
-            completed_at: now.toISOString(),
-            updated_at: now.toISOString()
-          })
-          .eq("id", escrowPayment.id);
+            if (releaseResponse.ok) {
+              processedCount++;
+              logStep("Successfully auto-released escrow", { escrowId: escrow.id });
 
-        if (updateError) {
-          logStep("Error updating escrow payment", updateError);
-          continue;
-        }
+              // Update job status to completed after auto-release
+              await supabaseClient
+                .from("jobs")
+                .update({ 
+                  status: "completed",
+                  updated_at: new Date().toISOString()
+                })
+                .eq("id", escrow.job_id);
 
-        // Create notifications
-        await supabaseClient
-          .from("notifications")
-          .insert([
-            {
-              user_id: escrowPayment.provider_id,
-              title: "Pagamento Liberado Automaticamente",
-              message: `O pagamento de R$ ${escrowPayment.amount.toFixed(2)} foi liberado automaticamente após 5 dias.`,
-              type: "payment_released",
-              data: { 
-                escrowPaymentId: escrowPayment.id,
-                amount: escrowPayment.amount,
-                releaseType: 'auto',
-                jobId: escrowPayment.job_id 
-              }
-            },
-            {
-              user_id: escrowPayment.client_id,
-              title: "Pagamento Liberado Automaticamente",
-              message: "O pagamento foi liberado automaticamente após o prazo de 5 dias.",
-              type: "payment_released",
-              data: { 
-                escrowPaymentId: escrowPayment.id,
-                amount: escrowPayment.amount,
-                releaseType: 'auto',
-                jobId: escrowPayment.job_id 
-              }
+              logStep("Job marked as completed", { jobId: escrow.job_id });
+            } else {
+              const errorText = await releaseResponse.text();
+              logStep("Failed to auto-release escrow", { 
+                escrowId: escrow.id, 
+                error: errorText 
+              });
             }
-          ]);
-
-        logStep("Escrow payment auto-released", { id: escrowPayment.id });
-        releasedCount++;
-
-      } catch (error) {
-        logStep("Error processing escrow payment", { 
-          id: escrowPayment.id, 
-          error: error instanceof Error ? error.message : String(error) 
-        });
+          } else {
+            logStep("Skipping escrow - job not in waiting_approval status", {
+              escrowId: escrow.id,
+              jobStatus: escrow.jobs?.status
+            });
+          }
+        } catch (error) {
+          logStep("Error processing individual escrow", { 
+            escrowId: escrow.id, 
+            error: error.message 
+          });
+        }
       }
     }
 
-    logStep("Auto-release job completed", { releasedCount });
+    logStep("Auto-release process completed", { processed: processedCount });
 
     return new Response(JSON.stringify({
-      message: `Auto-released ${releasedCount} escrow payments`,
-      released: releasedCount
+      message: "Auto-release process completed",
+      processed: processedCount,
+      total: escrowPayments?.length || 0
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -126,7 +116,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in auto-release job", { message: errorMessage });
+    logStep("ERROR in auto-release process", { message: errorMessage });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

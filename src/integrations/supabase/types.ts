@@ -2592,6 +2592,10 @@ export type Database = {
         Args: { user_id_input: string }
         Returns: boolean
       }
+      is_premium_user: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       is_provider: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -2610,6 +2614,10 @@ export type Database = {
       }
       longtransactionsenabled: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      notify_job_completion: {
+        Args: { job_uuid: string; provider_user_id: string }
         Returns: boolean
       }
       path: {
@@ -3958,6 +3966,7 @@ export type Database = {
         | "cancelled"
         | "disputed"
         | "public"
+        | "waiting_approval"
       kyc_status:
         | "pending"
         | "approved"
@@ -4138,6 +4147,7 @@ export const Constants = {
         "cancelled",
         "disputed",
         "public",
+        "waiting_approval",
       ],
       kyc_status: [
         "pending",

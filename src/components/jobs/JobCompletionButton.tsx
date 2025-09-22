@@ -26,42 +26,44 @@ export function JobCompletionButton({
   const handleCompleteJob = async () => {
     setCompleting(true);
     try {
-      // Find and release the escrow payment for this job
-      const { data: escrowPayments, error: escrowError } = await supabase
-        .from('escrow_payments')
-        .select('id')
-        .eq('job_id', jobId)
-        .eq('status', 'held')
-        .limit(1);
-
-      if (escrowError) throw escrowError;
-
-      if (escrowPayments && escrowPayments.length > 0) {
-        // Release the escrow payment
-        const { error: releaseError } = await supabase.functions.invoke('release-escrow-payment', {
-          body: {
-            escrowPaymentId: escrowPayments[0].id,
-            releaseType: 'manual'
-          }
-        });
-
-        if (releaseError) throw releaseError;
-      }
-
-      // Update job status to completed
+      // Update job status to waiting for client approval
       const { error: jobUpdateError } = await supabase
         .from('jobs')
         .update({ 
-          status: 'completed',
+          status: 'waiting_approval',
           updated_at: new Date().toISOString()
         })
         .eq('id', jobId);
 
       if (jobUpdateError) throw jobUpdateError;
 
+      // Update escrow payment release date to 5 days from now
+      const releaseDate = new Date();
+      releaseDate.setDate(releaseDate.getDate() + 5);
+
+      const { error: escrowUpdateError } = await supabase
+        .from('escrow_payments')
+        .update({ 
+          release_date: releaseDate.toISOString()
+        })
+        .eq('job_id', jobId)
+        .eq('status', 'held');
+
+      if (escrowUpdateError) throw escrowUpdateError;
+
+      // Notify client about job completion
+      const { data: user } = await supabase.auth.getUser();
+      const { error: notifyError } = await supabase
+        .rpc('notify_job_completion', { 
+          job_uuid: jobId, 
+          provider_user_id: user?.user?.id 
+        });
+
+      if (notifyError) console.error('Error sending notification:', notifyError);
+
       toast({
-        title: "Trabalho Concluído!",
-        description: "O pagamento foi liberado para o prestador com sucesso.",
+        title: "Trabalho Marcado como Concluído!",
+        description: "O cliente foi notificado e tem 5 dias para revisar. O pagamento será liberado automaticamente se não houver ação.",
       });
 
       setShowConfirmDialog(false);
@@ -108,15 +110,15 @@ export function JobCompletionButton({
               </AlertDescription>
             </Alert>
 
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
                 <div className="space-y-2">
-                  <p><strong>Atenção:</strong> Esta ação liberará o pagamento imediatamente para o prestador.</p>
+                  <p><strong>Novo Fluxo:</strong> O cliente será notificado para aprovação.</p>
                   <ul className="text-sm space-y-1 list-disc list-inside">
-                    <li>O valor em garantia será liberado</li>
-                    <li>O trabalho será marcado como concluído</li>
-                    <li>Esta ação não pode ser desfeita</li>
+                    <li>O cliente tem 5 dias para revisar e liberar o pagamento</li>
+                    <li>Se não houver ação, o pagamento será liberado automaticamente</li>
+                    <li>O cliente pode liberar o pagamento imediatamente se estiver satisfeito</li>
                   </ul>
                 </div>
               </AlertDescription>

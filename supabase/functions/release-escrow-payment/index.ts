@@ -94,9 +94,24 @@ serve(async (req) => {
       }
     }
 
-    // Calculate amounts for transfer (without Stripe)
-    const providerAmount = escrowPayment.amount; // Provider gets the service amount
-    const platformFee = escrowPayment.platform_fee; // Platform keeps the fee
+    // Check if provider is premium and calculate dynamic fees
+    const { data: isPremium } = await supabaseClient
+      .rpc('is_premium_user', { target_user_id: escrowPayment.provider_id });
+
+    // Get current fee rules
+    const { data: feeRules } = await supabaseClient
+      .from('fee_rules')
+      .select('provider_fee_premium, provider_fee_standard')
+      .eq('is_active', true)
+      .single();
+
+    const feePercentage = isPremium 
+      ? (feeRules?.provider_fee_premium || 5.0) 
+      : (feeRules?.provider_fee_standard || 7.5);
+
+    // Calculate amounts for transfer - provider receives amount minus platform fee
+    const platformFee = Math.round((escrowPayment.amount * feePercentage) / 100 * 100) / 100;
+    const providerAmount = Math.round((escrowPayment.amount - platformFee) * 100) / 100;
 
     logStep("Amount calculation", { 
       providerAmount, 
@@ -144,11 +159,15 @@ serve(async (req) => {
         {
           user_id: escrowPayment.provider_id,
           title: "Pagamento Liberado",
-          message: `O pagamento de R$ ${providerAmount.toFixed(2)} foi liberado e será transferido para sua conta.`,
+          message: `Seu pagamento líquido de R$ ${providerAmount.toFixed(2)} foi liberado ${isPremium ? '(Premium - 5% de taxa)' : '(7.5% de taxa)'} e será transferido para sua conta.`,
           type: "payment_released",
           data: { 
             escrowPaymentId, 
             amount: providerAmount,
+            originalAmount: escrowPayment.amount,
+            platformFee,
+            feePercentage,
+            isPremium,
             releaseType,
             jobId: escrowPayment.job_id 
           }

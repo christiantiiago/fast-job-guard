@@ -121,6 +121,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
   const releaseDate = new Date(escrowPayment.release_date);
   const now = new Date();
   const daysUntilRelease = Math.ceil((releaseDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const canRelease = daysUntilRelease <= 0; // Can release when deadline passed or immediately
 
   const getStatusBadge = () => {
     switch (escrowPayment.status) {
@@ -176,11 +177,20 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
               </span>
             </div>
 
-            {daysUntilRelease <= 0 && (
+            {canRelease && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  O prazo para liberação automática foi atingido. O pagamento pode ser liberado a qualquer momento ou será liberado automaticamente.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {!canRelease && (
               <Alert>
                 <Clock className="h-4 w-4" />
                 <AlertDescription>
-                  O prazo para liberação automática foi atingido. O pagamento pode ser liberado a qualquer momento.
+                  O prestador marcou o trabalho como concluído. Você tem até {new Date(releaseDate).toLocaleDateString('pt-BR')} para revisar e liberar o pagamento.
                 </AlertDescription>
               </Alert>
             )}
@@ -190,8 +200,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
                 <Alert className="mb-4">
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Como funciona:</strong> O pagamento fica em garantia até você liberar ou até a liberação automática em 5 dias. 
-                    Libere apenas quando o serviço estiver concluído à sua satisfação.
+                    <strong>Como funciona:</strong> Você pode liberar o pagamento imediatamente se estiver satisfeito com o serviço, ou aguardar até a liberação automática. O pagamento será processado com a taxa aplicada baseada no status premium do prestador.
                   </AlertDescription>
                 </Alert>
 
@@ -200,6 +209,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
                   disabled={releasing}
                   className="w-full"
                   size="lg"
+                  variant={canRelease ? "default" : "secondary"}
                 >
                   {releasing ? (
                     <>
@@ -209,7 +219,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
                   ) : (
                     <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Liberar Pagamento
+                      {canRelease ? 'Liberar Pagamento Agora' : 'Liberar Pagamento'}
                     </>
                   )}
                 </Button>
