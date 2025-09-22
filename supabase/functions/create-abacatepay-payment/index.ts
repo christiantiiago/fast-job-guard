@@ -110,12 +110,13 @@ serve(async (req) => {
     });
 
     // Verificar se houve erro na resposta da AbacatePay
-    if (abacateData.error || !abacateData.data || !abacateData.data.id || !abacateData.data.brCodeBase64) {
+    if (abacateData.error || !abacateData.data || !abacateData.data.id) {
       logStep('AbacatePay API error in response', { 
         error: abacateData.error,
         hasData: !!abacateData.data,
         hasId: !!abacateData.data?.id,
-        hasBrCode: !!abacateData.data?.brCodeBase64,
+        hasBrCode: !!abacateData.data?.brCode,
+        hasBrCodeBase64: !!abacateData.data?.brCodeBase64,
         fullResponse: abacateData 
       });
       throw new Error(`Erro na API AbacatePay: ${abacateData.error || 'Resposta inválida - faltam dados essenciais'}`);
@@ -218,8 +219,9 @@ serve(async (req) => {
     // Melhorar o retorno da resposta
     const responseData = {
       success: true,
-      qrCodeBase64: abacateData.data.brCodeBase64,
-      brCode: abacateData.data.brCodeBase64,
+      qrCodeBase64: abacateData.data.brCodeBase64, // Imagem do QR Code em base64
+      pixCopyPasteCode: abacateData.data.brCode, // Código PIX copia e cola
+      brCode: abacateData.data.brCode, // Código PIX copia e cola (compatibilidade)
       paymentId: abacateData.data.id,
       recordId: recordId,
       expiresAt: abacateData.data.expiresAt

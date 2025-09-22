@@ -31,6 +31,7 @@ export const AbacatePayModal = ({
     cpf: ''
   });
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [pixCopyPasteCode, setPixCopyPasteCode] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
@@ -87,21 +88,30 @@ export const AbacatePayModal = ({
         throw new Error(data?.error || 'Erro ao processar pagamento');
       }
 
-      // Verificar se recebemos o QR code
-      const qrCodeBase64 = data.qrCodeBase64 || data.brCode;
-      console.log('QR Code data received:', { qrCodeBase64: !!qrCodeBase64, paymentId: data.paymentId });
+      // Verificar se recebemos o QR code e PIX code
+      const qrCodeBase64 = data.qrCodeBase64;
+      const pixCode = data.pixCopyPasteCode || data.brCode;
+      console.log('Payment data received:', { 
+        qrCodeBase64: !!qrCodeBase64, 
+        pixCode: !!pixCode,
+        paymentId: data.paymentId 
+      });
 
-      if (!qrCodeBase64) {
-        throw new Error('QR Code não foi gerado corretamente');
+      if (!qrCodeBase64 && !pixCode) {
+        throw new Error('QR Code e código PIX não foram gerados corretamente');
       }
 
-      // Verificar se o QR code é uma string base64 válida
-      let qrCodeUrl = qrCodeBase64;
-      if (qrCodeUrl && !qrCodeUrl.startsWith('data:image/')) {
-        qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
+      // Configurar QR code (imagem)
+      if (qrCodeBase64) {
+        let qrCodeUrl = qrCodeBase64;
+        if (qrCodeUrl && !qrCodeUrl.startsWith('data:image/')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
+        }
+        setQrCode(qrCodeUrl);
       }
       
-      setQrCode(qrCodeUrl);
+      // Salvar código PIX para copia e cola
+      setPixCopyPasteCode(pixCode);
       setPaymentId(data.paymentId);
       toast({
         title: "QR Code gerado!",
@@ -167,6 +177,7 @@ export const AbacatePayModal = ({
 
   const handleClose = () => {
     setQrCode(null);
+    setPixCopyPasteCode(null);
     setPaymentId(null);
     setFormData({
       name: '',
@@ -270,20 +281,29 @@ export const AbacatePayModal = ({
                 />
               </div>
               <p className="text-sm text-muted-foreground">
-                Escaneie o código QR acima com o app do seu banco para realizar o pagamento
+                Escaneie o código QR acima ou copie o código PIX abaixo
               </p>
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   <Button 
                     variant="secondary" 
                     onClick={() => {
-                      navigator.clipboard.writeText(qrCode || '');
-                      toast({
-                        title: "Copiado!",
-                        description: "Código PIX copiado para a área de transferência"
-                      });
+                      if (pixCopyPasteCode) {
+                        navigator.clipboard.writeText(pixCopyPasteCode);
+                        toast({
+                          title: "Copiado!",
+                          description: "Código PIX copiado para a área de transferência"
+                        });
+                      } else {
+                        toast({
+                          title: "Erro",
+                          description: "Código PIX não disponível",
+                          variant: "destructive"
+                        });
+                      }
                     }}
                     className="flex-1"
+                    disabled={!pixCopyPasteCode}
                   >
                     Copiar Código PIX
                   </Button>
