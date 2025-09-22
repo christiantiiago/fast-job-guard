@@ -154,41 +154,65 @@ serve(async (req) => {
       }
     }
 
-    // Create notifications
+    // Get job details for better notification messages
+    const { data: jobData } = await supabaseClient
+      .from("jobs")
+      .select("title")
+      .eq("id", escrowPayment.job_id)
+      .single();
+
+    // Create notifications in both tables for compatibility
+    const notificationData = [
+      {
+        user_id: escrowPayment.provider_id,
+        title: "Pagamento Liberado",
+        message: `Você recebeu R$ ${providerAmount.toFixed(2)} pelo trabalho "${jobData?.title || 'Trabalho'}" ${isPremium ? '(Premium - taxa reduzida)' : '(taxa padrão aplicada)'}`,
+        type: "payment_released",
+        data: { 
+          escrowPaymentId, 
+          amount: providerAmount,
+          originalAmount: escrowPayment.amount,
+          platformFee,
+          feePercentage,
+          isPremium,
+          releaseType,
+          jobId: escrowPayment.job_id,
+          jobTitle: jobData?.title
+        }
+      },
+      {
+        user_id: escrowPayment.client_id,
+        title: releaseType === 'manual' ? "Pagamento Processado" : "Pagamento Liberado Automaticamente",
+        message: releaseType === 'manual' 
+          ? `O pagamento de R$ ${escrowPayment.amount.toFixed(2)} foi liberado para o prestador do trabalho "${jobData?.title || 'Trabalho'}"`
+          : `O pagamento do trabalho "${jobData?.title || 'Trabalho'}" foi liberado automaticamente após o prazo de 5 dias.`,
+        type: "payment_processed",
+        data: { 
+          escrowPaymentId, 
+          amount: escrowPayment.amount,
+          providerAmount,
+          platformFee,
+          releaseType,
+          jobId: escrowPayment.job_id,
+          jobTitle: jobData?.title
+        }
+      }
+    ];
+
+    // Insert into notifications table
     await supabaseClient
       .from("notifications")
-      .insert([
-        {
-          user_id: escrowPayment.provider_id,
-          title: "Pagamento Liberado",
-          message: `Seu pagamento líquido de R$ ${providerAmount.toFixed(2)} foi liberado ${isPremium ? '(Premium - 5% de taxa)' : '(7.5% de taxa)'} e será transferido para sua conta.`,
-          type: "payment_released",
-          data: { 
-            escrowPaymentId, 
-            amount: providerAmount,
-            originalAmount: escrowPayment.amount,
-            platformFee,
-            feePercentage,
-            isPremium,
-            releaseType,
-            jobId: escrowPayment.job_id 
-          }
-        },
-        {
-          user_id: escrowPayment.client_id,
-          title: releaseType === 'manual' ? "Pagamento Liberado" : "Pagamento Liberado Automaticamente",
-          message: releaseType === 'manual' 
-            ? "Você liberou o pagamento para o prestador de serviços."
-            : "O pagamento foi liberado automaticamente após o prazo de 5 dias.",
-          type: "payment_released",
-          data: { 
-            escrowPaymentId, 
-            amount: providerAmount,
-            releaseType,
-            jobId: escrowPayment.job_id 
-          }
-        }
-      ]);
+      .insert(notificationData);
+
+    // Insert into real_time_notifications table with priority for toast display
+    const realTimeNotificationData = notificationData.map(notification => ({
+      ...notification,
+      priority: notification.user_id === escrowPayment.provider_id ? 3 : 2 // Higher priority for provider
+    }));
+
+    await supabaseClient
+      .from("real_time_notifications")
+      .insert(realTimeNotificationData);
 
     logStep("Notifications created");
 
