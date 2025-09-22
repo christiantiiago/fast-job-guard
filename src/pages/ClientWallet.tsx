@@ -152,6 +152,8 @@ export default function ClientWallet() {
       console.error('Error fetching escrow payments:', error);
     }
   };
+
+  const fetchPayments = async () => {
     try {
       setLoading(true);
       

@@ -207,8 +207,9 @@ export const AbacatePayModal = ({
       }
 
       // Configurar QR code (imagem)
+      let qrCodeUrl = '';
       if (qrCodeBase64) {
-        let qrCodeUrl = qrCodeBase64;
+        qrCodeUrl = qrCodeBase64;
         if (qrCodeUrl && !qrCodeUrl.startsWith('data:image/')) {
           qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
         }
