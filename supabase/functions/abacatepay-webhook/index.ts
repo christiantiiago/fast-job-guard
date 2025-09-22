@@ -88,8 +88,42 @@ serve(async (req) => {
           
           logStep("Escrow payment updated to held", { escrowId: escrow.id });
 
-          // Update job status to in_progress and assign provider
+          // Find and accept the proposal automatically
           if (escrow.job_id && escrow.provider_id) {
+            logStep("Finding proposal to auto-accept", { jobId: escrow.job_id, providerId: escrow.provider_id });
+            
+            // Find the proposal for this provider and job
+            const { data: proposals, error: proposalError } = await supabaseClient
+              .from("proposals")
+              .select("id, status")
+              .eq("job_id", escrow.job_id)
+              .eq("provider_id", escrow.provider_id)
+              .eq("status", "sent")
+              .limit(1);
+
+            if (proposalError) {
+              logStep("Error finding proposal", proposalError);
+            } else if (proposals && proposals.length > 0) {
+              const proposal = proposals[0];
+              logStep("Auto-accepting proposal", { proposalId: proposal.id });
+
+              // Accept the proposal
+              const { error: acceptError } = await supabaseClient
+                .from("proposals")
+                .update({
+                  status: "accepted",
+                  accepted_at: new Date().toISOString()
+                })
+                .eq("id", proposal.id);
+
+              if (acceptError) {
+                logStep("Error accepting proposal", acceptError);
+              } else {
+                logStep("Proposal accepted successfully", { proposalId: proposal.id });
+              }
+            }
+
+            // Update job status to in_progress and assign provider
             const { error: jobUpdateError } = await supabaseClient
               .from("jobs")
               .update({ 
@@ -108,6 +142,55 @@ serve(async (req) => {
                 providerId: escrow.provider_id,
                 finalPrice: escrow.amount 
               });
+
+              // Generate contract automatically
+              const { data: jobData } = await supabaseClient
+                .from("jobs")
+                .select("title, description, client_id")
+                .eq("id", escrow.job_id)
+                .single();
+
+              if (jobData) {
+                const contractTerms = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+
+1. OBJETO: ${jobData.title}
+
+2. DESCRIÇÃO: ${jobData.description}
+
+3. VALOR: R$ ${escrow.amount.toFixed(2).replace('.', ',')}
+
+4. RESPONSABILIDADES:
+   - O CONTRATANTE se compromete a fornecer todas as informações necessárias
+   - O PRESTADOR se compromete a executar o serviço conforme especificado
+
+5. PAGAMENTO: O pagamento foi efetuado e está protegido em garantia, sendo liberado automaticamente após 5 dias da conclusão ou mediante aprovação manual do cliente.
+
+6. Este contrato é regido pelos Termos de Uso da plataforma Job Fast.
+
+Contrato gerado automaticamente em ${new Date().toLocaleString('pt-BR')}`;
+
+                const { error: contractError } = await supabaseClient
+                  .from("contracts")
+                  .insert({
+                    job_id: escrow.job_id,
+                    client_id: jobData.client_id,
+                    provider_id: escrow.provider_id,
+                    agreed_price: escrow.amount,
+                    terms_and_conditions: contractTerms,
+                    escrow_amount: escrow.amount,
+                    status: "active",
+                    client_signed: true,
+                    provider_signed: true,
+                    client_signed_at: new Date().toISOString(),
+                    provider_signed_at: new Date().toISOString()
+                  });
+
+                if (contractError) {
+                  logStep("Error creating contract", contractError);
+                } else {
+                  logStep("Contract created successfully");
+                }
+              }
             }
           }
 

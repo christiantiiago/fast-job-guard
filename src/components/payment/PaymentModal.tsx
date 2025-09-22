@@ -9,7 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useAuth } from '@/hooks/useAuth';
 import { AbacatePayModal } from '@/components/payment/AbacatePayModal';
-import { DuplicatePaymentGuard } from '@/components/escrow/DuplicatePaymentGuard';
+import { PaymentStatusChecker } from '@/components/payment/PaymentStatusChecker';
+import { DuplicatePaymentGuard } from '@/components/payment/DuplicatePaymentGuard';
 import { 
   Shield, 
   CheckCircle,

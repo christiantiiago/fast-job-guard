@@ -240,18 +240,27 @@ export default function ClientWallet() {
   };
 
   const calculateStats = (paymentsData: Payment[], escrowData: EscrowPayment[] = []) => {
-    const totalSpent = paymentsData
-      .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + p.amount, 0);
+    // Calcular valores corretos incluindo pagamentos de escrow
+    const completedRegularPayments = paymentsData.filter(p => p.status === 'completed');
+    const releasedEscrowPayments = escrowData.filter(e => e.status === 'released');
+    
+    const totalSpentRegular = completedRegularPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalSpentEscrow = releasedEscrowPayments.reduce((sum, e) => sum + e.total_amount, 0);
+    const totalSpent = totalSpentRegular + totalSpentEscrow;
     
     const totalTransactions = paymentsData.length + escrowData.length;
     
-    const pendingPayments = paymentsData
+    const pendingRegularPayments = paymentsData
       .filter(p => p.status === 'pending')
       .reduce((sum, p) => sum + p.amount, 0);
     
-    const completedPayments = paymentsData
-      .filter(p => p.status === 'completed').length;
+    const pendingEscrowPayments = escrowData
+      .filter(e => e.status === 'pending' || e.status === 'held')
+      .reduce((sum, e) => sum + e.total_amount, 0);
+    
+    const pendingPayments = pendingRegularPayments + pendingEscrowPayments;
+    
+    const completedPayments = completedRegularPayments.length + releasedEscrowPayments.length;
 
     const escrowHeld = escrowData
       .filter(e => e.status === 'pending' || e.status === 'held')
@@ -262,9 +271,9 @@ export default function ClientWallet() {
       .reduce((sum, e) => sum + e.total_amount, 0);
 
     setStats({
-      totalSpent: totalSpent + escrowReleased + escrowHeld,
+      totalSpent,
       totalTransactions,
-      pendingPayments: pendingPayments + escrowHeld,
+      pendingPayments,
       completedPayments,
       escrowHeld,
       escrowReleased

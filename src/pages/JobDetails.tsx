@@ -19,6 +19,7 @@ import Map from '@/components/ui/map';
 import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
 import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
 import { EscrowManager } from '@/components/escrow/EscrowManager';
+import { JobCompletionButton } from '@/components/jobs/JobCompletionButton';
 import { useProposalCooldown } from '@/hooks/useProposalCooldown';
 import { useRealTimeNotifications } from '@/hooks/useRealTimeNotifications';
 import { useJobProposalManager } from '@/hooks/useJobProposalManager';
@@ -817,8 +818,8 @@ export default function JobDetails() {
               </Card>
             )}
 
-            {/* Enhanced Proposals Section for Clients */}
-            {userRole === 'client' && proposals.length > 0 && (
+            {/* Enhanced Proposals Section for Clients - Hide when job is paid/in progress */}
+            {userRole === 'client' && proposals.length > 0 && job.status === 'open' && (
               <div className="space-y-6">
                 <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-50 via-white to-green-50">
                   <CardHeader className="bg-gradient-to-r from-blue-100 to-green-100 rounded-t-lg border-b border-blue-200">
@@ -961,16 +962,43 @@ export default function JobDetails() {
               </div>
             )}
 
-            {/* Escrow Manager */}
-            {job.status === 'in_progress' && (
-              <EscrowManager jobId={job.id} />
+            {/* Escrow Manager - Show when job is paid/in progress */}
+            {(job.status === 'in_progress' || job.status === 'completed') && (
+              <EscrowManager jobId={job.id} isClient={userRole === 'client'} />
             )}
-          </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Enhanced Job Actions - Only for Providers */}
-            {userRole === 'provider' && job.status === 'open' && (
+            {/* Job Completion Button for Clients */}
+            {userRole === 'client' && job.status === 'in_progress' && (
+              <div className="mt-6">
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader>
+                    <CardTitle className="text-green-800 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5" />
+                      Finalizar Trabalho
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-green-700 mb-4">
+                      O trabalho está em andamento. Quando finalizar, marque como concluído para liberar o pagamento.
+                    </p>
+                    <JobCompletionButton 
+                      jobId={job.id}
+                      jobTitle={job.title}
+                      onCompleted={() => {
+                        toast({
+                          title: "Trabalho concluído",
+                          description: "O pagamento foi liberado para o prestador.",
+                        });
+                        fetchJobDetails();
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Hide proposal form for paid jobs */}
+            {job.status !== 'in_progress' && job.status !== 'completed' && showProposalForm && (
               <div className="space-y-4">
                 <EnhancedJobActions 
                   job={job} 
