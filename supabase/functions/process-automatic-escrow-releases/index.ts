@@ -25,7 +25,7 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Find escrow payments that are ready for automatic release
+    // Find escrow payments that are ready for automatic release (must be in waiting_approval status)
     const { data: expiredEscrows, error: fetchError } = await supabase
       .from('escrow_payments')
       .select(`
@@ -35,7 +35,8 @@ serve(async (req) => {
         client_id,
         provider_id,
         release_date,
-        created_at
+        created_at,
+        jobs:job_id(id, title, status, client_id, provider_id)
       `)
       .eq('status', 'held')
       .lt('release_date', new Date().toISOString());
@@ -67,8 +68,36 @@ serve(async (req) => {
         logStep(`Processing escrow payment ${escrow.id}`, {
           amount: escrow.amount,
           job_id: escrow.job_id,
+          job_status: escrow.jobs?.status,
           release_date: escrow.release_date
         });
+
+        // Only auto-release if job is in waiting_approval status
+        if (escrow.jobs?.status !== 'waiting_approval') {
+          logStep(`Skipping escrow ${escrow.id} - job not in waiting_approval status`, {
+            current_status: escrow.jobs?.status
+          });
+          continue;
+        }
+
+        // Check if provider is premium and calculate dynamic fees
+        const { data: isPremium } = await supabase
+          .rpc('is_premium_user', { target_user_id: escrow.provider_id });
+
+        // Get current fee rules
+        const { data: feeRules } = await supabase
+          .from('fee_rules')
+          .select('provider_fee_premium, provider_fee_standard')
+          .eq('is_active', true)
+          .single();
+
+        const feePercentage = isPremium 
+          ? (feeRules?.provider_fee_premium || 5.0) 
+          : (feeRules?.provider_fee_standard || 7.5);
+
+        // Calculate amounts - provider receives amount minus platform fee
+        const platformFee = Math.round((escrow.amount * feePercentage) / 100 * 100) / 100;
+        const providerAmount = Math.round((escrow.amount - platformFee) * 100) / 100;
 
         // Update escrow payment status to released
         const { error: updateError } = await supabase
@@ -100,17 +129,21 @@ serve(async (req) => {
           // Don't fail the escrow release for job update errors
         }
 
-        // Create notifications for both client and provider
+        // Create notifications for both client and provider with premium info
         const notifications = [
           {
             user_id: escrow.provider_id,
             type: 'escrow_released_auto',
             title: 'Pagamento Liberado Automaticamente',
-            message: `Seu pagamento de R$ ${escrow.amount.toFixed(2)} foi liberado automaticamente após 5 dias.`,
+            message: `Seu pagamento líquido de R$ ${providerAmount.toFixed(2)} foi liberado automaticamente ${isPremium ? '(Premium - 5% de taxa)' : '(7.5% de taxa)'} após 5 dias.`,
             data: {
               escrow_id: escrow.id,
               job_id: escrow.job_id,
-              amount: escrow.amount,
+              amount: providerAmount,
+              originalAmount: escrow.amount,
+              platformFee,
+              feePercentage,
+              isPremium,
               release_type: 'automatic'
             }
           },
@@ -118,11 +151,13 @@ serve(async (req) => {
             user_id: escrow.client_id,
             type: 'escrow_released_auto',
             title: 'Pagamento Liberado Automaticamente',
-            message: `O pagamento de R$ ${escrow.amount.toFixed(2)} foi liberado automaticamente para o prestador.`,
+            message: `O pagamento de R$ ${escrow.amount.toFixed(2)} foi liberado automaticamente para o prestador (líquido: R$ ${providerAmount.toFixed(2)}).`,
             data: {
               escrow_id: escrow.id,
               job_id: escrow.job_id,
-              amount: escrow.amount,
+              amount: providerAmount,
+              originalAmount: escrow.amount,
+              platformFee,
               release_type: 'automatic'
             }
           }
@@ -137,17 +172,19 @@ serve(async (req) => {
           // Don't fail the process for notification errors
         }
 
-        // Create real-time notifications
+        // Create real-time notifications with premium info
         const realTimeNotifications = [
           {
             user_id: escrow.provider_id,
             type: 'payment',
             title: '💰 Pagamento Liberado',
-            message: `R$ ${escrow.amount.toFixed(2)} foi creditado automaticamente`,
+            message: `R$ ${providerAmount.toFixed(2)} foi creditado automaticamente ${isPremium ? '(Premium)' : ''}`,
             data: {
               escrow_id: escrow.id,
               job_id: escrow.job_id,
-              amount: escrow.amount
+              amount: providerAmount,
+              originalAmount: escrow.amount,
+              isPremium
             }
           },
           {
@@ -158,7 +195,8 @@ serve(async (req) => {
             data: {
               escrow_id: escrow.id,
               job_id: escrow.job_id,
-              amount: escrow.amount
+              amount: providerAmount,
+              originalAmount: escrow.amount
             }
           }
         ];
