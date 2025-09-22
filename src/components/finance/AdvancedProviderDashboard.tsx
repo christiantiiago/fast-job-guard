@@ -223,7 +223,7 @@ export function AdvancedProviderDashboard() {
               </CardHeader>
               <CardContent className="relative">
                 <div className="text-2xl font-bold text-blue-600">
-                  {Math.round(stats.avgRating * 20)}
+                  {Math.round((stats.avgRating || 0) * 20)}
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">
                   Baseado em {stats.totalJobs} trabalhos
@@ -231,7 +231,7 @@ export function AdvancedProviderDashboard() {
                 <div className="flex items-center gap-1">
                   <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
                   <span className="text-xs text-muted-foreground">
-                    {stats.avgRating.toFixed(1)}/5.0
+                    {(stats.avgRating || 0).toFixed(1)}/5.0
                   </span>
                 </div>
               </CardContent>
@@ -251,7 +251,7 @@ export function AdvancedProviderDashboard() {
                   {showBalance ? formatCurrency(stats.currentMonthEarnings) : '••••••'}
                 </div>
                 <p className="text-xs text-success">
-                  +{((stats.currentMonthEarnings / (stats.totalEarnings || 1)) * 100).toFixed(1)}% do total
+                  +{(((stats.currentMonthEarnings || 0) / (stats.totalEarnings || 1)) * 100).toFixed(1)}% do total
                 </p>
               </CardContent>
             </Card>
