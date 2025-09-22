@@ -80,15 +80,15 @@ export default function EnhancedFinance() {
       const monthName = monthDate.toLocaleDateString('pt-BR', { month: 'short' });
       
       const monthPayments = payments.filter(payment => {
-        const paymentDate = new Date(payment.processed_at || payment.created_at);
+        const paymentDate = new Date(payment.created_at);
         return paymentDate.getMonth() === monthDate.getMonth() && 
                paymentDate.getFullYear() === monthDate.getFullYear() &&
-               payment.status === 'completed';
+               (payment.status === 'completed' || payment.status === 'released');
       });
 
       data.push({
         month: monthName,
-        earnings: monthPayments.reduce((sum, p) => sum + p.net_amount, 0),
+        earnings: monthPayments.reduce((sum, p) => sum + (p.net_amount || p.amount), 0),
         jobs: monthPayments.length
       });
     }

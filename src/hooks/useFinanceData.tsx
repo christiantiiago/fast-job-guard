@@ -13,6 +13,8 @@ interface PaymentData {
   payment_method: string;
   external_id?: string;
   release_date?: string;
+  processed_at?: string;
+  net_amount?: number;
 }
 
 interface PayoutData {
@@ -221,7 +223,7 @@ export const useFinanceData = () => {
           amount,
           bank_details: bankDetails,
           status: 'pending',
-          provider: 'pix'
+          provider: 'mercadopago'
         });
 
       if (error) throw error;
