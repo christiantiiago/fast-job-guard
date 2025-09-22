@@ -117,8 +117,17 @@ serve(async (req) => {
             } else {
               logStep('Job updated to in_progress');
 
-              // Create contract
-              const contractTerms = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
+              // Create contract - first get the accepted proposal
+              const { data: acceptedProposal } = await supabaseClient
+                .from("proposals")
+                .select("id")
+                .eq("job_id", escrow.job_id)
+                .eq("provider_id", escrow.provider_id)
+                .eq("status", "accepted")
+                .single();
+
+              if (acceptedProposal) {
+                const contractTerms = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 
 1. OBJETO: ${escrow.jobs?.title || 'Serviço contratado'}
 
@@ -136,26 +145,30 @@ serve(async (req) => {
 
 Contrato gerado automaticamente em ${new Date().toLocaleString('pt-BR')}`;
 
-              const { error: contractError } = await supabaseClient
-                .from("contracts")
-                .insert({
-                  job_id: escrow.job_id,
-                  client_id: escrow.client_id,
-                  provider_id: escrow.provider_id,
-                  agreed_price: escrow.amount,
-                  terms_and_conditions: contractTerms,
-                  escrow_amount: escrow.amount,
-                  status: "active",
-                  client_signed: true,
-                  provider_signed: true,
-                  client_signed_at: new Date().toISOString(),
-                  provider_signed_at: new Date().toISOString()
-                });
+                const { error: contractError } = await supabaseClient
+                  .from("contracts")
+                  .insert({
+                    job_id: escrow.job_id,
+                    client_id: escrow.client_id,
+                    provider_id: escrow.provider_id,
+                    proposal_id: acceptedProposal.id,
+                    agreed_price: escrow.amount,
+                    terms_and_conditions: contractTerms,
+                    escrow_amount: escrow.amount,
+                    status: "active",
+                    client_signed: true,
+                    provider_signed: true,
+                    client_signed_at: new Date().toISOString(),
+                    provider_signed_at: new Date().toISOString()
+                  });
 
-              if (contractError) {
-                logStep('Error creating contract', contractError);
+                if (contractError) {
+                  logStep('Error creating contract', contractError);
+                } else {
+                  logStep('Contract created successfully');
+                }
               } else {
-                logStep('Contract created successfully');
+                logStep('No accepted proposal found for contract creation');
               }
             }
 

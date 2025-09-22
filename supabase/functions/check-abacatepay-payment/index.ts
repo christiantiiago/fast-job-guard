@@ -159,7 +159,16 @@ serve(async (req) => {
                 .eq("id", escrow.job_id)
                 .single();
 
-              if (jobData) {
+              // Find the accepted proposal to get proposal_id
+              const { data: acceptedProposal } = await serviceRoleClient
+                .from("proposals")
+                .select("id")
+                .eq("job_id", escrow.job_id)
+                .eq("provider_id", escrow.provider_id)
+                .eq("status", "accepted")
+                .single();
+
+              if (jobData && acceptedProposal) {
                 const contractTerms = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS
 
 1. OBJETO: ${jobData.title}
@@ -184,6 +193,7 @@ Contrato gerado automaticamente em ${new Date().toLocaleString('pt-BR')}`;
                     job_id: escrow.job_id,
                     client_id: jobData.client_id,
                     provider_id: escrow.provider_id,
+                    proposal_id: acceptedProposal.id,
                     agreed_price: escrow.amount,
                     terms_and_conditions: contractTerms,
                     escrow_amount: escrow.amount,
@@ -199,6 +209,11 @@ Contrato gerado automaticamente em ${new Date().toLocaleString('pt-BR')}`;
                 } else {
                   logStep("Contract created successfully");
                 }
+              } else {
+                logStep("Missing job data or accepted proposal for contract creation", {
+                  hasJobData: !!jobData,
+                  hasProposal: !!acceptedProposal
+                });
               }
             }
           }
