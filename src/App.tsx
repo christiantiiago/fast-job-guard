@@ -60,6 +60,7 @@ import Checkout from "./pages/Checkout";
 import DirectProposalCheckout from "./pages/DirectProposalCheckout";
 import CheckoutSuccess from "./pages/checkout/Success";
 import CheckoutCancel from "./pages/checkout/Cancel";
+import BoostSuccess from "./pages/checkout/BoostSuccess";
 
 const queryClient = new QueryClient();
 
@@ -282,6 +283,15 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CheckoutCancel />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/boost-success"
+              element={
+                <ProtectedRoute>
+                  <BoostSuccess />
                 </ProtectedRoute>
               }
             />

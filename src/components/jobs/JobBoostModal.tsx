@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Zap, Star, Crown, Rocket, Target } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { BOOST_OPTIONS } from '@/lib/stripe';
 
 interface JobBoostModalProps {
   open: boolean;
@@ -13,88 +15,25 @@ interface JobBoostModalProps {
   jobId: string;
 }
 
-interface BoostOption {
-  id: string;
-  title: string;
-  duration: string;
-  price: number;
-  description: string;
-  icon: React.ComponentType<any>;
-  color: string;
-  features: string[];
-  popular?: boolean;
-  premium?: boolean;
-}
-
 export function JobBoostModal({ open, onOpenChange, jobTitle, jobId }: JobBoostModalProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const boostOptions: BoostOption[] = [
-    {
-      id: 'express',
-      title: 'Express',
-      duration: '5 horas',
-      price: 19.99,
-      description: 'Boost rápido para resultados imediatos',
-      icon: Zap,
-      color: 'bg-yellow-500',
-      features: ['Destaque por 5 horas', 'Posição no topo', 'Badge "Urgente"']
-    },
-    {
-      id: 'turbo',
-      title: 'Turbo',
-      duration: '2 dias',
-      price: 23.99,
-      description: 'Máxima visibilidade por 48 horas',
-      icon: Rocket,
-      color: 'bg-orange-500',
-      features: ['Destaque por 2 dias', 'Posição premium', 'Badge "Popular"', 'Notificação push'],
-      popular: true
-    },
-    {
-      id: 'premium',
-      title: 'Premium',
-      duration: '1 semana',
-      price: 39.99,
-      description: 'Visibilidade garantida por uma semana',
-      icon: Star,
-      color: 'bg-purple-500',
-      features: ['Destaque por 7 dias', 'Posição VIP', 'Badge "Premium"', 'Analytics detalhado']
-    },
-    {
-      id: 'platinum',
-      title: 'Platinum',
-      duration: '2 semanas',
-      price: 59.99,
-      description: 'Máximo alcance por 14 dias',
-      icon: Crown,
-      color: 'bg-blue-500',
-      features: ['Destaque por 14 dias', 'Posição destaque', 'Badge "Platinum"', 'Suporte prioritário']
-    },
-    {
-      id: 'diamond',
-      title: 'Diamond',
-      duration: '1 mês',
-      price: 89.99,
-      description: 'Visibilidade máxima por 30 dias',
-      icon: Target,
-      color: 'bg-pink-500',
-      features: ['Destaque por 30 dias', 'Posição exclusiva', 'Badge "Diamond"', 'Relatórios avançados'],
-      premium: true
-    },
-    {
-      id: 'ultimate',
-      title: 'Ultimate',
-      duration: '3 meses',
-      price: 199.99,
-      description: 'O mais completo por 90 dias',
-      icon: TrendingUp,
-      color: 'bg-gradient-to-r from-purple-500 to-pink-500',
-      features: ['Destaque por 90 dias', 'Posição ultra premium', 'Badge "Ultimate"', 'Gerente dedicado'],
-      premium: true
-    }
-  ];
+  const boostOptions = BOOST_OPTIONS.map(option => ({
+    ...option,
+    icon: option.id === 'express' ? Zap :
+          option.id === 'turbo' ? Rocket :
+          option.id === 'premium' ? Star :
+          option.id === 'platinum' ? Crown :
+          option.id === 'diamond' ? Target :
+          TrendingUp,
+    color: option.id === 'express' ? 'bg-yellow-500' :
+           option.id === 'turbo' ? 'bg-orange-500' :
+           option.id === 'premium' ? 'bg-purple-500' :
+           option.id === 'platinum' ? 'bg-blue-500' :
+           option.id === 'diamond' ? 'bg-pink-500' :
+           'bg-gradient-to-r from-purple-500 to-pink-500'
+  }));
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -103,24 +42,53 @@ export function JobBoostModal({ open, onOpenChange, jobTitle, jobId }: JobBoostM
     }).format(value);
   };
 
-  const handleBoost = async (option: BoostOption) => {
+  const handleBoost = async (option: any) => {
     setLoading(true);
     try {
-      // Simular processamento
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success(`Boost ${option.title} ativado!`, {
-        description: `Seu trabalho "${jobTitle}" está em destaque por ${option.duration}`,
+      const response = await supabase.functions.invoke('create-boost-payment', {
+        body: {
+          jobId: jobId,
+          boostType: option.id,
+          amount: option.price,
+          duration: getDurationInHours(option.duration)
+        }
       });
-      
-      onOpenChange(false);
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Erro ao processar pagamento');
+      }
+
+      if (response.data?.url) {
+        // Abrir checkout do Stripe em nova aba
+        window.open(response.data.url, '_blank');
+        onOpenChange(false);
+        
+        toast.success('Redirecionando para pagamento', {
+          description: 'Uma nova aba foi aberta com o checkout'
+        });
+      } else {
+        throw new Error('URL de checkout não recebida');
+      }
     } catch (error) {
-      toast.error('Erro ao ativar boost', {
-        description: 'Tente novamente em alguns instantes'
+      console.error('Erro no boost:', error);
+      toast.error('Erro ao processar boost', {
+        description: error instanceof Error ? error.message : 'Tente novamente em alguns instantes'
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const getDurationInHours = (duration: string): number => {
+    const durationMap: Record<string, number> = {
+      '5 horas': 5,
+      '2 dias': 48,
+      '1 semana': 168,
+      '2 semanas': 336,
+      '1 mês': 720,
+      '3 meses': 2160
+    };
+    return durationMap[duration] || 24;
   };
 
   return (

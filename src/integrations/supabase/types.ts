@@ -711,6 +711,72 @@ export type Database = {
         }
         Relationships: []
       }
+      job_boosts: {
+        Row: {
+          amount: number
+          boost_type: string
+          created_at: string
+          duration_hours: number
+          expires_at: string | null
+          id: string
+          job_id: string
+          metadata: Json | null
+          started_at: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          boost_type: string
+          created_at?: string
+          duration_hours: number
+          expires_at?: string | null
+          id?: string
+          job_id: string
+          metadata?: Json | null
+          started_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          boost_type?: string
+          created_at?: string
+          duration_hours?: number
+          expires_at?: string | null
+          id?: string
+          job_id?: string
+          metadata?: Json | null
+          started_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_boosts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_boosts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "public_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_messages: {
         Row: {
           attachment_type: string | null
