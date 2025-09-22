@@ -15,11 +15,17 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
   useEffect(() => {
     if (!externalPaymentId) return;
 
+    let checkCount = 0;
+    const maxChecks = 120; // 10 minutos com checks a cada 5 segundos
+
     const checkPaymentStatus = async () => {
+      checkCount++;
+      
       try {
         setChecking(true);
+        console.log(`[PaymentChecker] Check #${checkCount} for payment: ${externalPaymentId}`);
 
-        // First, try to trigger payment verification with AbacatePay (no auth needed)
+        // Strategy 1: Call edge function to verify with AbacatePay and process
         try {
           const checkResponse = await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment`, {
             method: 'POST',
@@ -31,78 +37,132 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
           });
 
           const checkResult = await checkResponse.json();
+          console.log(`[PaymentChecker] Edge function response:`, checkResult);
           
-          if (!checkResponse.ok) {
-            console.error('Error calling check function:', checkResult);
-          } else if (checkResult?.isPaid) {
-            console.log('Payment confirmed by AbacatePay check');
+          if (checkResponse.ok && checkResult?.isPaid) {
+            console.log(`[PaymentChecker] Payment confirmed by AbacatePay!`);
             
-            // Payment confirmed, stop checking
             toast({
               title: "Pagamento Confirmado!",
-              description: "Seu pagamento foi confirmado e está sendo processado.",
+              description: "Seu pagamento foi confirmado e o contrato está sendo gerado automaticamente.",
             });
-            onPaymentConfirmed();
-            return;
+            
+            // Wait a moment for processing then notify
+            setTimeout(() => {
+              onPaymentConfirmed();
+            }, 2000);
+            return true; // Payment confirmed, stop checking
           }
         } catch (checkFunctionError) {
-          console.error('Error in check function call:', checkFunctionError);
+          console.error(`[PaymentChecker] Error calling edge function:`, checkFunctionError);
         }
 
-        // Check if escrow payment status changed in our database
+        // Strategy 2: Check database directly for status changes
         const { data: escrowPayments, error } = await supabase
           .from('escrow_payments')
-          .select('status, job_id')
+          .select('id, status, job_id, amount')
           .eq('external_payment_id', externalPaymentId)
           .limit(1);
 
         if (error) {
-          console.error('Error checking payment status:', error);
-          return;
-        }
-
-        if (escrowPayments && escrowPayments.length > 0) {
+          console.error(`[PaymentChecker] Database error:`, error);
+        } else if (escrowPayments && escrowPayments.length > 0) {
           const payment = escrowPayments[0];
+          console.log(`[PaymentChecker] Database payment status: ${payment.status}`);
           
           if (payment.status !== lastStatus) {
             setLastStatus(payment.status);
             
             if (payment.status === 'held') {
+              console.log(`[PaymentChecker] Payment status changed to held!`);
+              
               toast({
                 title: "Pagamento Confirmado!",
                 description: "Seu pagamento foi confirmado e está protegido em garantia. O trabalho está em andamento.",
               });
               
-              // Notify parent component
-              onPaymentConfirmed();
+              // Check if contract exists, if not create one
+              const { data: contracts } = await supabase
+                .from('contracts')
+                .select('id')
+                .eq('job_id', payment.job_id)
+                .limit(1);
+
+              if (!contracts || contracts.length === 0) {
+                console.log(`[PaymentChecker] No contract found, triggering contract creation`);
+                
+                // Try to trigger contract creation
+                try {
+                  await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
+                    },
+                    body: JSON.stringify({ paymentId: externalPaymentId })
+                  });
+                } catch (e) {
+                  console.error(`[PaymentChecker] Error triggering contract creation:`, e);
+                }
+              }
               
-              // Stop checking since payment is confirmed
-              return;
+              setTimeout(() => {
+                onPaymentConfirmed();
+              }, 1000);
+              return true; // Payment confirmed, stop checking
             }
           }
         }
+
+        // Strategy 3: Force processing if we've been checking for a while
+        if (checkCount > 6 && checkCount % 6 === 0) { // Every 30 seconds after first minute
+          console.log(`[PaymentChecker] Forcing payment fallback processing...`);
+          try {
+            await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/process-payment-fallbacks`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
+              },
+              body: JSON.stringify({})
+            });
+          } catch (e) {
+            console.error(`[PaymentChecker] Error calling fallback processor:`, e);
+          }
+        }
+
+        return false; // Continue checking
       } catch (error) {
-        console.error('Error in payment status check:', error);
+        console.error(`[PaymentChecker] Unexpected error:`, error);
+        return false;
       } finally {
         setChecking(false);
       }
     };
 
     // Check immediately
-    checkPaymentStatus();
+    checkPaymentStatus().then(shouldStop => {
+      if (shouldStop) return;
 
-    // Set up interval to check every 5 seconds (very aggressive)
-    const interval = setInterval(checkPaymentStatus, 5000);
+      // Set up aggressive interval checking
+      const interval = setInterval(async () => {
+        if (checkCount >= maxChecks) {
+          console.log(`[PaymentChecker] Max checks reached, stopping`);
+          clearInterval(interval);
+          return;
+        }
 
-    // Stop checking after 10 minutes but keep checking more aggressively
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-    }, 10 * 60 * 1000);
+        const shouldStop = await checkPaymentStatus();
+        if (shouldStop) {
+          clearInterval(interval);
+        }
+      }, 5000); // Check every 5 seconds
 
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
+      return () => {
+        clearInterval(interval);
+      };
+    });
+
   }, [externalPaymentId, lastStatus, onPaymentConfirmed, toast]);
 
   if (checking) {

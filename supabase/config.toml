@@ -91,5 +91,5 @@ verify_jwt = false
 [functions.force-process-payment]
 verify_jwt = false
 
-[functions.check-abacatepay-payment]
+[functions.sync-pending-payments]
 verify_jwt = false

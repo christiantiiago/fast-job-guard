@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useContractSync } from '@/hooks/useContractSync';
 
 interface Contract {
   id: string;
@@ -45,6 +46,9 @@ export default function Contracts() {
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Initialize contract sync
+  useContractSync();
 
   useEffect(() => {
     fetchContracts();
@@ -54,10 +58,14 @@ export default function Contracts() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First try to get contracts directly
+      const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select(`
           id,
+          job_id,
+          client_id,
+          provider_id,
           agreed_price,
           agreed_deadline,
           status,
@@ -65,61 +73,147 @@ export default function Contracts() {
           client_signed,
           provider_signed,
           terms_and_conditions,
-          escrow_amount,
-          jobs!inner(
-            title,
-            addresses(
-              street,
-              number,
-              neighborhood,
-              city,
-              state
-            )
-          ),
-          client:profiles!contracts_client_id_fkey(
-            full_name
-          ),
-          provider:profiles!contracts_provider_id_fkey(
-            full_name
-          )
+          escrow_amount
         `)
         .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (contractsError) throw contractsError;
 
-      const formattedContracts = data?.map((contract) => {
-        const job = Array.isArray(contract.jobs) ? contract.jobs[0] : contract.jobs;
-        const client = Array.isArray(contract.client) ? contract.client[0] : contract.client;
-        const provider = Array.isArray(contract.provider) ? contract.provider[0] : contract.provider;
-        const address = job?.addresses?.[0];
+      // Also check for jobs with escrow payments that should have contracts but don't
+      const { data: escrowJobs, error: escrowError } = await supabase
+        .from('escrow_payments')
+        .select(`
+          id,
+          job_id,
+          client_id,
+          provider_id,
+          amount,
+          status,
+          created_at
+        `)
+        .eq('status', 'held')
+        .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (escrowError) {
+        console.error('Error fetching escrow jobs:', escrowError);
+      }
+
+      // Get job titles for escrow payments
+      let jobTitles = {};
+      if (escrowJobs && escrowJobs.length > 0) {
+        const jobIds = escrowJobs.map(e => e.job_id).filter(Boolean);
+        if (jobIds.length > 0) {
+          const { data: jobsData } = await supabase
+            .from('jobs')
+            .select('id, title')
+            .in('id', jobIds);
+          
+          if (jobsData) {
+            jobTitles = Object.fromEntries(jobsData.map(j => [j.id, j.title]));
+          }
+        }
+      }
+
+      // Combine data from both sources
+      let allContracts = contractsData || [];
+
+      // Add missing contracts from escrow payments
+      if (escrowJobs) {
+        for (const escrow of escrowJobs) {
+          const existingContract = allContracts.find(c => c.job_id === escrow.job_id);
+          if (!existingContract) {
+            // Create a virtual contract from escrow data
+            allContracts.push({
+              id: `virtual-${escrow.id}`,
+              job_id: escrow.job_id,
+              client_id: escrow.client_id,
+              provider_id: escrow.provider_id,
+              agreed_price: escrow.amount,
+              agreed_deadline: null,
+              status: 'active',
+              created_at: escrow.created_at,
+              client_signed: true, // Auto-signed since payment was made
+              provider_signed: true, // Auto-signed since work started
+              terms_and_conditions: `CONTRATO AUTOMÁTICO - GERADO PELO PAGAMENTO
+              
+Serviço: ${jobTitles[escrow.job_id] || 'Serviço contratado'}
+Valor: R$ ${escrow.amount?.toFixed(2).replace('.', ',') || '0,00'}
+Status do Pagamento: Em garantia
+
+Este contrato foi gerado automaticamente quando o pagamento foi confirmado.
+O valor está protegido em garantia e será liberado após a conclusão do serviço.`,
+              escrow_amount: escrow.amount
+            });
+          }
+        }
+      }
+
+      // Now fetch related data for all contracts
+      const contractIds = allContracts.map(c => c.job_id).filter(Boolean);
+      const clientIds = [...new Set(allContracts.map(c => c.client_id))];
+      const providerIds = [...new Set(allContracts.map(c => c.provider_id))];
+
+      // Fetch jobs data
+      const { data: jobsData } = contractIds.length > 0 ? await supabase
+        .from('jobs')
+        .select(`
+          id,
+          title,
+          addresses!inner(
+            street,
+            number,
+            neighborhood,
+            city,
+            state
+          )
+        `)
+        .in('id', contractIds) : { data: [] };
+
+      // Fetch profiles data
+      const { data: profilesData } = [...clientIds, ...providerIds].length > 0 ? await supabase
+        .from('profiles')
+        .select('user_id, full_name')
+        .in('user_id', [...clientIds, ...providerIds]) : { data: [] };
+
+      const formattedContracts = allContracts.map((contract) => {
+        // Find related job data
+        const jobData = jobsData?.find(j => j.id === contract.job_id);
+        const address = jobData?.addresses?.[0];
+
+        // Find client and provider data
+        const clientProfile = profilesData?.find(p => p.user_id === contract.client_id);
+        const providerProfile = profilesData?.find(p => p.user_id === contract.provider_id);
 
         return {
           id: contract.id,
-          job_title: job?.title || 'Título não disponível',
-          client_name: client?.full_name || 'Cliente',
-          provider_name: provider?.full_name || 'Prestador',
-          agreed_price: contract.agreed_price,
+          job_title: jobData?.title || contract.terms_and_conditions?.includes('Serviço: ') 
+            ? contract.terms_and_conditions.split('Serviço: ')[1]?.split('\n')[0] || 'Título não disponível'
+            : 'Título não disponível',
+          client_name: clientProfile?.full_name || 'Cliente',
+          provider_name: providerProfile?.full_name || 'Prestador',
+          agreed_price: contract.agreed_price || 0,
           agreed_deadline: contract.agreed_deadline,
-          status: contract.status,
+          status: contract.status || 'active',
           created_at: contract.created_at,
-          client_signed: contract.client_signed,
-          provider_signed: contract.provider_signed,
+          client_signed: contract.client_signed || false,
+          provider_signed: contract.provider_signed || false,
           terms_and_conditions:
             contract.terms_and_conditions ||
             `CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n
 1. O prestador se compromete a realizar o serviço descrito no título do trabalho.
-2. O cliente concorda em pagar o valor acordado de ${contract.agreed_price} até a data combinada.
+2. O cliente concorda em pagar o valor acordado de R$ ${(contract.agreed_price || 0).toFixed(2).replace('.', ',')}.
 3. O valor ficará retido em ESCROW até a conclusão do serviço.
 4. A plataforma atua apenas como intermediadora e não se responsabiliza por falhas na execução do serviço.
 5. Em caso de disputa, ambas as partes devem apresentar evidências, e a plataforma decidirá sobre a liberação do valor.
-6. Este contrato só é válido após assinatura digital de ambas as partes.`,
-          escrow_amount: contract.escrow_amount,
+6. Este contrato é válido e foi aceito automaticamente com o pagamento.`,
+          escrow_amount: contract.escrow_amount || contract.agreed_price || 0,
           job_address: address
             ? `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`
             : 'Endereço não disponível',
         };
-      }) || [];
+      });
 
       setContracts(formattedContracts);
     } catch (error) {
