@@ -52,7 +52,7 @@ serve(async (req) => {
         jobs:job_id(client_id, title, status)
       `)
       .eq("id", escrowPaymentId)
-      .single();
+      .maybeSingle();
 
     if (escrowError || !escrowPayment) {
       throw new Error("Escrow payment not found");
@@ -80,8 +80,8 @@ serve(async (req) => {
       });
     }
 
-    // Check if payment is in held status
-    if (escrowPayment.status !== 'held') {
+    // Check if payment is in held status  
+    if (escrowPayment.status !== 'held' && escrowPayment.status !== 'waiting_approval') {
       throw new Error(`Cannot release payment with status: ${escrowPayment.status}`);
     }
 

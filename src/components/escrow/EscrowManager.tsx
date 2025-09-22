@@ -147,7 +147,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
     return null; // No escrow payment for this job
   }
 
-  const isHeld = escrowPayment.status === 'held';
+  const isHeld = escrowPayment.status === 'held' || escrowPayment.status === 'waiting_approval';
   const isReleased = escrowPayment.status === 'released';
   const isPending = escrowPayment.status === 'pending';
   const releaseDate = new Date(escrowPayment.release_date);
@@ -159,6 +159,8 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
     switch (escrowPayment.status) {
       case 'pending':
         return <Badge variant="outline" className="text-yellow-600">Aguardando Pagamento</Badge>;
+      case 'waiting_approval':
+        return <Badge className="bg-orange-100 text-orange-700">Aguardando Aprovação</Badge>;
       case 'held':
         return <Badge className="bg-blue-100 text-blue-700">Em Garantia</Badge>;
       case 'released':

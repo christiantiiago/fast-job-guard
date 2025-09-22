@@ -115,6 +115,7 @@ export default function JobDetails() {
   
   const [job, setJob] = useState<JobData | null>(null);
   const [clientProfile, setClientProfile] = useState<JobProfile | null>(null);
+  const [providerProfile, setProviderProfile] = useState<JobProfile | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [proposalProfiles, setProposalProfiles] = useState<{[key: string]: JobProfile}>({});
   const [counterOffers, setCounterOffers] = useState<CounterOffer[]>([]);
@@ -208,6 +209,23 @@ export default function JobDetails() {
 
         if (profileData) {
           setClientProfile(profileData);
+        }
+      }
+
+      // Fetch provider profile separately
+      if (jobData.provider_id) {
+        const { data: providerData, error: providerError } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, rating_avg, rating_count')
+          .eq('user_id', jobData.provider_id)
+          .maybeSingle();
+
+        if (providerError) {
+          console.error('❌ Error fetching provider profile:', providerError);
+        }
+
+        if (providerData) {
+          setProviderProfile(providerData);
         }
       }
     } catch (error) {
@@ -1334,8 +1352,70 @@ export default function JobDetails() {
               </Card>
             )}
             
-            {/* Client Info - Always show when job has a client */}
-            {job.client_id && (
+            {/* Provider Info - Show when user is client and job has provider */}
+            {isClient && job.provider_id && (
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-accent/10 to-primary/10 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2">
+                    <Handshake className="h-5 w-5" />
+                    Prestador do Projeto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {!providerProfile && loading ? (
+                    <div className="flex items-center gap-4 animate-pulse">
+                      <div className="h-16 w-16 bg-gray-200 rounded-full"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer group hover:bg-muted/30 p-2 rounded-lg transition-all"
+                      onClick={() => navigate(`/profile/${job.provider_id}`)}
+                    >
+                      <Avatar className="h-16 w-16 ring-2 ring-accent/20">
+                        <AvatarImage src={providerProfile?.avatar_url} />
+                        <AvatarFallback className="bg-accent/10 text-accent text-lg">
+                          {providerProfile?.full_name?.charAt(0) || 'P'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-lg group-hover:text-accent transition-colors">
+                          {providerProfile?.full_name || 'Prestador'}
+                        </h4>
+                        {providerProfile?.rating_avg && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  className={`h-3 w-3 ${
+                                    star <= Math.round(providerProfile?.rating_avg || 0)
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-gray-300'
+                                  }`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {providerProfile?.rating_avg?.toFixed(1)} ({providerProfile?.rating_count} avaliações)
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-sm text-muted-foreground mt-1 group-hover:text-accent/80 transition-colors">
+                          Clique para ver perfil completo
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Client Info - Show when user is provider and job has client */}
+            {!isClient && job.client_id && (
               <Card className="border-0 shadow-lg">
                 <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
                   <CardTitle className="flex items-center gap-2">
