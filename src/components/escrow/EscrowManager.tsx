@@ -38,6 +38,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
   const [escrowPayment, setEscrowPayment] = useState<EscrowPayment | null>(null);
   const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
 
   const fetchEscrowPayment = async () => {
     try {
@@ -63,7 +64,64 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
 
   useEffect(() => {
     fetchEscrowPayment();
+
+    // Setup realtime subscription for escrow updates
+    const channel = supabase
+      .channel('escrow-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'escrow_payments',
+          filter: `job_id=eq.${jobId}`
+        },
+        () => {
+          fetchEscrowPayment();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [jobId]);
+
+  // Countdown timer for automatic release
+  useEffect(() => {
+    if (!escrowPayment || escrowPayment.status !== 'held') {
+      setTimeRemaining('');
+      return;
+    }
+
+    const updateCountdown = () => {
+      const releaseDate = new Date(escrowPayment.release_date);
+      const now = new Date();
+      const timeDiff = releaseDate.getTime() - now.getTime();
+
+      if (timeDiff <= 0) {
+        setTimeRemaining('Liberação disponível');
+        return;
+      }
+
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m`);
+      } else {
+        setTimeRemaining(`${minutes}m`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [escrowPayment]);
 
   const handleReleasePayment = async () => {
     if (!escrowPayment || !user) return;
@@ -171,10 +229,28 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
           <>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Liberação automática</span>
-              <span className="flex items-center gap-1 text-sm">
-                <Calendar className="h-4 w-4" />
-                {daysUntilRelease > 0 ? `${daysUntilRelease} dias` : 'Hoje'}
+              <span className="flex items-center gap-1 text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                <Clock className="h-4 w-4" />
+                {timeRemaining || `${daysUntilRelease > 0 ? `${daysUntilRelease} dias` : 'Hoje'}`}
               </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Trabalho concluído</span>
+                <span>Liberação automática</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    canRelease ? 'bg-green-500' : 'bg-blue-500'
+                  }`}
+                  style={{
+                    width: `${Math.min(100, Math.max(10, 100 - (daysUntilRelease * 20)))}%`
+                  }}
+                />
+              </div>
             </div>
 
             {canRelease && (

@@ -80,6 +80,80 @@ export function JobCompletionButton({
     }
   };
 
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+
+  // Check job status on mount and updates
+  useEffect(() => {
+    const checkJobStatus = async () => {
+      const { data } = await supabase
+        .from('jobs')
+        .select('status')
+        .eq('id', jobId)
+        .single();
+      
+      if (data) {
+        setJobStatus(data.status);
+      }
+    };
+
+    checkJobStatus();
+
+    // Subscribe to job status changes
+    const channel = supabase
+      .channel('job-status-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'jobs',
+          filter: `id=eq.${jobId}`
+        },
+        (payload) => {
+          setJobStatus(payload.new.status);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId]);
+
+  // If job is already waiting for approval, show status instead of button
+  if (jobStatus === 'waiting_approval') {
+    return (
+      <div className={`p-4 bg-amber-50 border border-amber-200 rounded-lg ${className}`}>
+        <div className="flex items-center gap-3">
+          <CheckCircle className="h-6 w-6 text-amber-600" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-amber-800">Trabalho Concluído!</h4>
+            <p className="text-sm text-amber-700 mt-1">
+              Cliente notificado. Aguardando aprovação ou liberação automática em 5 dias.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If job is completed, show success message
+  if (jobStatus === 'completed') {
+    return (
+      <div className={`p-4 bg-green-50 border border-green-200 rounded-lg ${className}`}>
+        <div className="flex items-center gap-3">
+          <CheckCircle className="h-6 w-6 text-green-600" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-green-800">Pagamento Liberado!</h4>
+            <p className="text-sm text-green-700 mt-1">
+              O trabalho foi concluído e o pagamento foi processado.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Button
