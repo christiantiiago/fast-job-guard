@@ -19,7 +19,22 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
       try {
         setChecking(true);
 
-        // Check if escrow payment status changed
+        // First, try to trigger payment verification with AbacatePay
+        try {
+          const { data: checkResult, error: checkError } = await supabase.functions.invoke('check-abacatepay-payment', {
+            body: { paymentId: externalPaymentId }
+          });
+          
+          if (checkError) {
+            console.error('Error calling check function:', checkError);
+          } else if (checkResult?.isPaid) {
+            console.log('Payment confirmed by AbacatePay check');
+          }
+        } catch (checkFunctionError) {
+          console.error('Error in check function call:', checkFunctionError);
+        }
+
+        // Check if escrow payment status changed in our database
         const { data: escrowPayments, error } = await supabase
           .from('escrow_payments')
           .select('status, job_id')
@@ -61,13 +76,13 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
     // Check immediately
     checkPaymentStatus();
 
-    // Set up interval to check every 15 seconds
-    const interval = setInterval(checkPaymentStatus, 15000);
+    // Set up interval to check every 10 seconds (more frequent)
+    const interval = setInterval(checkPaymentStatus, 10000);
 
-    // Stop checking after 10 minutes (40 checks)
+    // Stop checking after 15 minutes (90 checks)
     const timeout = setTimeout(() => {
       clearInterval(interval);
-    }, 10 * 60 * 1000);
+    }, 15 * 60 * 1000);
 
     return () => {
       clearInterval(interval);

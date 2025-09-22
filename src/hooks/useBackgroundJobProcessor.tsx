@@ -33,12 +33,37 @@ export const useBackgroundJobProcessor = () => {
     }
   };
 
+  const processPaymentFallbacks = async () => {
+    try {
+      console.log('Processando fallbacks de pagamento...');
+      
+      const { data, error } = await supabase.functions.invoke('process-payment-fallbacks');
+      
+      if (error) {
+        console.error('Erro ao processar fallbacks:', error);
+        return;
+      }
+
+      if (data?.processed > 0) {
+        console.log(`${data.processed} pagamentos processados via fallback`);
+      }
+    } catch (error) {
+      console.error('Erro no processamento de fallbacks:', error);
+    }
+  };
+
   useEffect(() => {
     // Processar jobs a cada 30 segundos
     intervalRef.current = setInterval(processJobs, 30000);
+    
+    // Processar fallbacks de pagamento a cada 60 segundos
+    const fallbackInterval = setInterval(processPaymentFallbacks, 60000);
 
     // Processar jobs imediatamente na inicialização
     processJobs();
+    
+    // Processar fallbacks imediatamente
+    setTimeout(processPaymentFallbacks, 5000); // Aguardar 5s para não sobrecarregar
 
     // Configurar listener para notificações de novos jobs
     const channel = supabase
@@ -62,11 +87,13 @@ export const useBackgroundJobProcessor = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      clearInterval(fallbackInterval);
       supabase.removeChannel(channel);
     };
   }, []);
 
   return {
-    processJobs
+    processJobs,
+    processPaymentFallbacks
   };
 };
