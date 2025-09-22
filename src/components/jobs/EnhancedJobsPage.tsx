@@ -74,12 +74,13 @@ export function EnhancedJobsPage() {
       'in_proposal': { variant: 'secondary' as const, label: 'Em Proposta', color: 'bg-purple-100 text-purple-800' },
       'in_progress': { variant: 'secondary' as const, label: 'Em andamento', color: 'bg-yellow-100 text-yellow-800' },
       'delivered': { variant: 'default' as const, label: 'Entregue', color: 'bg-orange-100 text-orange-800' },
+      'waiting_approval': { variant: 'secondary' as const, label: 'Aguardando Aprovação', color: 'bg-amber-100 text-amber-800' },
       'completed': { variant: 'default' as const, label: 'Concluído', color: 'bg-green-100 text-green-800' },
       'cancelled': { variant: 'destructive' as const, label: 'Cancelado', color: 'bg-red-100 text-red-800' },
       'disputed': { variant: 'destructive' as const, label: 'Em Disputa', color: 'bg-red-100 text-red-800' }
     };
 
-    const config = variants[status];
+    const config = variants[status] || { variant: 'outline' as const, label: 'Status Desconhecido', color: 'bg-gray-100 text-gray-800' };
     return (
       <Badge className={config.color}>
         {config.label}
