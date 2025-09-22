@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Force Payment Processing</title>
+</head>
+<body>
+    <h1>Force Payment Processing</h1>
+    <button onclick="forceProcessPayment()">Process Payment: pix_char_yRUSaZzpEPnmCHPYuhBAYuTy</button>
+    <div id="result"></div>
+
+    <script>
+        async function forceProcessPayment() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Processing...';
+            
+            try {
+                const response = await fetch('https://yelytezcifyrykxvlbok.supabase.co/functions/v1/force-process-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        paymentId: 'pix_char_yRUSaZzpEPnmCHPYuhBAYuTy'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                if (data.success) {
+                    resultDiv.style.color = 'green';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    resultDiv.style.color = 'red';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = 'Error: ' + error.message;
+                resultDiv.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

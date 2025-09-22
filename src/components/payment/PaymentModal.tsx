@@ -215,6 +215,8 @@ export function PaymentModal({
         isOpen={showPaymentModal}
         onClose={() => {
           setShowPaymentModal(false);
+        }}
+        onPaymentSuccess={() => {
           onPaymentSuccess();
           onClose();
         }}

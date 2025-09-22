@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Payment Processing</title>
+</head>
+<body>
+    <button onclick="testPayment()">Test Payment Processing</button>
+    <div id="result"></div>
+
+    <script>
+        async function testPayment() {
+            try {
+                // Simular chamada para check-abacatepay-payment
+                const response = await fetch('https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + 'YOUR_AUTH_TOKEN_HERE' // Substituir pelo token real
+                    },
+                    body: JSON.stringify({
+                        paymentId: 'pix_char_yRUSaZzpEPnmCHPYuhBAYuTy'
+                    })
+                });
+                
+                const data = await response.json();
+                document.getElementById('result').innerHTML = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

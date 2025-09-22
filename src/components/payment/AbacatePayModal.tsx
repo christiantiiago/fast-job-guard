@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { QrCode, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { PaymentStatusChecker } from './PaymentStatusChecker';
 
 interface AbacatePayModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface AbacatePayModalProps {
   description: string;
   paymentType: 'premium' | 'boost' | 'job' | 'direct_proposal';
   paymentData?: any;
+  onPaymentSuccess?: () => void;
 }
 
 export const AbacatePayModal = ({ 
@@ -22,7 +24,8 @@ export const AbacatePayModal = ({
   amount, 
   description, 
   paymentType,
-  paymentData = {}
+  paymentData = {},
+  onPaymentSuccess
 }: AbacatePayModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -344,11 +347,29 @@ export const AbacatePayModal = ({
 
   const handlePaymentSuccess = () => {
     clearAllData();
+    
+    // Chamar callback se fornecido
+    if (onPaymentSuccess) {
+      onPaymentSuccess();
+    }
+    
     onClose();
-    // Recarregar a página para atualizar os dados
+    
+    // Dar um tempo para as operações de banco completarem antes de recarregar
     setTimeout(() => {
       window.location.reload();
-    }, 500);
+    }, 1500);
+  };
+
+  const handlePaymentConfirmed = () => {
+    setPaymentConfirmed(true);
+    // Limpar localStorage quando pagamento confirmado
+    localStorage.removeItem(storageKey);
+    // Parar auto-verificação
+    if (autoCheckInterval) {
+      clearInterval(autoCheckInterval);
+      setAutoCheckInterval(null);
+    }
   };
 
   return (
@@ -365,6 +386,14 @@ export const AbacatePayModal = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Payment Status Checker - Monitor payment automatically */}
+          {paymentId && !paymentConfirmed && (
+            <PaymentStatusChecker 
+              externalPaymentId={paymentId}
+              onPaymentConfirmed={handlePaymentConfirmed}
+            />
+          )}
+
           {paymentConfirmed ? (
             <div className="text-center space-y-6 py-8">
               <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">

@@ -87,3 +87,6 @@ verify_jwt = false
 
 [functions.process-payment-fallbacks]
 verify_jwt = false
+
+[functions.force-process-payment]
+verify_jwt = false
