@@ -75,12 +75,28 @@ export const AbacatePayModal = ({
         }
       });
 
+      console.log('AbacatePay function response:', data, error);
+
       if (error) {
-        throw error;
+        console.error('Function invocation error:', error);
+        throw new Error(error.message || 'Erro ao gerar PIX');
+      }
+
+      if (!data?.success) {
+        console.error('Payment creation failed:', data);
+        throw new Error(data?.error || 'Erro ao processar pagamento');
+      }
+
+      // Verificar se recebemos o QR code
+      const qrCodeBase64 = data.qrCodeBase64 || data.brCode;
+      console.log('QR Code data received:', { qrCodeBase64: !!qrCodeBase64, paymentId: data.paymentId });
+
+      if (!qrCodeBase64) {
+        throw new Error('QR Code não foi gerado corretamente');
       }
 
       // Verificar se o QR code é uma string base64 válida
-      let qrCodeUrl = data.qrCode;
+      let qrCodeUrl = qrCodeBase64;
       if (qrCodeUrl && !qrCodeUrl.startsWith('data:image/')) {
         qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
       }
@@ -92,10 +108,14 @@ export const AbacatePayModal = ({
         description: "Escaneie o código para realizar o pagamento",
       });
     } catch (error) {
-      console.error('Erro ao gerar QR Code:', error);
+      console.error('Erro detalhado ao gerar QR Code:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast({
-        title: "Erro",
-        description: "Não foi possível gerar o QR Code. Tente novamente.",
+        title: "Erro ao gerar QR Code",
+        description: error instanceof Error ? error.message : "Não foi possível gerar o QR Code. Tente novamente.",
         variant: "destructive"
       });
     } finally {

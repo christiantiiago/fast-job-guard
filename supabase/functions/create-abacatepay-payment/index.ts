@@ -40,6 +40,12 @@ serve(async (req) => {
 
       logStep('User authenticated', { userId: user.id });
 
+      // Criar cliente Supabase com service role para operações de banco
+      const supabaseService = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
+
       const requestBody = await req.json();
       logStep('Raw request body', requestBody);
       
@@ -120,7 +126,7 @@ serve(async (req) => {
     
     switch (paymentType) {
       case 'premium':
-        const { data: subscriptionData, error: subscriptionError } = await supabaseClient
+        const { data: subscriptionData, error: subscriptionError } = await supabaseService
           .from('subscriptions')
           .insert({
             user_id: user.id,
@@ -144,7 +150,7 @@ serve(async (req) => {
           boostType: paymentData.boostType 
         });
         
-        const { data: boostData, error: boostError } = await supabaseClient
+        const { data: boostData, error: boostError } = await supabaseService
           .from('job_boosts')
           .insert({
             job_id: paymentData.jobId,
@@ -168,7 +174,7 @@ serve(async (req) => {
         break;
 
       case 'job':
-        const { data: escrowData, error: escrowError } = await supabaseClient
+        const { data: escrowData, error: escrowError } = await supabaseService
           .from('escrow_payments')
           .insert({
             job_id: paymentData.jobId,
@@ -188,7 +194,7 @@ serve(async (req) => {
         break;
 
       case 'direct_proposal':
-        const { data: directData, error: directError } = await supabaseClient
+        const { data: directData, error: directError } = await supabaseService
           .from('escrow_payments')
           .insert({
             client_id: user.id,
@@ -209,13 +215,19 @@ serve(async (req) => {
 
     logStep('Payment record created', { recordId, paymentType });
 
-    return new Response(JSON.stringify({
+    // Melhorar o retorno da resposta
+    const responseData = {
       success: true,
-      qrCode: abacateData.data.brCodeBase64,
+      qrCodeBase64: abacateData.data.brCodeBase64,
+      brCode: abacateData.data.brCodeBase64,
       paymentId: abacateData.data.id,
       recordId: recordId,
       expiresAt: abacateData.data.expiresAt
-    }), {
+    };
+
+    logStep('Returning success response', responseData);
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
