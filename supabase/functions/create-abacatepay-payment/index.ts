@@ -47,20 +47,19 @@ serve(async (req) => {
       throw new Error("ABACATEPAY_API_KEY não configurada");
     }
 
-    // Preparar dados para a API da AbacatePay
+    // Preparar dados para a API da AbacatePay (endpoint pixQrCode/create)
     const paymentRequest = {
       amount: Math.round(amount * 100), // AbacatePay trabalha com centavos
+      expiresIn: 900, // 15 minutos em segundos
       description: description,
       customer: {
         name: customer.name,
+        cellphone: customer.phone.replace(/\D/g, ''),
         email: customer.email,
-        phone: customer.phone.replace(/\D/g, ''),
-        document: customer.cpf.replace(/\D/g, '')
+        taxId: customer.cpf.replace(/\D/g, '')
       },
-      payment_method: "pix",
-      expires_in: 900, // 15 minutos
-      callback_url: `${req.headers.get("origin")}/abacatepay-success?payment_id=${abacateData.id}&type=${paymentType}`,
       metadata: {
+        externalId: `${user.id}_${paymentType}_${Date.now()}`,
         user_id: user.id,
         payment_type: paymentType,
         ...paymentData
@@ -69,8 +68,8 @@ serve(async (req) => {
 
     logStep('Sending request to AbacatePay', { paymentRequest });
 
-    // Fazer requisição para a API da AbacatePay
-    const abacateResponse = await fetch("https://api.abacatepay.com/v1/billing", {
+    // Fazer requisição para a API da AbacatePay usando o endpoint correto
+    const abacateResponse = await fetch("https://api.abacatepay.com/v1/pixQrCode/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -173,10 +172,10 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      qrCode: abacateData.qr_code_url,
-      paymentId: abacateData.id,
+      qrCode: abacateData.qrCode || abacateData.qr_code || abacateData.qr_code_url,
+      paymentId: abacateData.id || abacateData.transactionId,
       recordId: recordId,
-      expiresAt: abacateData.expires_at
+      expiresAt: abacateData.expiresAt || abacateData.expires_at
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
