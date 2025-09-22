@@ -239,6 +239,74 @@ export type Database = {
         }
         Relationships: []
       }
+      banners: {
+        Row: {
+          click_count: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          image_url: string | null
+          impression_count: number | null
+          is_active: boolean | null
+          link_url: string | null
+          metadata: Json | null
+          placement: string
+          priority: number | null
+          start_date: string | null
+          target_audience: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          click_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          impression_count?: number | null
+          is_active?: boolean | null
+          link_url?: string | null
+          metadata?: Json | null
+          placement?: string
+          priority?: number | null
+          start_date?: string | null
+          target_audience?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          click_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          impression_count?: number | null
+          is_active?: boolean | null
+          link_url?: string | null
+          metadata?: Json | null
+          placement?: string
+          priority?: number | null
+          start_date?: string | null
+          target_audience?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banners_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       blocked_content_patterns: {
         Row: {
           created_at: string
@@ -513,6 +581,7 @@ export type Database = {
           client_id: string | null
           completed_at: string | null
           created_at: string | null
+          external_payment_id: string | null
           id: string
           job_id: string | null
           platform_fee: number
@@ -528,6 +597,7 @@ export type Database = {
           client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
+          external_payment_id?: string | null
           id?: string
           job_id?: string | null
           platform_fee: number
@@ -543,6 +613,7 @@ export type Database = {
           client_id?: string | null
           completed_at?: string | null
           created_at?: string | null
+          external_payment_id?: string | null
           id?: string
           job_id?: string | null
           platform_fee?: number
@@ -713,6 +784,7 @@ export type Database = {
       }
       job_boosts: {
         Row: {
+          activated_at: string | null
           amount: number
           boost_type: string
           created_at: string
@@ -730,6 +802,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          activated_at?: string | null
           amount: number
           boost_type: string
           created_at?: string
@@ -747,6 +820,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          activated_at?: string | null
           amount?: number
           boost_type?: string
           created_at?: string
@@ -1725,6 +1799,7 @@ export type Database = {
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
+          external_payment_id: string | null
           external_subscription_id: string
           id: string
           plan_name: string
@@ -1740,6 +1815,7 @@ export type Database = {
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          external_payment_id?: string | null
           external_subscription_id: string
           id?: string
           plan_name: string
@@ -1755,6 +1831,7 @@ export type Database = {
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          external_payment_id?: string | null
           external_subscription_id?: string
           id?: string
           plan_name?: string
@@ -2149,6 +2226,10 @@ export type Database = {
       }
       delete_notification: {
         Args: { notification_id: string }
+        Returns: boolean
+      }
+      delete_user_account: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
       disablelongtransactions: {
@@ -3778,6 +3859,10 @@ export type Database = {
       text: {
         Args: { "": unknown }
         Returns: string
+      }
+      toggle_user_status: {
+        Args: { new_status: string; target_user_id: string }
+        Returns: boolean
       }
       unlockrows: {
         Args: { "": string }
