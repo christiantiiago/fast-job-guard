@@ -11,35 +11,41 @@ const logStep = (step: string, data?: any) => {
 };
 
 serve(async (req) => {
-  logStep('Request received', { method: req.method });
-  
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    // Criar cliente Supabase para autenticação
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-
-    // Verificar autenticação do usuário
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    logStep('Request received', { method: req.method });
     
-    if (!user) {
-      logStep('User not authenticated');
-      throw new Error("Usuário não autenticado");
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
 
-    logStep('User authenticated', { userId: user.id });
+    try {
+      // Log detalhado do início
+      logStep('Starting payment processing');
+      
+      // Criar cliente Supabase para autenticação
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      );
 
-    const { amount, description, paymentType, customer, paymentData } = await req.json();
-    
-    logStep('Request data parsed', { amount, description, paymentType });
+      // Verificar autenticação do usuário
+      const authHeader = req.headers.get("Authorization")!;
+      const token = authHeader.replace("Bearer ", "");
+      const { data } = await supabaseClient.auth.getUser(token);
+      const user = data.user;
+      
+      if (!user) {
+        logStep('User not authenticated');
+        throw new Error("Usuário não autenticado");
+      }
+
+      logStep('User authenticated', { userId: user.id });
+
+      const requestBody = await req.json();
+      logStep('Raw request body', requestBody);
+      
+      const { amount, description, paymentType, customer, paymentData } = requestBody;
+      
+      logStep('Request data parsed', { amount, description, paymentType, customer, paymentData });
 
     // Chave da API AbacatePay (deve ser configurada nas secrets)
     const abacatePayApiKey = Deno.env.get("ABACATEPAY_API_KEY");
