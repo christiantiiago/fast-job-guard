@@ -210,6 +210,16 @@ const App = () => (
               }
             />
             <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <KYCGate>
+                    <Chat />
+                  </KYCGate>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/chat/:jobId"
               element={
                 <ProtectedRoute>
@@ -224,7 +234,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <ClientWallet />
+                    <Wallet />
                   </KYCGate>
                 </ProtectedRoute>
               }
@@ -344,6 +354,16 @@ const App = () => (
                     <Contracts />
                   </KYCGate>
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance"
+              element={
+                <ProtectedProviderRoute>
+                  <KYCGate>
+                    <Finance />
+                  </KYCGate>
+                </ProtectedProviderRoute>
               }
             />
 
