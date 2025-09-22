@@ -174,10 +174,11 @@ function processPaymentStats(
   const topProviders = Object.entries(providerStats)
     .map(([providerId, stats]) => {
       const profile = profiles.find(p => p.user_id === providerId);
+      const typedStats = stats as { total_earnings: number; transaction_count: number };
       return {
         provider_name: profile?.full_name || 'Usuário Desconhecido',
-        total_earnings: stats.total_earnings,
-        transaction_count: stats.transaction_count
+        total_earnings: typedStats.total_earnings,
+        transaction_count: typedStats.transaction_count
       };
     })
     .sort((a, b) => b.total_earnings - a.total_earnings)
