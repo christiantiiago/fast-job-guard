@@ -88,7 +88,7 @@ export default function Discover() {
         const { data: allJobs, error } = await supabase
           .from('jobs')
           .select('*, service_categories(name, icon_name), addresses(street, city, state, neighborhood), proposals(id, price, message, status, provider_id)')
-          .in('status', ['open', 'in_progress', 'completed'])
+          .in('status', ['open', 'in_progress'])
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -112,27 +112,6 @@ export default function Discover() {
 
     fetchJobsWithProposals();
   }, []); // Empty dependency array to prevent infinite loop
-
-  // Filter jobs by completion time (completed jobs only show for 2 minutes)
-  const filterJobsByTime = (jobsList: JobWithDistance[]) => {
-    const now = new Date();
-    return jobsList.filter(job => {
-      // Always show open and in_progress jobs
-      if (job.status === 'open' || job.status === 'in_progress') {
-        return true;
-      }
-      
-      // For completed jobs, only show if completed within last 2 minutes
-      if (job.status === 'completed' && job.completed_at) {
-        const completedTime = new Date(job.completed_at);
-        const timeDiff = now.getTime() - completedTime.getTime();
-        const twoMinutesInMs = 2 * 60 * 1000;
-        return timeDiff <= twoMinutesInMs;
-      }
-      
-      return false;
-    });
-  };
 
   // Calculate route distances when position changes
   useEffect(() => {
@@ -184,15 +163,6 @@ export default function Discover() {
       isActive = false;
     };
   }, [position?.latitude, position?.longitude, mapboxToken, jobsWithDistance.length]); // More specific dependencies
-
-  // Auto-refresh to remove completed jobs after 2 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setJobsWithDistance(prev => filterJobsByTime(prev));
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Filter jobs based on search and category
   const filteredJobs = jobsWithDistance.filter(job => {
