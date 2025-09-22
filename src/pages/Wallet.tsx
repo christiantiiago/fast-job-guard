@@ -120,9 +120,14 @@ export default function Wallet() {
             created_at: payment.created_at,
             job_id: payment.job_id,
             jobs: {
-              title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
+              title: jobTitles[payment.job_id] || 'Trabalho removido'
             }
-          })) || [];
+          }))
+          // Filtrar apenas pagamentos de trabalhos que ainda existem ou pagamentos já concluídos
+          .filter(payment => {
+            // Se o trabalho foi encontrado ou se o pagamento já foi capturado/concluído, manter
+            return jobTitles[payment.job_id] || payment.status === 'captured' || payment.status === 'cancelled';
+          }) || [];
 
         } else if (userRole === 'provider') {
           const { data: escrowPaymentsData, error: escrowError } = await supabase
@@ -159,9 +164,14 @@ export default function Wallet() {
             created_at: payment.created_at,
             job_id: payment.job_id,
             jobs: {
-              title: jobTitles[payment.job_id] || 'Trabalho não encontrado'
+              title: jobTitles[payment.job_id] || 'Trabalho removido'
             }
-          })) || [];
+          }))
+          // Filtrar apenas pagamentos de trabalhos que ainda existem ou pagamentos já concluídos
+          .filter(payment => {
+            // Se o trabalho foi encontrado ou se o pagamento já foi capturado/concluído, manter
+            return jobTitles[payment.job_id] || payment.status === 'captured' || payment.status === 'cancelled';
+          }) || [];
 
           const { data: payoutsData, error: payoutsError } = await supabase
             .from('payouts')
@@ -303,6 +313,39 @@ export default function Wallet() {
     }
   };
 
+  const cleanupOrphanedEscrows = async () => {
+    try {
+      setSyncing(true);
+      console.log('[Wallet] Limpando pagamentos órfãos...');
+      
+      const { data, error } = await supabase.functions.invoke('cleanup-orphaned-escrows');
+      
+      if (error) {
+        console.error('[Wallet] Erro na limpeza:', error);
+        throw error;
+      }
+      
+      console.log('[Wallet] Resultado da limpeza:', data);
+      
+      toast.success('Limpeza Concluída', {
+        description: `${data?.cancelled_count || 0} pagamentos órfãos foram cancelados.`
+      });
+      
+      // Atualizar dados após limpeza
+      setTimeout(() => {
+        fetchWalletData();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('[Wallet] Erro na limpeza de órfãos:', error);
+      toast.error('Erro na limpeza', {
+        description: "Não foi possível limpar os pagamentos órfãos."
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchWalletData();
   }, [user, userRole]);
@@ -314,6 +357,7 @@ export default function Wallet() {
       'released': { color: 'bg-success/10 text-success border-success/20', label: 'Liberado', icon: CheckCircle2 },
       'captured': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
       'paid': { color: 'bg-success/10 text-success border-success/20', label: 'Pago', icon: CheckCircle2 },
+      'cancelled': { color: 'bg-gray-500/10 text-gray-600 border-gray-500/20', label: 'Cancelado', icon: AlertCircle },
       'failed': { color: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Falhou', icon: AlertCircle }
     };
 
@@ -401,6 +445,19 @@ export default function Wallet() {
                 <Zap className="w-4 h-4 mr-2" />
               )}
               {syncing ? 'Sincronizando...' : 'Sincronizar'}
+            </Button>
+            <Button 
+              onClick={cleanupOrphanedEscrows}
+              disabled={syncing}
+              variant="secondary"
+              size="sm"
+            >
+              {syncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <AlertCircle className="w-4 h-4 mr-2" />
+              )}
+              Limpar Órfãos
             </Button>
             <Button 
               onClick={async () => {
