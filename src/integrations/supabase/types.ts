@@ -718,6 +718,7 @@ export type Database = {
           created_at: string
           duration_hours: number
           expires_at: string | null
+          external_payment_id: string | null
           id: string
           job_id: string
           metadata: Json | null
@@ -734,6 +735,7 @@ export type Database = {
           created_at?: string
           duration_hours: number
           expires_at?: string | null
+          external_payment_id?: string | null
           id?: string
           job_id: string
           metadata?: Json | null
@@ -750,6 +752,7 @@ export type Database = {
           created_at?: string
           duration_hours?: number
           expires_at?: string | null
+          external_payment_id?: string | null
           id?: string
           job_id?: string
           metadata?: Json | null
