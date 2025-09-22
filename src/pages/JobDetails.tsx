@@ -355,7 +355,7 @@ export default function JobDetails() {
     if (!job || !user) return;
 
     // Verificar se pode fazer proposta
-    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id, job.status);
     if (!canProposeToThisJob && reason) {
       toast({
         title: "Não é possível aceitar",
@@ -450,7 +450,7 @@ export default function JobDetails() {
     }
 
     // Verificar se pode fazer proposta
-    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id, job.status);
     if (!canProposeToThisJob && reason) {
       toast({
         title: "Não é possível fazer proposta",
@@ -1035,7 +1035,7 @@ export default function JobDetails() {
                 <CardContent className="space-y-4 p-6">
                   {/* Check if can propose */}
                   {(() => {
-                    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id);
+                    const { canPropose: canProposeToThisJob, reason } = canProposeToJob(job.id, job.status);
                     
                     return !canProposeToThisJob && reason ? (
                       <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">

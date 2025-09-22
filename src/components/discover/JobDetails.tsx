@@ -106,9 +106,10 @@ export function JobDetails({ job, onClose, formatCurrency, formatDistance, forma
                 size="sm"
                 onClick={() => navigate(`/jobs/${job.id}`)}
                 className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 border-0"
+                disabled={job.status !== 'open'}
               >
                 <MessageSquare className="w-4 h-4 mr-1" />
-                Propor
+                {job.status === 'in_progress' ? 'Em Andamento' : 'Propor'}
               </Button>
             </div>
           </div>

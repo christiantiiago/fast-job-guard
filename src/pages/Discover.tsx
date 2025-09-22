@@ -373,9 +373,10 @@ export default function Discover() {
                           <Button
                             size="sm"
                             onClick={() => navigate(`/jobs/${job.id}`)}
+                            disabled={job.status !== 'open'}
                           >
                             <MessageSquare className="w-4 h-4 mr-1" />
-                            Propor
+                            {job.status === 'in_progress' ? 'Em Andamento' : 'Propor'}
                           </Button>
                         </div>
                       </div>

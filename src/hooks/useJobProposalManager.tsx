@@ -66,7 +66,32 @@ export const useJobProposalManager = () => {
   };
 
   // Verificar se pode fazer proposta para um job específico
-  const canProposeToJob = (jobId: string): { canPropose: boolean; reason?: string } => {
+  const canProposeToJob = (jobId: string, jobStatus?: string): { canPropose: boolean; reason?: string } => {
+    // Verificar se o job ainda está aberto para propostas
+    if (jobStatus && jobStatus !== 'open') {
+      if (jobStatus === 'in_progress') {
+        return {
+          canPropose: false,
+          reason: 'Este trabalho já está em andamento e não aceita mais propostas.'
+        };
+      } else if (jobStatus === 'completed') {
+        return {
+          canPropose: false,
+          reason: 'Este trabalho já foi concluído.'
+        };
+      } else if (jobStatus === 'cancelled') {
+        return {
+          canPropose: false,
+          reason: 'Este trabalho foi cancelado.'
+        };
+      } else {
+        return {
+          canPropose: false,
+          reason: 'Este trabalho não está mais disponível para propostas.'
+        };
+      }
+    }
+
     // Verificar se já tem proposta ativa para este job
     const existingLock = activeLocks.find(lock => 
       lock.job_id === jobId && new Date(lock.locked_until) > new Date()
