@@ -47,10 +47,7 @@ serve(async (req) => {
     // Get escrow payment details
     const { data: escrowPayment, error: escrowError } = await supabaseClient
       .from("escrow_payments")
-      .select(`
-        *,
-        jobs:job_id(client_id, title, status)
-      `)
+      .select("*")
       .eq("id", escrowPaymentId)
       .maybeSingle();
 
@@ -61,11 +58,11 @@ serve(async (req) => {
     logStep("Escrow payment found", { 
       status: escrowPayment.status, 
       amount: escrowPayment.amount,
-      clientId: escrowPayment.jobs?.client_id 
+      clientId: escrowPayment.client_id 
     });
 
     // Verify authorization (only client can release manually, or system for auto-release)
-    if (releaseType === 'manual' && escrowPayment.jobs?.client_id !== user.id) {
+    if (releaseType === 'manual' && escrowPayment.client_id !== user.id) {
       throw new Error("Only the client can release escrow payment");
     }
 
