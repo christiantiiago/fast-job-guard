@@ -3,17 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useFeeRules } from '@/hooks/useFeeRules';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { AbacatePayModal } from '@/components/payment/AbacatePayModal';
 import { 
-  CreditCard, 
-  Smartphone, 
   Shield, 
   CheckCircle,
   Clock,
@@ -59,71 +55,12 @@ export function PaymentModal({
   const { toast } = useToast();
   const { user } = useAuth();
   const { calculateFees, formatCurrency } = useFeeRules();
-  const [paymentMethod, setPaymentMethod] = useState('credit-card');
-  const [processing, setProcessing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const fees = calculateFees(proposal.price);
 
-  const handlePayment = async () => {
-    if (!user) return;
-    
-    setProcessing(true);
-    
-    try {
-      // Create escrow payment with Stripe
-      const response = await supabase.functions.invoke('create-escrow-payment', {
-        body: {
-          jobId: jobId,
-          providerId: proposal.provider_id,
-          amount: proposal.price,
-          platformFee: fees.platformFee,
-          paymentMethod: paymentMethod === 'credit-card' ? 'card' : 'pix'
-        }
-      });
-
-      if (response.error) throw response.error;
-
-      const { sessionUrl, sessionId, escrowPaymentId } = response.data;
-      
-      if (sessionUrl) {
-        // Accept the proposal before redirecting to payment
-        const { error: proposalError } = await supabase
-          .from('proposals')
-          .update({ status: 'accepted' })
-          .eq('id', proposal.id);
-
-        if (proposalError) throw proposalError;
-
-        // Store payment info for later reference
-        localStorage.setItem('pendingPayment', JSON.stringify({
-          jobId,
-          proposalId: proposal.id,
-          escrowPaymentId,
-          sessionId
-        }));
-
-        // Redirect to Stripe checkout
-        window.open(sessionUrl, '_blank');
-        
-        toast({
-          title: "Redirecionando para Pagamento",
-          description: "Você será redirecionado para completar o pagamento com segurança.",
-        });
-
-        onPaymentSuccess();
-        onClose();
-      }
-      
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro no Pagamento",
-        description: error.message || "Não foi possível processar o pagamento. Tente novamente.",
-      });
-    } finally {
-      setProcessing(false);
-    }
+  const handlePayment = () => {
+    setShowPaymentModal(true);
   };
 
   return (
