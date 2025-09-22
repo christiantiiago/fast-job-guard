@@ -128,8 +128,8 @@ export default function JobDetails() {
   const [estimatedHours, setEstimatedHours] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
   
-  // Check if current user is the client
-  const isClient = user?.id === job?.client_id;
+  // Check if current user is the client (properly handle loading states)
+  const isClient = Boolean(user?.id && job?.client_id && user.id === job.client_id);
 
   useEffect(() => {
     if (id) {
@@ -965,9 +965,12 @@ export default function JobDetails() {
               </div>
             )}
 
-            /* Escrow Manager - Show when job has escrow payment or is waiting for approval */
+            {/* Escrow Manager - Show when job has escrow payment or is waiting for approval */}
             {(job.status === 'in_progress' || job.status === 'completed' || job.status === 'waiting_approval') && (
-              <EscrowManager jobId={job.id} isClient={isClient} />
+              <EscrowManager 
+                jobId={job.id} 
+                isClient={userRole === 'client' && user?.id === job?.client_id} 
+              />
             )}
 
             {/* Job Completion Button for Clients */}
@@ -1331,55 +1334,67 @@ export default function JobDetails() {
               </Card>
             )}
             
-            {/* Client Info - Enhanced */}
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Cliente do Projeto
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div 
-                  className="flex items-center gap-4 cursor-pointer group hover:bg-muted/30 p-2 rounded-lg transition-all"
-                  onClick={() => navigate(`/profile/${job.client_id}`)}
-                >
-                  <Avatar className="h-16 w-16 ring-2 ring-primary/20">
-                    <AvatarImage src={clientProfile?.avatar_url} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                      {clientProfile?.full_name?.charAt(0) || 'C'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-lg group-hover:text-primary transition-colors">
-                      {clientProfile?.full_name || 'Cliente'}
-                    </h4>
-                    {clientProfile?.rating_avg && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star} 
-                              className={`h-3 w-3 ${
-                                star <= Math.round(clientProfile?.rating_avg || 0)
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-300'
-                              }`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {clientProfile?.rating_avg?.toFixed(1)} ({clientProfile?.rating_count} avaliações)
-                        </span>
+            {/* Client Info - Always show when job has a client */}
+            {job.client_id && (
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Cliente do Projeto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {!clientProfile && loading ? (
+                    <div className="flex items-center gap-4 animate-pulse">
+                      <div className="h-16 w-16 bg-gray-200 rounded-full"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                       </div>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-1 group-hover:text-primary/80 transition-colors">
-                      Clique para ver perfil completo
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer group hover:bg-muted/30 p-2 rounded-lg transition-all"
+                      onClick={() => navigate(`/profile/${job.client_id}`)}
+                    >
+                      <Avatar className="h-16 w-16 ring-2 ring-primary/20">
+                        <AvatarImage src={clientProfile?.avatar_url} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                          {clientProfile?.full_name?.charAt(0) || 'C'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-lg group-hover:text-primary transition-colors">
+                          {clientProfile?.full_name || 'Cliente'}
+                        </h4>
+                        {clientProfile?.rating_avg && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star 
+                                  key={star} 
+                                  className={`h-3 w-3 ${
+                                    star <= Math.round(clientProfile?.rating_avg || 0)
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-gray-300'
+                                  }`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {clientProfile?.rating_avg?.toFixed(1)} ({clientProfile?.rating_count} avaliações)
+                            </span>
+                          </div>
+                        )}
+                        <p className="text-sm text-muted-foreground mt-1 group-hover:text-primary/80 transition-colors">
+                          Clique para ver perfil completo
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Budget - Enhanced */}
             <Card className="border-2 border-gradient-to-br from-primary/20 to-accent/20 bg-gradient-to-br from-primary/5 to-accent/5">

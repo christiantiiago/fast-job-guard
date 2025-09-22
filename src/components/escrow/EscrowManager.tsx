@@ -41,6 +41,15 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
   const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState(false);
 
+  // Debug logging
+  console.log('🔍 EscrowManager Debug:', {
+    jobId,
+    isClient,
+    userId: user?.id,
+    escrowStatus: escrowPayment?.status,
+    shouldShowButton: isClient && escrowPayment?.status === 'held'
+  });
+
   const fetchEscrowPayment = async () => {
     try {
       const { data, error } = await supabase
