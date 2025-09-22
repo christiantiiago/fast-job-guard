@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { PaymentDebugPanel } from '@/components/debug/PaymentDebugPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -19,12 +15,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Download,
-  Upload,
-  CreditCard,
-  PiggyBank,
-  RefreshCw,
-  Zap
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,21 +23,12 @@ interface Payment {
   id: string;
   amount: number;
   platform_fee: number;
-  net_amount: number;
   status: string;
   created_at: string;
   job_id: string;
   jobs: {
     title: string;
   };
-}
-
-interface Payout {
-  id: string;
-  amount: number;
-  status: string;
-  created_at: string;
-  processed_at?: string;
 }
 
 interface WalletStats {
@@ -59,7 +41,6 @@ interface WalletStats {
 export default function Wallet() {
   const { user, userRole } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [payouts, setPayouts] = useState<Payout[]>([]);
   const [stats, setStats] = useState<WalletStats>({
     availableBalance: 0,
     pendingBalance: 0,
@@ -67,8 +48,6 @@ export default function Wallet() {
     totalSpent: 0
   });
   const [loading, setLoading] = useState(true);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [syncing, setSyncing] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -82,267 +61,82 @@ export default function Wallet() {
 
     try {
       setLoading(true);
-      let transformedPayments: Payment[] = [];
+      
+      // Fetch escrow payments
+      const { data: escrowData, error: escrowError } = await supabase
+        .from('escrow_payments')
+        .select('*')
+        .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
 
-      // Fetch real payments and escrow data
-      if (userRole === 'client') {
-          const { data: escrowPaymentsData, error: escrowError } = await supabase
-            .from('escrow_payments')
-            .select('*')
-            .eq('client_id', user.id)
-            .order('created_at', { ascending: false });
+      if (escrowError) {
+        console.error('Error fetching escrow payments:', escrowError);
+        return;
+      }
 
-          if (escrowError) throw escrowError;
+      // Get job titles separately
+      const jobIds = escrowData?.map(p => p.job_id).filter(Boolean) || [];
+      let jobTitles: Record<string, string> = {};
+      
+      if (jobIds.length > 0) {
+        const { data: jobsData } = await supabase
+          .from('jobs')
+          .select('id, title')
+          .in('id', jobIds);
+        
+        jobTitles = (jobsData || []).reduce((acc, job) => {
+          acc[job.id] = job.title;
+          return acc;
+        }, {} as Record<string, string>);
+      }
 
-          // Get job titles separately
-          const jobIds = escrowPaymentsData?.map(p => p.job_id).filter(Boolean) || [];
-          let jobTitles: Record<string, string> = {};
-          
-          if (jobIds.length > 0) {
-            const { data: jobsData } = await supabase
-              .from('jobs')
-              .select('id, title')
-              .in('id', jobIds);
-            
-            jobTitles = (jobsData || []).reduce((acc, job) => {
-              acc[job.id] = job.title;
-              return acc;
-            }, {} as Record<string, string>);
-          }
-          
-          // Transform escrow payments to match Payment interface
-          transformedPayments = escrowPaymentsData?.map(payment => ({
-            id: payment.id,
-            amount: payment.total_amount,
-            platform_fee: payment.platform_fee,
-            net_amount: payment.amount,
-            status: payment.status === 'released' ? 'captured' : payment.status,
-            created_at: payment.created_at,
-            job_id: payment.job_id,
-            jobs: {
-              title: jobTitles[payment.job_id] || 'Trabalho removido'
-            }
-          }))
-          // Filtrar apenas pagamentos de trabalhos que ainda existem ou pagamentos já concluídos
-          .filter(payment => {
-            // Se o trabalho foi encontrado ou se o pagamento já foi capturado/concluído, manter
-            return jobTitles[payment.job_id] || payment.status === 'captured' || payment.status === 'cancelled';
-          }) || [];
-
-        } else if (userRole === 'provider') {
-          const { data: escrowPaymentsData, error: escrowError } = await supabase
-            .from('escrow_payments')
-            .select('*')
-            .eq('provider_id', user.id)
-            .order('created_at', { ascending: false });
-
-          if (escrowError) throw escrowError;
-
-          // Get job titles separately
-          const jobIds = escrowPaymentsData?.map(p => p.job_id).filter(Boolean) || [];
-          let jobTitles: Record<string, string> = {};
-          
-          if (jobIds.length > 0) {
-            const { data: jobsData } = await supabase
-              .from('jobs')
-              .select('id, title')
-              .in('id', jobIds);
-            
-            jobTitles = (jobsData || []).reduce((acc, job) => {
-              acc[job.id] = job.title;
-              return acc;
-            }, {} as Record<string, string>);
-          }
-          
-          // Transform escrow payments to match Payment interface for provider
-          transformedPayments = escrowPaymentsData?.map(payment => ({
-            id: payment.id,
-            amount: payment.amount, // Provider gets the amount minus platform fee
-            platform_fee: payment.platform_fee,
-            net_amount: payment.amount,
-            status: payment.status === 'released' ? 'captured' : payment.status,
-            created_at: payment.created_at,
-            job_id: payment.job_id,
-            jobs: {
-              title: jobTitles[payment.job_id] || 'Trabalho removido'
-            }
-          }))
-          // Filtrar apenas pagamentos de trabalhos que ainda existem ou pagamentos já concluídos
-          .filter(payment => {
-            // Se o trabalho foi encontrado ou se o pagamento já foi capturado/concluído, manter
-            return jobTitles[payment.job_id] || payment.status === 'captured' || payment.status === 'cancelled';
-          }) || [];
-
-          const { data: payoutsData, error: payoutsError } = await supabase
-            .from('payouts')
-            .select('*')
-            .eq('provider_id', user.id)
-            .order('created_at', { ascending: false });
-
-          if (payoutsError) throw payoutsError;
-          setPayouts(payoutsData || []);
+      // Transform escrow payments to match Payment interface
+      const transformedPayments: Payment[] = (escrowData || []).map(payment => ({
+        id: payment.id,
+        amount: payment.total_amount,
+        platform_fee: payment.platform_fee,
+        status: payment.status === 'released' ? 'captured' : payment.status,
+        created_at: payment.created_at,
+        job_id: payment.job_id,
+        jobs: {
+          title: jobTitles[payment.job_id] || 'Trabalho removido'
         }
-        
-        setPayments(transformedPayments);
-        
-        // Update stats calculation for escrow system
+      }));
+
+      setPayments(transformedPayments);
+      
+      // Calculate stats
+      const newStats = {
+        availableBalance: 0,
+        pendingBalance: 0,
+        totalEarnings: 0,
+        totalSpent: 0
+      };
+
+      transformedPayments.forEach(payment => {
         if (userRole === 'client') {
-          const clientStats = {
-            totalSpent: 0,
-            totalTransactions: transformedPayments.length,
-            pendingPayments: 0,
-            completedPayments: 0
-          };
-          
-          transformedPayments.forEach(payment => {
-            if (payment.status === 'captured') {
-              clientStats.totalSpent += payment.amount;
-              clientStats.completedPayments += 1;
-            } else if (payment.status === 'pending') {
-              clientStats.pendingPayments += payment.amount;
-            }
-          });
-
-          setStats({
-            availableBalance: 0,
-            pendingBalance: clientStats.pendingPayments,
-            totalEarnings: 0,
-            totalSpent: clientStats.totalSpent
-          });
+          if (payment.status === 'captured') {
+            newStats.totalSpent += payment.amount;
+          } else if (payment.status === 'pending') {
+            newStats.pendingBalance += payment.amount;
+          }
         } else if (userRole === 'provider') {
-          const providerStats = {
-            totalEarnings: 0,
-            pendingBalance: 0,
-            availableBalance: 0
-          };
-          
-          transformedPayments.forEach(payment => {
-            if (payment.status === 'captured') {
-              providerStats.totalEarnings += payment.net_amount;
-            } else if (payment.status === 'pending') {
-              providerStats.pendingBalance += payment.net_amount;
-            }
-          });
-
-          const withdrawnAmount = payouts.reduce((sum, payout) => {
-            return payout.status === 'paid' ? sum + payout.amount : sum;
-          }, 0);
-
-          setStats({
-            availableBalance: providerStats.totalEarnings - withdrawnAmount,
-            pendingBalance: providerStats.pendingBalance,
-            totalEarnings: providerStats.totalEarnings,
-            totalSpent: 0
-          });
+          const netAmount = payment.amount - payment.platform_fee;
+          if (payment.status === 'captured') {
+            newStats.totalEarnings += netAmount;
+            newStats.availableBalance += netAmount;
+          } else if (payment.status === 'pending') {
+            newStats.pendingBalance += netAmount;
+          }
         }
+      });
+
+      setStats(newStats);
     } catch (error) {
       console.error('Error fetching wallet data:', error);
       toast.error('Erro ao carregar dados da carteira');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleWithdraw = async () => {
-    const amount = parseFloat(withdrawAmount);
-    
-    if (!amount || amount <= 0) {
-      toast.error('Insira um valor válido');
-      return;
-    }
-
-    if (amount > stats.availableBalance) {
-      toast.error('Saldo insuficiente');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('payouts')
-        .insert({
-          provider_id: user?.id,
-          amount: amount,
-          status: 'pending',
-          provider: 'stripe'
-        });
-
-      if (error) throw error;
-
-      toast.success('Solicitação de saque enviada!', {
-        description: 'Processaremos seu saque em até 2 dias úteis.'
-      });
-      
-      setWithdrawAmount('');
-      fetchWalletData();
-    } catch (error) {
-      console.error('Error requesting withdrawal:', error);
-      toast.error('Erro ao solicitar saque');
-    }
-  };
-
-  const forceSync = async () => {
-    try {
-      setSyncing(true);
-      console.log('[Wallet] Forçando sincronização de pagamentos...');
-      
-      const { data, error } = await supabase.functions.invoke('sync-pending-payments');
-      
-      if (error) {
-        console.error('[Wallet] Erro na sincronização:', error);
-        throw error;
-      }
-      
-      console.log('[Wallet] Resultado da sincronização:', data);
-      
-      toast.success('Sincronização Iniciada', {
-        description: `Verificando ${data?.processed || 0} pagamentos pendentes...`
-      });
-      
-      // Atualizar dados após 3 segundos
-      setTimeout(() => {
-        fetchWalletData();
-      }, 3000);
-      
-    } catch (error) {
-      console.error('[Wallet] Erro na sincronização forçada:', error);
-      toast.error('Erro na sincronização', {
-        description: "Não foi possível sincronizar os pagamentos."
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const cleanupOrphanedEscrows = async () => {
-    try {
-      setSyncing(true);
-      console.log('[Wallet] Limpando pagamentos órfãos...');
-      
-      const { data, error } = await supabase.functions.invoke('cleanup-orphaned-escrows');
-      
-      if (error) {
-        console.error('[Wallet] Erro na limpeza:', error);
-        throw error;
-      }
-      
-      console.log('[Wallet] Resultado da limpeza:', data);
-      
-      toast.success('Limpeza Concluída', {
-        description: `${data?.cancelled_count || 0} pagamentos órfãos foram cancelados.`
-      });
-      
-      // Atualizar dados após limpeza
-      setTimeout(() => {
-        fetchWalletData();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('[Wallet] Erro na limpeza de órfãos:', error);
-      toast.error('Erro na limpeza', {
-        description: "Não foi possível limpar os pagamentos órfãos."
-      });
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -354,11 +148,8 @@ export default function Wallet() {
     const variants = {
       'pending': { color: 'bg-warning/10 text-warning border-warning/20', label: 'Pendente', icon: Clock },
       'held': { color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', label: 'Retido', icon: AlertCircle },
-      'released': { color: 'bg-success/10 text-success border-success/20', label: 'Liberado', icon: CheckCircle2 },
       'captured': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
-      'paid': { color: 'bg-success/10 text-success border-success/20', label: 'Pago', icon: CheckCircle2 },
-      'cancelled': { color: 'bg-gray-500/10 text-gray-600 border-gray-500/20', label: 'Cancelado', icon: AlertCircle },
-      'failed': { color: 'bg-destructive/10 text-destructive border-destructive/20', label: 'Falhou', icon: AlertCircle }
+      'cancelled': { color: 'bg-gray-500/10 text-gray-600 border-gray-500/20', label: 'Cancelado', icon: AlertCircle }
     };
 
     const variant = variants[status as keyof typeof variants] || variants.pending;
@@ -428,350 +219,127 @@ export default function Wallet() {
             <p className="text-muted-foreground">
               {userRole === 'client' 
                 ? 'Gerencie seus pagamentos e histórico de gastos'
-                : 'Acompanhe seus ganhos, saques e pagamentos recebidos'
+                : 'Acompanhe seus ganhos e pagamentos recebidos'
               }
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              onClick={forceSync} 
-              disabled={syncing}
-              variant="outline"
-              size="sm"
-            >
-              {syncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Zap className="w-4 h-4 mr-2" />
-              )}
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
-            <Button 
-              onClick={cleanupOrphanedEscrows}
-              disabled={syncing}
-              variant="secondary"
-              size="sm"
-            >
-              {syncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <AlertCircle className="w-4 h-4 mr-2" />
-              )}
-              Limpar Órfãos
-            </Button>
-            <Button 
-              onClick={async () => {
-                try {
-                  setSyncing(true);
-                  console.log('[Wallet] Forçando processamento de pagamentos...');
-                  
-                  const { data, error } = await supabase.functions.invoke('force-process-payment');
-                  
-                  if (error) {
-                    console.error('[Wallet] Erro no processamento forçado:', error);
-                    throw error;
-                  }
-                  
-                  console.log('[Wallet] Processamento forçado:', data);
-                  
-                  toast.success(`${data?.processedCount || 0} pagamentos processados manualmente!`);
-                  
-                  // Atualizar dados após processamento
-                  setTimeout(fetchWalletData, 2000);
-                } catch (error: any) {
-                  console.error('[Wallet] Erro no processamento forçado:', error);
-                  toast.error(error.message || 'Falha ao forçar processamento.');
-                } finally {
-                  setSyncing(false);
-                }
-              }}
-              disabled={syncing}
-              variant="destructive"
-              size="sm"
-            >
-              {syncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <AlertCircle className="w-4 h-4 mr-2" />
-              )}
-              Forçar Pagamentos
-            </Button>
-            <Button onClick={fetchWalletData} variant="outline" size="sm">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Atualizar
-            </Button>
-          </div>
+          <Button onClick={fetchWalletData} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {userRole === 'provider' ? (
-            <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Saldo Disponível</CardTitle>
-                  <PiggyBank className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {formatCurrency(stats.availableBalance)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Disponível para saque
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Saldo Pendente</CardTitle>
-                  <Clock className="h-4 w-4 text-warning" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-warning">
-                    {formatCurrency(stats.pendingBalance)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Em processamento
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Total Recebido</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-success" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(stats.totalEarnings)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Ganhos totais
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Saques</CardTitle>
-                  <Download className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {payouts.filter(p => p.status === 'paid').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Saques realizados
-                  </p>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Total Gasto</CardTitle>
-                  <TrendingDown className="h-4 w-4 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-destructive">
-                    {formatCurrency(stats.totalSpent)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Total investido
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-foreground">Pagamentos</CardTitle>
-                  <CreditCard className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {payments.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Total de transações
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {payments.filter(p => p.status === 'captured').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Pagamentos finalizados
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {payments.filter(p => p.status === 'pending').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Em processamento
-                  </p>
-                </CardContent>
-              </Card>
-            </>
+          {userRole === 'provider' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">{formatCurrency(stats.availableBalance)}</div>
+                <p className="text-xs text-muted-foreground">Pronto para saque</p>
+              </CardContent>
+            </Card>
           )}
-        </div>
-
-        {/* Provider Withdrawal Section */}
-        {userRole === 'provider' && stats.availableBalance > 0 && (
-          <Card className="border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Download className="h-5 w-5" />
-                Solicitar Saque
-              </CardTitle>
-              <CardDescription>
-                Retire seus ganhos para sua conta bancária
-              </CardDescription>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Saldo Pendente</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="withdraw-amount">Valor do Saque (R$)</Label>
-                  <Input
-                    id="withdraw-amount"
-                    type="number"
-                    placeholder="0,00"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    max={stats.availableBalance}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Máximo: {formatCurrency(stats.availableBalance)}
-                  </p>
-                </div>
-                <Button 
-                  onClick={handleWithdraw}
-                  disabled={!withdrawAmount || parseFloat(withdrawAmount) <= 0}
-                  className="self-end"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Sacar
-                </Button>
-              </div>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">{formatCurrency(stats.pendingBalance)}</div>
+              <p className="text-xs text-muted-foreground">Em processamento</p>
             </CardContent>
           </Card>
-        )}
 
-        {/* Transactions */}
-        <Tabs defaultValue="payments" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="payments">
-              {userRole === 'client' ? 'Pagamentos Realizados' : 'Pagamentos Recebidos'}
-            </TabsTrigger>
-            {userRole === 'provider' && (
-              <TabsTrigger value="payouts">Saques</TabsTrigger>
-            )}
-          </TabsList>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {userRole === 'client' ? 'Total Gasto' : 'Total Ganho'}
+              </CardTitle>
+              {userRole === 'client' ? (
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(userRole === 'client' ? stats.totalSpent : stats.totalEarnings)}
+              </div>
+              <p className="text-xs text-muted-foreground">Histórico total</p>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="payments" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Transações</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{payments.length}</div>
+              <p className="text-xs text-muted-foreground">Total de pagamentos</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Transactions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Transações Recentes</CardTitle>
+          </CardHeader>
+          <CardContent>
             {payments.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <DollarSign className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Nenhuma transação</h3>
-                  <p className="text-muted-foreground">
-                    {userRole === 'client' 
-                      ? 'Você ainda não realizou nenhum pagamento'
-                      : 'Você ainda não recebeu nenhum pagamento'
-                    }
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="text-center py-8">
+                <WalletIcon className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">Nenhuma transação encontrada</h3>
+                <p className="text-muted-foreground">
+                  Suas transações aparecerão aqui quando você realizar pagamentos
+                </p>
+              </div>
             ) : (
-              payments.map((payment) => (
-                <Card key={payment.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div className="space-y-1">
-                        <p className="font-medium">{payment.jobs.title}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>{new Date(payment.created_at).toLocaleDateString('pt-BR')}</span>
-                          {getStatusBadge(payment.status)}
+              <div className="space-y-4">
+                {payments.slice(0, 10).map((payment, index) => (
+                  <div key={payment.id}>
+                    <div className="flex items-center justify-between py-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <p className="font-medium">{payment.jobs.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(payment.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {formatCurrency(
+                                userRole === 'client' 
+                                  ? payment.amount 
+                                  : payment.amount - payment.platform_fee
+                              )}
+                            </p>
+                            {userRole === 'provider' && (
+                              <p className="text-xs text-muted-foreground">
+                                Taxa: {formatCurrency(payment.platform_fee)}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            {getStatusBadge(payment.status)}
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {formatCurrency(userRole === 'client' ? payment.amount : payment.net_amount)}
-                        </p>
-                        {userRole === 'provider' && (
-                          <p className="text-xs text-muted-foreground">
-                            Taxa: {formatCurrency(payment.platform_fee)}
-                          </p>
-                        )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
+                    {index < payments.slice(0, 10).length - 1 && <Separator />}
+                  </div>
+                ))}
+              </div>
             )}
-          </TabsContent>
-
-          {userRole === 'provider' && (
-            <TabsContent value="payouts" className="space-y-4">
-              {payouts.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <Download className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Nenhum saque realizado</h3>
-                    <p className="text-muted-foreground">
-                      Você ainda não solicitou nenhum saque
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                payouts.map((payout) => (
-                  <Card key={payout.id}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div className="space-y-1">
-                          <p className="font-medium">Saque</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>
-                              Solicitado em {new Date(payout.created_at).toLocaleDateString('pt-BR')}
-                            </span>
-                            {getStatusBadge(payout.status)}
-                          </div>
-                          {payout.processed_at && (
-                            <p className="text-xs text-muted-foreground">
-                              Processado em {new Date(payout.processed_at).toLocaleDateString('pt-BR')}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{formatCurrency(payout.amount)}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-          )}
-        </Tabs>
-        
-        {/* Debug Panel */}
-        <PaymentDebugPanel />
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );
