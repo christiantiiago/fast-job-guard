@@ -66,24 +66,39 @@ serve(async (req) => {
     }
 
     // Preparar dados para a API da AbacatePay (endpoint pixQrCode/create)
+    // Garantir que o valor está em centavos (número inteiro)
+    const amountInCents = Math.round(amount * 100);
+    
     const paymentRequest = {
-      amount: Math.round(amount * 100), // AbacatePay trabalha com centavos
-      expiresIn: 1800, // 30 minutos em segundos (aumentado de 15 para 30 min)
+      amount: amountInCents, // AbacatePay trabalha com centavos
+      expiresIn: 1800, // 30 minutos em segundos
       description: description,
       customer: {
-        name: customer.name,
+        name: customer.name.trim(),
         cellphone: customer.phone.replace(/\D/g, ''),
-        email: customer.email,
+        email: customer.email.toLowerCase().trim(),
         taxId: customer.cpf.replace(/\D/g, '')
       },
       metadata: {
-        externalId: `${user.id}_${paymentType}_${Date.now()}`,
-        paymentType: paymentType,
-        userId: user.id
+        externalId: `${user.id}_${paymentType}_${Date.now()}`
       }
     };
 
-    logStep('Sending request to AbacatePay', { paymentRequest });
+    logStep('Payment request details', { 
+      originalAmount: amount,
+      amountInCents: amountInCents,
+      customer: paymentRequest.customer,
+      paymentRequest 
+    });
+
+    logStep('Sending request to AbacatePay', { 
+      endpoint: 'https://api.abacatepay.com/v1/pixQrCode/create',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer [HIDDEN]'
+      },
+      paymentRequest 
+    });
 
     // Fazer requisição para a API da AbacatePay usando o endpoint correto
     const abacateResponse = await fetch("https://api.abacatepay.com/v1/pixQrCode/create", {

@@ -401,8 +401,16 @@ export const AbacatePayModal = ({
                     <p className="text-xs font-mono break-all text-gray-700 mb-2 max-h-20 overflow-y-auto">
                       {pixCopyPasteCode}
                     </p>
-                    <div className="text-xs text-gray-500">
-                      💡 Dica: Cole este código no aplicativo do seu banco
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>💡 Dica: Cole este código no aplicativo do seu banco</div>
+                      <div className="font-medium text-green-600">
+                        💰 Valor: R$ {amount.toFixed(2)}
+                      </div>
+                      {paymentId && (
+                        <div className="text-gray-400">
+                          🔑 ID: {paymentId}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
