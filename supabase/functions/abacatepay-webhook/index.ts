@@ -194,28 +194,27 @@ Contrato gerado automaticamente em ${new Date().toLocaleString('pt-BR')}`;
             }
           }
 
-            // Create notifications
-            await supabaseClient
-              .from("notifications")
-              .insert([
-                {
-                  user_id: escrow.provider_id,
-                  title: "Pagamento Confirmado",
-                  message: "O pagamento foi confirmado e está em garantia. Você pode iniciar o trabalho.",
-                  type: "payment_confirmed",
-                  data: { escrowId: escrow.id, paymentId }
-                },
-                {
-                  user_id: escrow.client_id,
-                  title: "Pagamento Confirmado",
-                  message: "Seu pagamento foi confirmado e está protegido em garantia.",
-                  type: "payment_confirmed",
-                  data: { escrowId: escrow.id, paymentId }
-                }
-              ]);
+          // Create notifications
+          await supabaseClient
+            .from("notifications")
+            .insert([
+              {
+                user_id: escrow.provider_id,
+                title: "Pagamento Confirmado",
+                message: "O pagamento foi confirmado e está em garantia. Você pode iniciar o trabalho.",
+                type: "payment_confirmed",
+                data: { escrowId: escrow.id, paymentId }
+              },
+              {
+                user_id: escrow.client_id,
+                title: "Pagamento Confirmado",
+                message: "Seu pagamento foi confirmado e está protegido em garantia.",
+                type: "payment_confirmed",
+                data: { escrowId: escrow.id, paymentId }
+              }
+            ]);
 
-            logStep("Notifications created for escrow payment");
-          }
+          logStep("Notifications created for escrow payment");
         }
       }
 
