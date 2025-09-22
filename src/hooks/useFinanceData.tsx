@@ -130,6 +130,24 @@ export const useFinanceData = () => {
         }, {} as Record<string, string>);
       }
 
+      // Get client/provider names
+      const allUserIds = [
+        ...(escrowData || []).map(e => user.id === e.client_id ? e.provider_id : e.client_id)
+      ].filter(Boolean);
+
+      let userNames: Record<string, string> = {};
+      if (allUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', allUserIds);
+        
+        userNames = (profilesData || []).reduce((acc, profile) => {
+          acc[profile.user_id] = profile.full_name || 'Usuário';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
       // Process escrow payments with safer fee handling
       const escrowPayments: PaymentData[] = (escrowData || []).map(escrow => {
         const isClient = escrow.client_id === user.id;
@@ -151,24 +169,6 @@ export const useFinanceData = () => {
           net_amount: Math.max(0, escrow.amount - safePlatformFee)
         };
       });
-
-      // Get client/provider names
-      const allUserIds = [
-        ...(escrowData || []).map(e => user.id === e.client_id ? e.provider_id : e.client_id)
-      ].filter(Boolean);
-
-      let userNames: Record<string, string> = {};
-      if (allUserIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('user_id, full_name')
-          .in('user_id', allUserIds);
-        
-        userNames = (profilesData || []).reduce((acc, profile) => {
-          acc[profile.user_id] = profile.full_name || 'Usuário';
-          return acc;
-        }, {} as Record<string, string>);
-      }
 
       // Get boost job titles
       let boostJobTitles: Record<string, string> = {};
