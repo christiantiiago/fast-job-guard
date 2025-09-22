@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
+import { useProfile } from '@/hooks/useProfile';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -36,6 +38,7 @@ export function MobileHamburgerMenu() {
   const [open, setOpen] = useState(false);
   const { user, userRole, signOut } = useAuth();
   const { premiumStatus } = usePremiumStatus();
+  const { profile } = useProfile();
   const location = useLocation();
 
   const clientNavigation = [
@@ -117,12 +120,14 @@ export function MobileHamburgerMenu() {
             
             {user && (
               <div className="space-y-3 mt-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
+                 <div className="flex items-center gap-3">
+                   <UserAvatar 
+                     src={profile?.avatar_url}
+                     name={profile?.full_name || user?.email || ""}
+                     size="md"
+                   />
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-sm">{user.email?.split('@')[0]}</p>
+                    <p className="font-medium text-sm">{profile?.full_name || user?.email?.split('@')[0] || 'Usuário'}</p>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs capitalize">
                         {userRole === 'client' ? 'Cliente' : userRole === 'provider' ? 'Prestador' : 'Admin'}

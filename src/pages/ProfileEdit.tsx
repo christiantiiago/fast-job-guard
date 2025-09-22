@@ -18,8 +18,10 @@ import {
   Key, 
   Bell,
   ArrowLeft,
-  MapPin
+  MapPin,
+  Search
 } from 'lucide-react';
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import { Link } from 'react-router-dom';
 
 export default function ProfileEdit() {
@@ -42,7 +44,9 @@ export default function ProfileEdit() {
     neighborhood: '',
     city: '',
     state: '',
-    zipcode: ''
+    zipcode: '',
+    latitude: null as number | null,
+    longitude: null as number | null
   });
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -75,7 +79,9 @@ export default function ProfileEdit() {
               neighborhood: address.neighborhood || '',
               city: address.city || '',
               state: address.state || '',
-              zipcode: address.zipcode || ''
+              zipcode: address.zipcode || '',
+              latitude: address.latitude || null,
+              longitude: address.longitude || null
             });
           }
         } catch (error) {
@@ -193,7 +199,9 @@ export default function ProfileEdit() {
             neighborhood: addressData.neighborhood,
             city: addressData.city,
             state: addressData.state,
-            zipcode: addressData.zipcode
+            zipcode: addressData.zipcode,
+            latitude: addressData.latitude,
+            longitude: addressData.longitude
           })
           .eq('id', existingAddress.id);
 
@@ -210,6 +218,8 @@ export default function ProfileEdit() {
             city: addressData.city,
             state: addressData.state,
             zipcode: addressData.zipcode,
+            latitude: addressData.latitude,
+            longitude: addressData.longitude,
             is_primary: true,
             label: 'Principal'
           }]);
@@ -467,6 +477,25 @@ export default function ProfileEdit() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Endereço com Autocomplete</Label>
+                  <AddressAutocomplete
+                    value={`${addressData.street}${addressData.number ? `, ${addressData.number}` : ''}, ${addressData.neighborhood}, ${addressData.city}`}
+                    onChange={(address, coordinates) => {
+                      // Parse the returned address string and coordinates
+                      if (coordinates) {
+                        setAddressData(prev => ({
+                          ...prev,
+                          latitude: coordinates[1], // latitude
+                          longitude: coordinates[0] // longitude
+                        }));
+                      }
+                    }}
+                    placeholder="Digite seu endereço..."
+                    className="w-full"
+                  />
+                </div>
+                
                 <div className="grid grid-cols-4 gap-2">
                   <div className="col-span-3 space-y-2">
                     <Label htmlFor="street">Rua/Avenida</Label>

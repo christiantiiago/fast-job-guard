@@ -2,7 +2,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { useProfile } from '@/hooks/useProfile';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { Separator } from '@/components/ui/separator';
 
@@ -75,6 +76,7 @@ export const Sidebar = () => {
   const { user, userRole, signOut } = useAuth();
   const location = useLocation();
   const { premiumStatus } = usePremiumStatus();
+  const { profile } = useProfile();
 
   const navigation = userRole === 'admin' 
     ? adminNavigation 
@@ -96,15 +98,15 @@ export const Sidebar = () => {
 
       {/* User Profile */}
       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-        <Avatar className="h-10 w-10">
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {user?.email?.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar 
+          src={profile?.avatar_url}
+          name={profile?.full_name || user?.email}
+          size="md"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1">
             <p className="text-sm font-medium text-foreground truncate">
-              {user?.email}
+              {profile?.full_name || user?.email}
             </p>
             {premiumStatus.is_premium && (
               <Crown className="h-3 w-3 text-accent" />

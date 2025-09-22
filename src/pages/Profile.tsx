@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useKYCStatus } from '@/hooks/useKYCStatus';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
+import { useReviews } from '@/hooks/useReviews';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ export default function Profile() {
   const { profile, address, stats, loading, updating } = useProfile();
   const { status: kycStatus } = useKYCStatus();
   const { premiumStatus } = usePremiumStatus();
+  const { reviews, stats: reviewStats } = useReviews();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -108,15 +110,22 @@ export default function Profile() {
   }
 
   const getKycStatusBadge = (status: string) => {
-    switch (status) {
+    // Usar o status real do KYC baseado nos documentos aprovados
+    const realStatus = kycStatus?.canUsePlatform ? 'approved' : 
+                      kycStatus?.isComplete ? 'em_analise' :
+                      kycStatus?.rejectedDocs.length > 0 ? 'rejected' : 'pending';
+                      
+    switch (realStatus) {
       case 'approved':
         return <Badge variant="default" className="bg-success/10 text-success border-success/20"><CheckCircle className="w-3 h-3 mr-1" />Aprovado</Badge>;
+      case 'em_analise':
+        return <Badge variant="default" className="bg-info/10 text-info border-info/20"><Clock className="w-3 h-3 mr-1" />Em Análise</Badge>;
       case 'pending':
         return <Badge variant="default" className="bg-warning/10 text-warning border-warning/20"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
       case 'rejected':
         return <Badge variant="default" className="bg-destructive/10 text-destructive border-destructive/20"><XCircle className="w-3 h-3 mr-1" />Rejeitado</Badge>;
       default:
-        return <Badge variant="secondary">Não enviado</Badge>;
+        return <Badge variant="secondary">Incompleto</Badge>;
     }
   };
 
@@ -271,7 +280,7 @@ export default function Profile() {
                       <div className="space-y-4">
                          <div className="flex items-center justify-between">
                            <span className="font-medium">Status Geral</span>
-                           {getKycStatusBadge(profile?.kyc_status || 'incomplete')}
+                           {getKycStatusBadge(kycStatus?.kyc_status || 'incomplete')}
                          </div>
 
                         <div className="space-y-3">
@@ -293,8 +302,66 @@ export default function Profile() {
                       </div>
                     </CardContent>
                   </Card>
+                 )}
+
+                {/* Reviews Section */}
+                {reviews.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Star className="w-5 h-5 text-warning" />
+                        Avaliações Recebidas
+                      </CardTitle>
+                      <CardDescription>
+                        {reviewStats.totalReviews} avaliações • Média: {reviewStats.averageRating.toFixed(1)}/5
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {reviews.slice(0, 3).map((review) => (
+                          <div key={review.id} className="border border-border rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                              <Avatar className="w-8 h-8">
+                                {review.reviewer_avatar ? (
+                                  <img src={review.reviewer_avatar} alt={review.reviewer_name} />
+                                ) : (
+                                  <AvatarFallback>
+                                    {review.reviewer_name?.charAt(0).toUpperCase() || '?'}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-medium text-sm">{review.reviewer_name}</span>
+                                  <div className="flex">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`w-3 h-3 ${star <= review.rating ? 'text-warning fill-current' : 'text-muted-foreground'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {review.job_title} • {new Date(review.created_at).toLocaleDateString('pt-BR')}
+                                </p>
+                                <p className="text-sm">{review.comment}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {reviews.length > 3 && (
+                          <Button variant="outline" asChild className="w-full">
+                            <Link to="/reviews">
+                              Ver todas as avaliações ({reviews.length})
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-              </TabsContent>
+               </TabsContent>
 
               <TabsContent value="security" className="mt-6">
                 <SecuritySettings userRole={userRole} />
@@ -340,12 +407,14 @@ export default function Profile() {
                        </div>
                        <div className="text-sm text-muted-foreground">Total ganho</div>
                      </div>
-                     <div className="text-center">
-                       <div className="text-2xl font-bold text-warning">
-                         {stats?.averageRating ? `${stats.averageRating.toFixed(1)}/5` : 'N/A'}
-                       </div>
-                       <div className="text-sm text-muted-foreground">Avaliação média</div>
-                     </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-warning">
+                          {reviewStats?.averageRating ? `${reviewStats.averageRating.toFixed(1)}/5` : 'N/A'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Avaliação média ({reviewStats?.totalReviews || 0} reviews)
+                        </div>
+                      </div>
                    </>
                  ) : (
                    <>
@@ -361,12 +430,14 @@ export default function Profile() {
                        </div>
                        <div className="text-sm text-muted-foreground">Concluídos</div>
                      </div>
-                     <div className="text-center">
-                       <div className="text-2xl font-bold text-warning">
-                         {stats?.averageRating ? `${stats.averageRating.toFixed(1)}/5` : 'N/A'}
-                       </div>
-                       <div className="text-sm text-muted-foreground">Satisfação média</div>
-                     </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-warning">
+                          {reviewStats?.averageRating ? `${reviewStats.averageRating.toFixed(1)}/5` : 'N/A'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Satisfação média ({reviewStats?.totalReviews || 0} reviews)
+                        </div>
+                      </div>
                    </>
                  )}
                </CardContent>
