@@ -1647,9 +1647,12 @@ export type Database = {
           comment: string | null
           created_at: string | null
           id: string
+          is_anonymous: boolean
           is_public: boolean | null
           job_id: string
+          published_at: string
           rating: number
+          status: string
           target_id: string
         }
         Insert: {
@@ -1657,9 +1660,12 @@ export type Database = {
           comment?: string | null
           created_at?: string | null
           id?: string
+          is_anonymous?: boolean
           is_public?: boolean | null
           job_id: string
+          published_at?: string
           rating: number
+          status?: string
           target_id: string
         }
         Update: {
@@ -1667,9 +1673,12 @@ export type Database = {
           comment?: string | null
           created_at?: string | null
           id?: string
+          is_anonymous?: boolean
           is_public?: boolean | null
           job_id?: string
+          published_at?: string
           rating?: number
+          status?: string
           target_id?: string
         }
         Relationships: [
@@ -2187,6 +2196,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      auto_publish_reviews: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       auto_release_escrow: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -2249,6 +2262,10 @@ export type Database = {
       }
       can_provider_propose: {
         Args: { job_uuid: string; provider_user_id: string }
+        Returns: boolean
+      }
+      can_review_job: {
+        Args: { job_uuid: string; target_user_id: string }
         Returns: boolean
       }
       can_use_platform: {
