@@ -190,7 +190,7 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
                 <Alert className="mb-4">
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Como funciona:</strong> O pagamento fica em garantia até você liberar ou até a liberação automática em 7 dias. 
+                    <strong>Como funciona:</strong> O pagamento fica em garantia até você liberar ou até a liberação automática em 5 dias. 
                     Libere apenas quando o serviço estiver concluído à sua satisfação.
                   </AlertDescription>
                 </Alert>

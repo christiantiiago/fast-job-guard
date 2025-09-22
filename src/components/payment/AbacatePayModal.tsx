@@ -31,7 +31,9 @@ export const AbacatePayModal = ({
     cpf: ''
   });
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
@@ -84,6 +86,7 @@ export const AbacatePayModal = ({
       }
       
       setQrCode(qrCodeUrl);
+      setPaymentId(data.paymentId);
       toast({
         title: "QR Code gerado!",
         description: "Escaneie o código para realizar o pagamento",
@@ -100,8 +103,51 @@ export const AbacatePayModal = ({
     }
   };
 
+  const checkPaymentStatus = async () => {
+    if (!paymentId) return;
+    
+    setCheckingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-abacatepay-payment', {
+        body: { paymentId }
+      });
+
+      if (error) throw error;
+
+      if (data.isPaid) {
+        toast({
+          title: "Pagamento confirmado!",
+          description: "Seu pagamento foi processado com sucesso. Redirecionando...",
+        });
+        
+        // Fechar modal e redirecionar após confirmação
+        setTimeout(() => {
+          handleClose();
+          // Recarregar a página ou redirecionar conforme necessário
+          window.location.reload();
+        }, 2000);
+      } else {
+        toast({
+          title: "Pagamento não confirmado",
+          description: "O pagamento ainda não foi processado. Tente novamente em alguns instantes.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar pagamento:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível verificar o status do pagamento. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
   const handleClose = () => {
     setQrCode(null);
+    setPaymentId(null);
     setFormData({
       name: '',
       phone: '',
@@ -206,22 +252,38 @@ export const AbacatePayModal = ({
               <p className="text-sm text-muted-foreground">
                 Escaneie o código QR acima com o app do seu banco para realizar o pagamento
               </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleClose} className="flex-1">
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(qrCode || '');
+                      toast({
+                        title: "Copiado!",
+                        description: "Código PIX copiado para a área de transferência"
+                      });
+                    }}
+                    className="flex-1"
+                  >
+                    Copiar Código PIX
+                  </Button>
+                  <Button 
+                    onClick={checkPaymentStatus}
+                    disabled={checkingPayment}
+                    className="flex-1"
+                  >
+                    {checkingPayment ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Verificando...
+                      </>
+                    ) : (
+                      "Já Paguei"
+                    )}
+                  </Button>
+                </div>
+                <Button variant="outline" onClick={handleClose} className="w-full">
                   Fechar
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(qrCode || '');
-                    toast({
-                      title: "Copiado!",
-                      description: "Código PIX copiado para a área de transferência"
-                    });
-                  }}
-                  className="flex-1"
-                >
-                  Copiar Código
                 </Button>
               </div>
             </div>
