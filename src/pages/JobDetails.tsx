@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import Map from '@/components/ui/map';
 import ProposalNegotiation from '@/components/proposals/ProposalNegotiation';
 import EnhancedJobActions from '@/components/jobs/EnhancedJobActions';
-import { PaymentTestButton } from '@/components/admin/PaymentTestButton';
 import { EscrowManager } from '@/components/escrow/EscrowManager';
 import { JobCompletionButton } from '@/components/jobs/JobCompletionButton';
 import { useProposalCooldown } from '@/hooks/useProposalCooldown';
@@ -1343,9 +1342,6 @@ export default function JobDetails() {
           </div>
         </div>
       </div>
-      
-      {/* Temporary Payment Test Button */}
-      <PaymentTestButton />
     </AppLayout>
   );
 }

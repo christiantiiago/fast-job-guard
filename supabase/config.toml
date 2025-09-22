@@ -90,3 +90,6 @@ verify_jwt = false
 
 [functions.force-process-payment]
 verify_jwt = false
+
+[functions.check-abacatepay-payment]
+verify_jwt = false

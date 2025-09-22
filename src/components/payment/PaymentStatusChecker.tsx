@@ -19,16 +19,31 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
       try {
         setChecking(true);
 
-        // First, try to trigger payment verification with AbacatePay
+        // First, try to trigger payment verification with AbacatePay (no auth needed)
         try {
-          const { data: checkResult, error: checkError } = await supabase.functions.invoke('check-abacatepay-payment', {
-            body: { paymentId: externalPaymentId }
+          const checkResponse = await fetch(`https://yelytezcifyrykxvlbok.supabase.co/functions/v1/check-abacatepay-payment`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbHl0ZXpjaWZ5cnlreHZsYm9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3ODEwMTEsImV4cCI6MjA3MjM1NzAxMX0.GoB7I_naVGsVIhZgAaQoQBjTJijJZ-sbEATYZlbAw-k'
+            },
+            body: JSON.stringify({ paymentId: externalPaymentId })
           });
+
+          const checkResult = await checkResponse.json();
           
-          if (checkError) {
-            console.error('Error calling check function:', checkError);
+          if (!checkResponse.ok) {
+            console.error('Error calling check function:', checkResult);
           } else if (checkResult?.isPaid) {
             console.log('Payment confirmed by AbacatePay check');
+            
+            // Payment confirmed, stop checking
+            toast({
+              title: "Pagamento Confirmado!",
+              description: "Seu pagamento foi confirmado e está sendo processado.",
+            });
+            onPaymentConfirmed();
+            return;
           }
         } catch (checkFunctionError) {
           console.error('Error in check function call:', checkFunctionError);
@@ -76,13 +91,13 @@ export function PaymentStatusChecker({ externalPaymentId, onPaymentConfirmed }: 
     // Check immediately
     checkPaymentStatus();
 
-    // Set up interval to check every 10 seconds (more frequent)
-    const interval = setInterval(checkPaymentStatus, 10000);
+    // Set up interval to check every 5 seconds (very aggressive)
+    const interval = setInterval(checkPaymentStatus, 5000);
 
-    // Stop checking after 15 minutes (90 checks)
+    // Stop checking after 10 minutes but keep checking more aggressively
     const timeout = setTimeout(() => {
       clearInterval(interval);
-    }, 15 * 60 * 1000);
+    }, 10 * 60 * 1000);
 
     return () => {
       clearInterval(interval);

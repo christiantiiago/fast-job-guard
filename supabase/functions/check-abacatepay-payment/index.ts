@@ -18,21 +18,12 @@ serve(async (req) => {
   try {
     logStep('Request received');
     
-    // Criar cliente Supabase para autenticação
-    const supabaseClient = createClient(
+    // Use service role client for all operations (no auth required)
+    const serviceRoleClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
     );
-
-    // Verificar autenticação do usuário
-    const authHeader = req.headers.get("Authorization")!;
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    
-    if (!user) {
-      throw new Error("Usuário não autenticado");
-    }
 
     const { paymentId } = await req.json();
     
@@ -69,12 +60,6 @@ serve(async (req) => {
     
     // Se o pagamento foi confirmado, processar automaticamente
     if (isPaid) {
-      const serviceRoleClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } }
-      );
-
       logStep('Payment confirmed, processing full workflow', { paymentId });
 
       // Find records with this external payment ID

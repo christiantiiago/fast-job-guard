@@ -32,14 +32,21 @@ serve(async (req) => {
 
     logStep('Processing payment ID', { paymentId });
 
-    // Call the check-abacatepay-payment function directly
-    const { data: checkResult, error: checkError } = await supabaseClient.functions.invoke('check-abacatepay-payment', {
-      body: { paymentId }
+    // Call the check-abacatepay-payment function directly (no auth header needed now)
+    const checkResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/check-abacatepay-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      },
+      body: JSON.stringify({ paymentId })
     });
 
-    if (checkError) {
-      logStep('Error calling check function', checkError);
-      throw checkError;
+    const checkResult = await checkResponse.json();
+    
+    if (!checkResponse.ok) {
+      logStep('Error calling check function', checkResult);
+      throw new Error(checkResult.error || 'Check function failed');
     }
 
     logStep('Check function result', checkResult);
