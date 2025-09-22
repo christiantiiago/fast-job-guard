@@ -127,6 +127,9 @@ export default function JobDetails() {
   const [proposalMessage, setProposalMessage] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
+  
+  // Check if current user is the client
+  const isClient = user?.id === job?.client_id;
 
   useEffect(() => {
     if (id) {
@@ -1118,7 +1121,7 @@ export default function JobDetails() {
                             // Atualizar status do job
                             const { error: jobError } = await supabase
                               .from('jobs')
-                              .update({ status: 'awaiting_completion' })
+                              .update({ status: 'delivered' })
                               .eq('id', job.id);
 
                             if (jobError) throw jobError;
@@ -1238,6 +1241,9 @@ export default function JobDetails() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Client Actions - Only show for clients */}
+            {isClient && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
