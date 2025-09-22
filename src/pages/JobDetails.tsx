@@ -965,9 +965,9 @@ export default function JobDetails() {
               </div>
             )}
 
-            {/* Escrow Manager - Show when job is paid/in progress */}
-            {(job.status === 'in_progress' || job.status === 'completed') && (
-              <EscrowManager jobId={job.id} isClient={userRole === 'client'} />
+            /* Escrow Manager - Show when job has escrow payment or is waiting for approval */
+            {(job.status === 'in_progress' || job.status === 'completed' || job.status === 'waiting_approval') && (
+              <EscrowManager jobId={job.id} isClient={isClient} />
             )}
 
             {/* Job Completion Button for Clients */}

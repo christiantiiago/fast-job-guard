@@ -6,6 +6,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { EscrowCountdown } from './EscrowCountdown';
+import { EscrowReleaseTimer } from './EscrowReleaseTimer';
 import { 
   Shield, 
   Clock, 
@@ -38,7 +40,6 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
   const [escrowPayment, setEscrowPayment] = useState<EscrowPayment | null>(null);
   const [loading, setLoading] = useState(true);
   const [releasing, setReleasing] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<string>('');
 
   const fetchEscrowPayment = async () => {
     try {
@@ -86,42 +87,6 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
       supabase.removeChannel(channel);
     };
   }, [jobId]);
-
-  // Countdown timer for automatic release
-  useEffect(() => {
-    if (!escrowPayment || escrowPayment.status !== 'held') {
-      setTimeRemaining('');
-      return;
-    }
-
-    const updateCountdown = () => {
-      const releaseDate = new Date(escrowPayment.release_date);
-      const now = new Date();
-      const timeDiff = releaseDate.getTime() - now.getTime();
-
-      if (timeDiff <= 0) {
-        setTimeRemaining('Liberação disponível');
-        return;
-      }
-
-      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
-      } else if (hours > 0) {
-        setTimeRemaining(`${hours}h ${minutes}m`);
-      } else {
-        setTimeRemaining(`${minutes}m`);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [escrowPayment]);
 
   const handleReleasePayment = async () => {
     if (!escrowPayment || !user) return;
@@ -197,133 +162,141 @@ export function EscrowManager({ jobId, isClient = false }: EscrowManagerProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Pagamento em Garantia
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">Status</span>
-          {getStatusBadge()}
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-muted-foreground">Valor</span>
-          <span className="font-semibold flex items-center gap-1">
-            <DollarSign className="h-4 w-4" />
-            R$ {escrowPayment.amount.toFixed(2)}
-          </span>
-        </div>
-
-        {escrowPayment.platform_fee > 0 && (
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-muted-foreground">Taxa da plataforma</span>
-            <span>R$ {escrowPayment.platform_fee.toFixed(2)}</span>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Pagamento em Garantia
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Status</span>
+            {getStatusBadge()}
           </div>
-        )}
 
-        {isHeld && (
-          <>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Liberação automática</span>
-              <span className="flex items-center gap-1 text-sm font-mono bg-gray-100 px-2 py-1 rounded">
-                <Clock className="h-4 w-4" />
-                {timeRemaining || `${daysUntilRelease > 0 ? `${daysUntilRelease} dias` : 'Hoje'}`}
-              </span>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Valor</span>
+            <span className="font-semibold flex items-center gap-1">
+              <DollarSign className="h-4 w-4" />
+              R$ {escrowPayment.amount.toFixed(2)}
+            </span>
+          </div>
+
+          {escrowPayment.platform_fee > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Taxa da plataforma</span>
+              <span>R$ {escrowPayment.platform_fee.toFixed(2)}</span>
             </div>
+          )}
 
-            {/* Progress Bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Trabalho concluído</span>
-                <span>Liberação automática</span>
+          {isHeld && (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Liberação automática</span>
+                <EscrowCountdown releaseDate={escrowPayment.release_date} status={escrowPayment.status} />
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    canRelease ? 'bg-green-500' : 'bg-blue-500'
-                  }`}
-                  style={{
-                    width: `${Math.min(100, Math.max(10, 100 - (daysUntilRelease * 20)))}%`
-                  }}
-                />
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Trabalho concluído</span>
+                  <span>Liberação automática</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      canRelease ? 'bg-green-500' : 'bg-blue-500'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.max(10, 100 - (daysUntilRelease * 20)))}%`
+                    }}
+                  />
+                </div>
               </div>
-            </div>
 
-            {canRelease && (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  O prazo para liberação automática foi atingido. O pagamento pode ser liberado a qualquer momento ou será liberado automaticamente.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {!canRelease && (
-              <Alert>
-                <Clock className="h-4 w-4" />
-                <AlertDescription>
-                  O prestador marcou o trabalho como concluído. Você tem até {new Date(releaseDate).toLocaleDateString('pt-BR')} para revisar e liberar o pagamento.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {isClient && (
-              <div className="pt-4 border-t">
-                <Alert className="mb-4">
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>Como funciona:</strong> Você pode liberar o pagamento imediatamente se estiver satisfeito com o serviço, ou aguardar até a liberação automática. O pagamento será processado com a taxa aplicada baseada no status premium do prestador.
+              {canRelease && (
+                <Alert className="bg-green-50 border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    O prazo para liberação automática foi atingido. O pagamento pode ser liberado a qualquer momento.
                   </AlertDescription>
                 </Alert>
+              )}
 
-                <Button
-                  onClick={handleReleasePayment}
-                  disabled={releasing}
-                  className="w-full"
-                  size="lg"
-                  variant={canRelease ? "default" : "secondary"}
-                >
-                  {releasing ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Liberando...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {canRelease ? 'Liberar Pagamento Agora' : 'Liberar Pagamento'}
-                    </>
-                  )}
-                </Button>
+              {!canRelease && (
+                <Alert>
+                  <Clock className="h-4 w-4" />
+                  <AlertDescription>
+                    O prestador marcou o trabalho como concluído. Você tem até {new Date(releaseDate).toLocaleDateString('pt-BR')} para revisar e liberar o pagamento.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isClient && (
+                <div className="pt-4 border-t">
+                  <Alert className="mb-4">
+                    <Shield className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Como funciona:</strong> Você pode liberar o pagamento imediatamente se estiver satisfeito com o serviço, ou aguardar até a liberação automática. O pagamento será processado com a taxa aplicada baseada no status premium do prestador.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Button
+                    onClick={handleReleasePayment}
+                    disabled={releasing}
+                    className="w-full"
+                    size="lg"
+                    variant={canRelease ? "default" : "secondary"}
+                  >
+                    {releasing ? (
+                      <>
+                        <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        Liberando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {canRelease ? 'Liberar Pagamento Agora' : 'Liberar Pagamento'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {isReleased && escrowPayment.completed_at && (
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Pagamento liberado em {new Date(escrowPayment.completed_at).toLocaleDateString('pt-BR')}
+                </span>
               </div>
-            )}
-          </>
-        )}
-
-        {isReleased && escrowPayment.completed_at && (
-          <div className="bg-green-50 p-3 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                Pagamento liberado em {new Date(escrowPayment.completed_at).toLocaleDateString('pt-BR')}
-              </span>
             </div>
-          </div>
-        )}
+          )}
 
-        {isPending && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              O pagamento ainda está sendo processado. Aguarde a confirmação.
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
+          {isPending && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                O pagamento ainda está sendo processado. Aguarde a confirmação.
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Auto-release timer for providers when deadline is reached */}
+      {canRelease && !isClient && (
+        <EscrowReleaseTimer 
+          escrowPaymentId={escrowPayment.id}
+          releaseDate={escrowPayment.release_date}
+          onReleaseComplete={fetchEscrowPayment}
+        />
+      )}
+    </div>
   );
 }
