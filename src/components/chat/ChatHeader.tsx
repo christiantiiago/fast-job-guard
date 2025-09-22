@@ -4,11 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ArrowLeft, 
   Search, 
-  Phone, 
-  Video, 
   MoreVertical,
   Circle
 } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Job {
   id: string;
@@ -29,8 +33,6 @@ interface ChatHeaderProps {
   otherUser: Profile | null;
   onBack: () => void;
   onSearch: () => void;
-  onCall: () => void;
-  onVideoCall: () => void;
   showBackButton?: boolean;
 }
 
@@ -39,8 +41,6 @@ export function ChatHeader({
   otherUser, 
   onBack, 
   onSearch, 
-  onCall, 
-  onVideoCall,
   showBackButton = false 
 }: ChatHeaderProps) {
   const getStatusColor = (status: string) => {
@@ -129,31 +129,22 @@ export function ChatHeader({
             <Search className="w-4 h-4" />
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onCall}
-            className="hover:bg-accent/50"
-          >
-            <Phone className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onVideoCall}
-            className="hover:bg-accent/50"
-          >
-            <Video className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-accent/50"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-accent/50"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Ver perfil</DropdownMenuItem>
+              <DropdownMenuItem>Bloquear usuário</DropdownMenuItem>
+              <DropdownMenuItem>Reportar</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

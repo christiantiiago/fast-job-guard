@@ -5,17 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Upload, Image, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFileUpload } from '@/hooks/useFileUpload';
 
 interface MediaUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (url: string, type: string) => void;
+  jobId?: string;
 }
 
-export function MediaUploadModal({ isOpen, onClose, onUpload }: MediaUploadModalProps) {
+export function MediaUploadModal({ isOpen, onClose, onUpload, jobId }: MediaUploadModalProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const { uploadFile, uploading } = useFileUpload();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,26 +44,16 @@ export function MediaUploadModal({ isOpen, onClose, onUpload }: MediaUploadModal
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
-
+    if (!selectedFile || !jobId) return;
+    
     try {
-      setUploading(true);
-
-      // TODO: Implement actual file upload to Supabase Storage
-      // For now, we'll simulate the upload
-      const mockUrl = URL.createObjectURL(selectedFile);
-      
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      onUpload(mockUrl, selectedFile.type);
+      const fileUrl = await uploadFile(selectedFile, jobId);
+      onUpload(fileUrl, selectedFile.type);
       toast.success('Arquivo enviado com sucesso!');
-      onClose();
+      handleClose();
     } catch (error) {
       console.error('Error uploading file:', error);
       toast.error('Erro ao enviar arquivo');
-    } finally {
-      setUploading(false);
     }
   };
 

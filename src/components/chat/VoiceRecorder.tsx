@@ -109,10 +109,22 @@ export function VoiceRecorder({ isRecording, onStop, onSend }: VoiceRecorderProp
     }
   };
 
-  const sendRecording = () => {
-    if (recordedUrl) {
-      onSend(recordedUrl);
-      clearRecording();
+  const sendRecording = async () => {
+    if (recordedBlob && onSend) {
+      try {
+        // Create a File from the blob
+        const audioFile = new File([recordedBlob], `voice-${Date.now()}.webm`, {
+          type: 'audio/webm'
+        });
+        
+        // Create blob URL for immediate use
+        const blobUrl = URL.createObjectURL(recordedBlob);
+        onSend(blobUrl);
+        clearRecording();
+      } catch (error) {
+        console.error('Error sending voice message:', error);
+        toast.error('Erro ao enviar mensagem de voz');
+      }
     }
   };
 

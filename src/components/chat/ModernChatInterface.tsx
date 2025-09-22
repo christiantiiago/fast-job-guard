@@ -130,10 +130,11 @@ export function ModernChatInterface() {
     }
   };
 
-  // Check if user can send messages
-  const canSendMessages = job && 
-    (job.status === 'open' || job.status === 'in_progress' || job.status === 'pending_completion') &&
+  // Check if user can send messages and if chat is closed
+  const canSendMessages = job && job.status !== 'completed' && job.status !== 'cancelled' && 
     (job.client_id === user?.id || job.provider_id === user?.id);
+  
+  const isChatClosed = job?.status === 'completed' || job?.status === 'cancelled';
 
   // Mobile view: show conversations or chat
   const isMobile = window.innerWidth < 768;
@@ -176,8 +177,6 @@ export function ModernChatInterface() {
             otherUser={otherUser}
             onBack={() => isMobile ? setShowConversations(true) : navigate('/chats')}
             onSearch={() => {/* TODO: Implement search */}}
-            onCall={() => {/* TODO: Implement voice call */}}
-            onVideoCall={() => {/* TODO: Implement video call */}}
             showBackButton={isMobile}
           />
 
@@ -208,7 +207,13 @@ export function ModernChatInterface() {
           </ScrollArea>
 
           {/* Message Input */}
-          {canSendMessages ? (
+          {isChatClosed ? (
+            <div className="p-4 bg-muted/30 backdrop-blur-sm border-t border-border/50 text-center">
+              <div className="bg-muted/50 backdrop-blur-sm border border-border/30 rounded-lg px-4 py-3 text-muted-foreground text-sm">
+                <span className="font-medium">Chat encerrado</span> - Este trabalho foi concluído
+              </div>
+            </div>
+          ) : canSendMessages ? (
             <div className="p-4 bg-card/20 backdrop-blur-sm border-t border-border/50">
               <div className="flex items-end gap-2">
                 <Button
@@ -267,10 +272,7 @@ export function ModernChatInterface() {
           ) : (
             <div className="p-4 bg-muted/30 backdrop-blur-sm border-t border-border/50 text-center">
               <p className="text-sm text-muted-foreground">
-                {job?.status === 'completed' 
-                  ? 'Este trabalho foi concluído. Não é possível enviar mais mensagens.'
-                  : 'Você não pode enviar mensagens neste chat no momento.'
-                }
+                Você não pode enviar mensagens neste momento.
               </p>
             </div>
           )}
@@ -296,8 +298,17 @@ export function ModernChatInterface() {
       <MediaUploadModal 
         isOpen={showMediaModal}
         onClose={() => setShowMediaModal(false)}
-        onUpload={(url, type) => {
-          // TODO: Send media message
+        jobId={job_id}
+        onUpload={async (url, type) => {
+          try {
+            if (job_id) {
+              await sendMessage(job_id, '', url, type);
+              toast.success('Arquivo enviado!');
+            }
+          } catch (error) {
+            console.error('Error sending media:', error);
+            toast.error('Erro ao enviar arquivo');
+          }
           setShowMediaModal(false);
         }}
       />
@@ -305,8 +316,16 @@ export function ModernChatInterface() {
       <VoiceRecorder
         isRecording={isRecording}
         onStop={() => setIsRecording(false)}
-        onSend={(audioUrl) => {
-          // TODO: Send voice message
+        onSend={async (audioUrl) => {
+          try {
+            if (job_id) {
+              await sendMessage(job_id, '', audioUrl, 'audio/webm');
+              toast.success('Mensagem de voz enviada!');
+            }
+          } catch (error) {
+            console.error('Error sending voice message:', error);
+            toast.error('Erro ao enviar mensagem de voz');
+          }
           setIsRecording(false);
         }}
       />

@@ -78,7 +78,7 @@ export const useMessages = (jobId?: string) => {
           attachment_type,
           is_read,
           created_at,
-          sender:profiles!sender_id (
+          sender:profiles!fk_job_messages_sender (
             user_id,
             full_name,
             avatar_url
@@ -93,12 +93,12 @@ export const useMessages = (jobId?: string) => {
         id: msg.id,
         job_id: msg.job_id,
         sender_id: msg.sender_id,
-        content: msg.content,
+        content: msg.content || '',
         attachment_url: msg.attachment_url,
         attachment_type: msg.attachment_type,
         is_read: msg.is_read,
         created_at: msg.created_at,
-        sender: Array.isArray(msg.sender) ? msg.sender[0] : msg.sender
+        sender: msg.sender
       }));
 
       setMessages(formattedMessages);

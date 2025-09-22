@@ -911,6 +911,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_job_messages_sender"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "job_messages_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
