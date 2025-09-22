@@ -5,6 +5,7 @@ import { useFeeRules } from '@/hooks/useFeeRules';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useAdvancedWithdrawals } from '@/hooks/useAdvancedWithdrawals';
 import { useFinanceReports } from '@/hooks/useFinanceReports';
+import { useSecurityActivity } from '@/hooks/useSecurityActivity';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +55,7 @@ export function AdvancedProviderDashboard() {
   const { premiumStatus } = usePremiumStatus();
   const { autoWithdrawal, updateAutoWithdrawal } = useAdvancedWithdrawals();
   const { generateReport } = useFinanceReports();
+  const { stats: securityStats, loading: securityLoading } = useSecurityActivity();
   
   const [showBalance, setShowBalance] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -371,24 +373,41 @@ export function AdvancedProviderDashboard() {
                               )}
                             </div>
                             
-                            {/* Transaction Details */}
-                            <div>
-                              <div className="font-medium">
-                                {isPayout ? 'Saque Realizado' :
-                                 transactionType === 'escrow_received' ? 'Pagamento Recebido' :
-                                 transactionType === 'job_boost' ? 'Boost de Trabalho' :
-                                 'Transação'}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {new Date(transaction.created_at).toLocaleDateString('pt-BR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </div>
+                          {/* Transaction Details */}
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              {isPayout ? 'Saque Realizado' :
+                               transactionType === 'escrow_received' ? 'Pagamento Recebido' :
+                               transactionType === 'job_boost' ? 'Boost de Trabalho' :
+                               'Transação'}
                             </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(transaction.created_at).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                            {/* Transaction Breakdown for escrow payments */}
+                            {transactionType === 'escrow_received' && (transaction as any).total_amount && (
+                              <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                <div className="flex justify-between items-center">
+                                  <span>Valor total do trabalho:</span>
+                                  <span className="font-medium">{formatCurrency((transaction as any).total_amount || transaction.amount)}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span>Taxa da plataforma:</span>
+                                  <span className="text-warning font-medium">-{formatCurrency((transaction as any).platform_fee || 0)}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-t pt-1">
+                                  <span>Valor recebido:</span>
+                                  <span className="text-success font-medium">{formatCurrency(transaction.amount - ((transaction as any).platform_fee || 0))}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           </div>
                           
                           {/* Amount and Status */}
@@ -662,6 +681,179 @@ export function AdvancedProviderDashboard() {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
+          {/* Security Statistics */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Logins</CardTitle>
+                <Shield className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {securityLoading ? '...' : securityStats.totalLogins}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Acessos realizados com sucesso
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Atividades Suspeitas</CardTitle>
+                <AlertCircle className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-warning">
+                  {securityLoading ? '...' : securityStats.suspiciousActivities}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Eventos com risco elevado
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">IPs Únicos</CardTitle>
+                <Activity className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">
+                  {securityLoading ? '...' : securityStats.uniqueIpAddresses}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Endereços de acesso diferentes
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Último Login</CardTitle>
+                <Clock className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm font-bold">
+                  {securityLoading ? '...' : securityStats.lastLoginDate ? 
+                    new Date(securityStats.lastLoginDate).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit', 
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }) : 'Nunca'
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Data do último acesso
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Security Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Atividade de Segurança Recente
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Histórico das últimas atividades de segurança da sua conta
+              </p>
+            </CardHeader>
+            <CardContent>
+              {securityLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                      <Skeleton className="h-6 w-16" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {securityStats.recentActivities.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">Nenhuma atividade recente</p>
+                    </div>
+                  ) : (
+                    securityStats.recentActivities.map((activity) => (
+                      <div key={activity.id} 
+                           className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            activity.is_suspicious ? 'bg-destructive/10' :
+                            activity.event_type === 'LOGIN_SUCCESS' ? 'bg-success/10' :
+                            activity.event_type.includes('PAYMENT') ? 'bg-warning/10' :
+                            'bg-primary/10'
+                          }`}>
+                            {activity.is_suspicious ? (
+                              <AlertCircle className="h-4 w-4 text-destructive" />
+                            ) : activity.event_type === 'LOGIN_SUCCESS' ? (
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                            ) : activity.event_type.includes('PAYMENT') ? (
+                              <DollarSign className="h-4 w-4 text-warning" />
+                            ) : (
+                              <Activity className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          
+                          <div>
+                            <div className="font-medium">
+                              {activity.event_type === 'LOGIN_SUCCESS' ? 'Login Realizado' :
+                               activity.event_type === 'PROFILE_VIEW' ? 'Perfil Visualizado' :
+                               activity.event_type === 'PAYMENT_VIEW' ? 'Pagamentos Acessados' :
+                               activity.event_type.replace('_', ' ')}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {new Date(activity.created_at).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })} • {activity.location || 'Localização não disponível'}
+                            </div>
+                            {activity.ip_address && (
+                              <div className="text-xs text-muted-foreground">
+                                IP: {activity.ip_address}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <Badge variant={
+                            activity.is_suspicious ? 'destructive' :
+                            (activity.risk_score || 0) > 50 ? 'destructive' :
+                            (activity.risk_score || 0) > 20 ? 'secondary' :
+                            'default'
+                          } className="text-xs">
+                            {activity.is_suspicious ? 'Suspeito' :
+                             (activity.risk_score || 0) > 50 ? 'Alto Risco' :
+                             (activity.risk_score || 0) > 20 ? 'Médio Risco' :
+                             'Baixo Risco'}
+                          </Badge>
+                          {activity.risk_score !== undefined && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Score: {activity.risk_score}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <SecuritySettings />
           
           {/* Notificações de Segurança */}
