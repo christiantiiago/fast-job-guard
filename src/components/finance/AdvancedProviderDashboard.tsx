@@ -49,7 +49,7 @@ import { SecuritySettings } from './SecuritySettings';
 
 export function AdvancedProviderDashboard() {
   const { user } = useAuth();
-  const { payments, stats, loading, refetch } = useFinanceData();
+  const { payments, payouts, stats, loading, refetch } = useFinanceData();
   const { isPremiumUser, feeRules } = useFeeRules();
   const { premiumStatus } = usePremiumStatus();
   const { autoWithdrawal, updateAutoWithdrawal } = useAdvancedWithdrawals();
@@ -153,8 +153,9 @@ export function AdvancedProviderDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="transactions">Histórico</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="withdrawals">Saques</TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
@@ -310,6 +311,157 @@ export function AdvancedProviderDashboard() {
                     Próximo saque: Quinta, 28/11
                   </p>
                   <p className="text-xs text-success">Taxa: Gratuito</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions" className="space-y-6">
+          {/* Histórico de Transações */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Histórico de Transações
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Todas as movimentações financeiras da sua conta
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {payments.length === 0 && payouts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhuma transação encontrada</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Combine and sort all transactions */}
+                  {[
+                    ...payments.map(p => ({ ...p, category: 'payment' as const })),
+                    ...payouts.map(p => ({ ...p, category: 'payout' as const }))
+                  ]
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 20) // Show last 20 transactions
+                    .map((transaction) => {
+                      const isPayment = transaction.category === 'payment';
+                      const isPayout = transaction.category === 'payout';
+                      const transactionType = isPayment ? (transaction as any).type : 'payout';
+                      
+                      return (
+                        <div key={`${transaction.category}-${transaction.id}`} 
+                             className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            {/* Transaction Icon */}
+                            <div className={`p-2 rounded-lg ${
+                              isPayout ? 'bg-blue-500/10' :
+                              transactionType === 'escrow_received' ? 'bg-success/10' :
+                              transactionType === 'job_boost' ? 'bg-warning/10' :
+                              'bg-muted/50'
+                            }`}>
+                              {isPayout ? (
+                                <Banknote className="h-4 w-4 text-blue-500" />
+                              ) : transactionType === 'escrow_received' ? (
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                              ) : transactionType === 'job_boost' ? (
+                                <Zap className="h-4 w-4 text-warning" />
+                              ) : (
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            
+                            {/* Transaction Details */}
+                            <div>
+                              <div className="font-medium">
+                                {isPayout ? 'Saque Realizado' :
+                                 transactionType === 'escrow_received' ? 'Pagamento Recebido' :
+                                 transactionType === 'job_boost' ? 'Boost de Trabalho' :
+                                 'Transação'}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {new Date(transaction.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Amount and Status */}
+                          <div className="text-right">
+                            <div className={`font-semibold ${
+                              isPayout ? 'text-blue-500' :
+                              transactionType === 'escrow_received' ? 'text-success' :
+                              transactionType === 'job_boost' ? 'text-warning' :
+                              'text-foreground'
+                            }`}>
+                              {isPayout || transactionType === 'job_boost' ? '-' : '+'}
+                              {formatCurrency(
+                                isPayout ? transaction.amount :
+                                transactionType === 'escrow_received' ? 
+                                  (transaction.amount - ((transaction as any).platform_fee || 0)) :
+                                transaction.amount
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={
+                                transaction.status === 'released' || transaction.status === 'completed' ? 'default' :
+                                transaction.status === 'held' || transaction.status === 'pending' ? 'secondary' :
+                                transaction.status === 'cancelled' ? 'destructive' :
+                                'outline'
+                              } className="text-xs">
+                                {transaction.status === 'released' ? 'Liberado' :
+                                 transaction.status === 'held' ? 'Em Garantia' :
+                                 transaction.status === 'completed' ? 'Concluído' :
+                                 transaction.status === 'pending' ? 'Pendente' :
+                                 transaction.status === 'cancelled' ? 'Cancelado' :
+                                 transaction.status === 'active' ? 'Ativo' :
+                                 transaction.status}
+                              </Badge>
+                              {isPayment && (transaction as any).platform_fee && (transaction as any).platform_fee > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  (Taxa: {formatCurrency((transaction as any).platform_fee)})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+              
+              {/* Summary Statistics */}
+              <div className="border-t pt-4 mt-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-success">
+                      {payments.filter(p => p.type === 'escrow_received' && p.status === 'released').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Pagamentos Recebidos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-warning">
+                      {payments.filter(p => p.type === 'escrow_received' && p.status === 'held').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Em Garantia</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-500">
+                      {payouts.filter(p => p.status === 'completed').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Saques Realizados</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-500">
+                      {payments.filter(p => p.type === 'job_boost').length}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Boosts Utilizados</div>
+                  </div>
                 </div>
               </div>
             </CardContent>
