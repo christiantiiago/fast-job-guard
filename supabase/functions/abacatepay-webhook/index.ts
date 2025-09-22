@@ -51,17 +51,23 @@ serve(async (req) => {
 
     // Check if payment was confirmed
     if (status === "CONFIRMED" || status === "PAID") {
+      logStep("Payment confirmed, processing...", { paymentId, status });
+
       // Find records with this external payment ID
       const { data: escrowPayments, error: escrowError } = await supabaseClient
         .from("escrow_payments")
-        .select("*, jobs:job_id(id, client_id)")
+        .select("*, jobs:job_id(id, client_id, provider_id, status)")
         .eq("external_payment_id", paymentId)
         .eq("status", "pending");
 
       if (escrowError) {
         logStep("Error finding escrow payments", escrowError);
       } else if (escrowPayments && escrowPayments.length > 0) {
+        logStep("Found escrow payments to process", { count: escrowPayments.length });
+        
         for (const escrow of escrowPayments) {
+          logStep("Processing escrow payment", { escrowId: escrow.id, jobId: escrow.job_id });
+          
           // Update escrow payment to "held" status
           const releaseDate = new Date();
           releaseDate.setDate(releaseDate.getDate() + 5); // 5 dias para liberação automática
@@ -77,25 +83,33 @@ serve(async (req) => {
 
           if (updateError) {
             logStep("Error updating escrow payment", updateError);
-          } else {
-            logStep("Escrow payment updated to held", { escrowId: escrow.id });
+            continue;
+          }
+          
+          logStep("Escrow payment updated to held", { escrowId: escrow.id });
 
-            // Update job status to in_progress if it has a job
-            if (escrow.job_id) {
-              const { error: jobUpdateError } = await supabaseClient
-                .from("jobs")
-                .update({ 
-                  status: "in_progress",
-                  updated_at: new Date().toISOString()
-                })
-                .eq("id", escrow.job_id);
+          // Update job status to in_progress and assign provider
+          if (escrow.job_id && escrow.provider_id) {
+            const { error: jobUpdateError } = await supabaseClient
+              .from("jobs")
+              .update({ 
+                status: "in_progress",
+                provider_id: escrow.provider_id,
+                final_price: escrow.amount,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", escrow.job_id);
 
-              if (jobUpdateError) {
-                logStep("Error updating job status", jobUpdateError);
-              } else {
-                logStep("Job status updated to in_progress");
-              }
+            if (jobUpdateError) {
+              logStep("Error updating job status", jobUpdateError);
+            } else {
+              logStep("Job status updated to in_progress", { 
+                jobId: escrow.job_id, 
+                providerId: escrow.provider_id,
+                finalPrice: escrow.amount 
+              });
             }
+          }
 
             // Create notifications
             await supabaseClient

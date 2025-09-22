@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFeeRules } from '@/hooks/useFeeRules';
 import { useAuth } from '@/hooks/useAuth';
 import { AbacatePayModal } from '@/components/payment/AbacatePayModal';
+import { DuplicatePaymentGuard } from '@/components/escrow/DuplicatePaymentGuard';
 import { 
   Shield, 
   CheckCircle,
@@ -55,11 +56,25 @@ export function PaymentModal({
   const { user } = useAuth();
   const { calculateFees, formatCurrency } = useFeeRules();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [canProceed, setCanProceed] = useState(false);
+  const [existingPayment, setExistingPayment] = useState<any>(null);
+  const [guardLoaded, setGuardLoaded] = useState(false);
 
   const fees = calculateFees(proposal.price);
 
   const handlePayment = () => {
-    setShowPaymentModal(true);
+    if (canProceed) {
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handleCanProceed = (canProceed: boolean) => {
+    setCanProceed(canProceed);
+    setGuardLoaded(true);
+  };
+
+  const handleExistingPayment = (paymentData: any) => {
+    setExistingPayment(paymentData);
   };
 
   return (
@@ -74,6 +89,13 @@ export function PaymentModal({
           </DialogHeader>
 
           <div className="space-y-6 pb-4">
+            {/* Duplicate Payment Guard */}
+            <DuplicatePaymentGuard
+              jobId={jobId}
+              onCanProceed={handleCanProceed}
+              onExistingPayment={handleExistingPayment}
+            />
+
             {/* Service Summary */}
             <Card>
               <CardContent className="pt-6 space-y-4">
@@ -169,9 +191,12 @@ export function PaymentModal({
                 onClick={handlePayment}
                 className="flex-1"
                 size="lg"
+                disabled={!canProceed || !guardLoaded}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Contratar por {formatCurrency(fees.total)}
+                {!guardLoaded ? 'Verificando...' : 
+                 !canProceed ? 'Pagamento já existe' : 
+                 `Contratar por ${formatCurrency(fees.total)}`}
               </Button>
               <Button
                 variant="outline"
