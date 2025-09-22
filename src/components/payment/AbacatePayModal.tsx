@@ -77,7 +77,13 @@ export const AbacatePayModal = ({
         throw error;
       }
 
-      setQrCode(data.qrCode);
+      // Verificar se o QR code é uma string base64 válida
+      let qrCodeUrl = data.qrCode;
+      if (qrCodeUrl && !qrCodeUrl.startsWith('data:image/')) {
+        qrCodeUrl = `data:image/png;base64,${qrCodeUrl}`;
+      }
+      
+      setQrCode(qrCodeUrl);
       toast({
         title: "QR Code gerado!",
         description: "Escaneie o código para realizar o pagamento",
@@ -191,14 +197,33 @@ export const AbacatePayModal = ({
                   src={qrCode} 
                   alt="QR Code PIX" 
                   className="w-full max-w-64 mx-auto"
+                  onError={(e) => {
+                    console.error('Erro ao carregar QR Code:', qrCode);
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               </div>
               <p className="text-sm text-muted-foreground">
                 Escaneie o código QR acima com o app do seu banco para realizar o pagamento
               </p>
-              <Button variant="outline" onClick={handleClose} className="w-full">
-                Fechar
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleClose} className="flex-1">
+                  Fechar
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  onClick={() => {
+                    navigator.clipboard.writeText(qrCode || '');
+                    toast({
+                      title: "Copiado!",
+                      description: "Código PIX copiado para a área de transferência"
+                    });
+                  }}
+                  className="flex-1"
+                >
+                  Copiar Código
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -138,6 +138,12 @@ serve(async (req) => {
         break;
 
       case 'boost':
+        logStep('Creating job boost record', { 
+          jobId: paymentData.jobId, 
+          userId: user.id, 
+          boostType: paymentData.boostType 
+        });
+        
         const { data: boostData, error: boostError } = await supabaseClient
           .from('job_boosts')
           .insert({
@@ -152,7 +158,12 @@ serve(async (req) => {
           .select()
           .single();
         
-        if (boostError) throw boostError;
+        if (boostError) {
+          logStep('Job boost creation failed', { error: boostError });
+          throw boostError;
+        }
+        
+        logStep('Job boost created successfully', { recordId: boostData.id });
         recordId = boostData.id;
         break;
 
