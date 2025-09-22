@@ -5,15 +5,14 @@ import { useAuth } from './useAuth';
 interface PaymentData {
   id: string;
   amount: number;
-  net_amount: number;
-  client_fee: number;
-  provider_fee: number;
-  platform_fee: number;
   status: string;
-  job_title: string;
-  job_id: string;
   created_at: string;
-  processed_at: string;
+  type: 'payment' | 'escrow' | 'boost';
+  job_title: string;
+  client_name: string;
+  payment_method: string;
+  external_id?: string;
+  release_date?: string;
 }
 
 interface PayoutData {
@@ -27,11 +26,17 @@ interface PayoutData {
 
 interface FinanceStats {
   totalEarnings: number;
+  totalExpenses: number;
   availableBalance: number;
   pendingAmount: number;
+  completedJobs: number;
+  pendingJobs: number;
   totalWithdrawn: number;
-  totalJobs: number;
+  pendingWithdrawals: number;
+  totalTransactions: number;
+  activeBoosts: number;
   currentMonthEarnings: number;
+  totalJobs: number;
   avgRating: number;
 }
 
@@ -41,60 +46,49 @@ export const useFinanceData = () => {
   const [payouts, setPayouts] = useState<PayoutData[]>([]);
   const [stats, setStats] = useState<FinanceStats>({
     totalEarnings: 0,
+    totalExpenses: 0,
     availableBalance: 0,
     pendingAmount: 0,
+    completedJobs: 0,
+    pendingJobs: 0,
     totalWithdrawn: 0,
-    totalJobs: 0,
+    pendingWithdrawals: 0,
+    totalTransactions: 0,
+    activeBoosts: 0,
     currentMonthEarnings: 0,
-    avgRating: 0
+    totalJobs: 0,
+    avgRating: 4.8
   });
   const [loading, setLoading] = useState(true);
 
   const fetchPayments = async () => {
-    if (!user || userRole !== 'provider') return;
-
+    if (!user) return [];
+    
     try {
-      // Fetch regular payments
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select(`
-          id,
-          amount,
-          net_amount,
-          client_fee,
-          provider_fee,
-          platform_fee,
-          status,
-          created_at,
-          processed_at,
-          job_id,
-          jobs!inner(title)
-        `)
-        .eq('provider_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (paymentsError) throw paymentsError;
-
-      // Fetch escrow payments for provider
-      const { data: escrowData, error: escrowError } = await supabase
+      // Fetch escrow payments 
+      const { data: escrowPayments, error: escrowError } = await supabase
         .from('escrow_payments')
         .select(`
           id,
           amount,
-          platform_fee,
           status,
           created_at,
-          completed_at,
-          job_id
+          release_date,
+          external_payment_id,
+          job_id,
+          client_id
         `)
         .eq('provider_id', user.id)
         .order('created_at', { ascending: false });
 
       if (escrowError) throw escrowError;
 
-      // Get job titles for escrow payments
-      const jobIds = [...(paymentsData || []).map(p => p.job_id), ...(escrowData || []).map(p => p.job_id)].filter(Boolean);
+      // Get job titles and client names separately
+      const jobIds = (escrowPayments || []).map(p => p.job_id).filter(Boolean);
+      const clientIds = (escrowPayments || []).map(p => p.client_id).filter(Boolean);
+      
       let jobTitles: Record<string, string> = {};
+      let clientNames: Record<string, string> = {};
       
       if (jobIds.length > 0) {
         const { data: jobsData } = await supabase
@@ -107,35 +101,38 @@ export const useFinanceData = () => {
           return acc;
         }, {} as Record<string, string>);
       }
+      
+      if (clientIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', clientIds);
+        
+        clientNames = (profilesData || []).reduce((acc, profile) => {
+          acc[profile.user_id] = profile.full_name || 'Cliente não identificado';
+          return acc;
+        }, {} as Record<string, string>);
+      }
 
-      // Format regular payments
-      const formattedPayments = (paymentsData || []).map(payment => ({
-        ...payment,
-        job_title: payment.jobs?.title || jobTitles[payment.job_id] || 'Trabalho removido'
-      }));
-
-      // Format escrow payments as payments
-      const formattedEscrowPayments = (escrowData || []).map(escrow => ({
+      // Transform escrow payments
+      const transformedEscrow: PaymentData[] = (escrowPayments || []).map(escrow => ({
         id: escrow.id,
         amount: escrow.amount,
-        net_amount: escrow.amount, // Provider gets the amount minus platform fee
-        client_fee: 0,
-        provider_fee: escrow.platform_fee,
-        platform_fee: escrow.platform_fee,
-        status: escrow.status === 'held' ? 'pending' : escrow.status,
+        status: escrow.status,
         created_at: escrow.created_at,
-        processed_at: escrow.completed_at || escrow.created_at,
-        job_id: escrow.job_id,
-        job_title: jobTitles[escrow.job_id] || 'Trabalho removido'
+        type: 'escrow',
+        job_title: jobTitles[escrow.job_id] || 'Trabalho não identificado',
+        client_name: clientNames[escrow.client_id] || 'Cliente não identificado',
+        payment_method: 'escrow',
+        external_id: escrow.external_payment_id,
+        release_date: escrow.release_date
       }));
 
-      // Combine and sort all payments
-      const allPayments = [...formattedPayments, ...formattedEscrowPayments]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      setPayments(allPayments);
+      setPayments(transformedEscrow);
+      return transformedEscrow;
     } catch (error) {
       console.error('Error fetching payments:', error);
+      return [];
     }
   };
 
@@ -157,47 +154,59 @@ export const useFinanceData = () => {
   };
 
   const calculateStats = () => {
-    if (!payments.length) {
-      setStats({
-        totalEarnings: 0,
-        availableBalance: 0,
-        pendingAmount: 0,
-        totalWithdrawn: 0,
-        totalJobs: 0,
-        currentMonthEarnings: 0,
-        avgRating: 4.8
-      });
-      return;
-    }
+    if (!payments || !payouts) return;
 
-    const completedPayments = payments.filter(p => p.status === 'completed' || p.status === 'released');
-    const pendingPayments = payments.filter(p => p.status === 'pending' || p.status === 'held');
-    const totalWithdrawn = payouts
-      .filter(p => p.status === 'completed' || p.status === 'paid')
+    const earnings = payments.filter(p => p.type !== 'boost' && p.amount > 0);
+    const expenses = payments.filter(p => p.type === 'boost' || p.amount < 0);
+
+    const totalEarnings = earnings
+      .filter(p => p.status === 'released' || p.status === 'completed')
       .reduce((sum, p) => sum + p.amount, 0);
 
-    const totalEarnings = completedPayments.reduce((sum, p) => sum + p.net_amount, 0);
-    const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.net_amount, 0);
-    const availableBalance = Math.max(0, totalEarnings - totalWithdrawn);
+    const totalExpenses = Math.abs(expenses
+      .filter(p => p.status === 'active' || p.status === 'completed')
+      .reduce((sum, p) => sum + p.amount, 0));
 
-    // Ganhos do mês atual
+    const pendingAmount = earnings
+      .filter(p => p.status === 'held' || p.status === 'pending')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const totalWithdrawn = payouts
+      .filter(p => p.status === 'completed')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const pendingWithdrawals = payouts
+      .filter(p => p.status === 'pending')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const availableBalance = totalEarnings - totalWithdrawn - pendingWithdrawals;
+
+    // Current month earnings
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const currentMonthEarnings = completedPayments
+    const currentMonthEarnings = earnings
       .filter(p => {
-        const paymentDate = new Date(p.processed_at || p.created_at);
-        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+        const paymentDate = new Date(p.created_at);
+        return paymentDate.getMonth() === currentMonth && 
+               paymentDate.getFullYear() === currentYear &&
+               (p.status === 'released' || p.status === 'completed');
       })
-      .reduce((sum, p) => sum + p.net_amount, 0);
+      .reduce((sum, p) => sum + p.amount, 0);
 
     setStats({
       totalEarnings,
-      availableBalance,
+      totalExpenses,
+      availableBalance: Math.max(0, availableBalance),
       pendingAmount,
+      completedJobs: earnings.filter(p => p.status === 'released' || p.status === 'completed').length,
+      pendingJobs: earnings.filter(p => p.status === 'held' || p.status === 'pending').length,
       totalWithdrawn,
-      totalJobs: completedPayments.length,
+      pendingWithdrawals,
+      totalTransactions: payments.length,
+      activeBoosts: expenses.filter(p => p.status === 'active').length,
       currentMonthEarnings,
-      avgRating: 4.8 // Pode ser calculado a partir das reviews
+      totalJobs: earnings.filter(p => p.status === 'released' || p.status === 'completed').length,
+      avgRating: 4.8
     });
   };
 
@@ -212,12 +221,11 @@ export const useFinanceData = () => {
           amount,
           bank_details: bankDetails,
           status: 'pending',
-          provider: 'stripe'
+          provider: 'pix'
         });
 
       if (error) throw error;
       
-      // Refresh data
       await fetchPayouts();
       calculateStats();
       
@@ -230,13 +238,14 @@ export const useFinanceData = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || userRole !== 'provider') {
+      if (!user) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
-      await Promise.all([fetchPayments(), fetchPayouts()]);
+      await fetchPayments();
+      await fetchPayouts();
       setLoading(false);
     };
 
@@ -253,9 +262,9 @@ export const useFinanceData = () => {
     stats,
     loading,
     requestWithdrawal,
-    refetch: () => {
-      fetchPayments();
-      fetchPayouts();
+    refetch: async () => {
+      await fetchPayments();
+      await fetchPayouts();
     }
   };
 };
