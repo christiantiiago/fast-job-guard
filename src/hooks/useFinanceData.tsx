@@ -69,7 +69,7 @@ export const useFinanceData = () => {
     try {
       setLoading(true);
       
-      // Fetch escrow payments (sistema principal de pagamentos) - apenas jobs ativos
+      // Fetch escrow payments (sistema principal de pagamentos) - simplificado
       const { data: escrowData, error: escrowError } = await supabase
         .from('escrow_payments')
         .select(`
@@ -83,11 +83,9 @@ export const useFinanceData = () => {
           completed_at,
           job_id,
           client_id,
-          provider_id,
-          jobs!inner(id, title, status)
+          provider_id
         `)
         .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
-        .not('jobs.status', 'in', '(cancelled,removed)')
         .order('created_at', { ascending: false });
 
       if (escrowError) {
@@ -116,29 +114,43 @@ export const useFinanceData = () => {
       // Fetch premium subscriptions (simplified)
       const subscriptionPayments: PaymentData[] = [];
 
-      // Get job titles separately e filtrar jobs cancelados/removidos
+      // Get job titles separately
       const jobIds = escrowData?.map(p => p.job_id).filter(Boolean) || [];
       let jobTitles: Record<string, string> = {};
-      let validJobIds: string[] = [];
       
       if (jobIds.length > 0) {
         const { data: jobsData } = await supabase
           .from('jobs')
           .select('id, title, status')
-          .in('id', jobIds)
-          .not('status', 'in', '(cancelled,removed)');
+          .in('id', jobIds);
         
-        validJobIds = (jobsData || []).map(job => job.id);
         jobTitles = (jobsData || []).reduce((acc, job) => {
           acc[job.id] = job.title;
           return acc;
         }, {} as Record<string, string>);
       }
 
-      // Filtrar apenas pagamentos de jobs válidos
-      const filteredEscrowData = escrowData?.filter(payment => 
-        validJobIds.includes(payment.job_id)
-      ) || [];
+      // Process escrow payments with safer fee handling
+      const escrowPayments: PaymentData[] = (escrowData || []).map(escrow => {
+        const isClient = escrow.client_id === user.id;
+        const otherUserId = isClient ? escrow.provider_id : escrow.client_id;
+        const safePlatformFee = escrow.platform_fee || 0;
+        
+        return {
+          id: escrow.id,
+          amount: escrow.amount,
+          type: 'escrow',
+          status: escrow.status === 'released' ? 'completed' : escrow.status,
+          job_title: jobTitles[escrow.job_id] || 'Trabalho',
+          client_name: userNames[otherUserId] || (isClient ? 'Prestador' : 'Cliente'),
+          created_at: escrow.created_at,
+          payment_method: 'Pagamento em Garantia',
+          external_id: escrow.id,
+          release_date: escrow.release_date,
+          processed_at: escrow.completed_at || escrow.created_at,
+          net_amount: Math.max(0, escrow.amount - safePlatformFee)
+        };
+      });
 
       // Get client/provider names
       const allUserIds = [
@@ -158,37 +170,15 @@ export const useFinanceData = () => {
         }, {} as Record<string, string>);
       }
 
-      // Convert escrow to payment format - usar dados filtrados
-      const escrowPayments: PaymentData[] = filteredEscrowData.map(escrow => {
-        const isClient = escrow.client_id === user.id;
-        const otherUserId = isClient ? escrow.provider_id : escrow.client_id;
-        
-        return {
-          id: escrow.id,
-          amount: escrow.amount,
-          type: 'escrow',
-          status: escrow.status === 'released' ? 'completed' : escrow.status,
-          job_title: jobTitles[escrow.job_id] || 'Trabalho removido',
-          client_name: userNames[otherUserId] || (isClient ? 'Prestador' : 'Cliente'),
-          created_at: escrow.created_at,
-          payment_method: 'Pagamento em Garantia',
-          external_id: escrow.id,
-          release_date: escrow.release_date,
-          processed_at: escrow.completed_at || escrow.created_at,
-          net_amount: escrow.amount
-        };
-      });
-
-      // Buscar títulos dos jobs para boosts também, filtrando jobs cancelados
+      // Get boost job titles
       let boostJobTitles: Record<string, string> = {};
       const boostJobIds = (boostsData || []).map(b => b.job_id).filter(Boolean);
       
       if (boostJobIds.length > 0) {
         const { data: boostJobsData } = await supabase
           .from('jobs')
-          .select('id, title, status')
-          .in('id', boostJobIds)
-          .not('status', 'in', '(cancelled,removed)');
+          .select('id, title')
+          .in('id', boostJobIds);
         
         boostJobTitles = (boostJobsData || []).reduce((acc, job) => {
           acc[job.id] = job.title;
@@ -196,9 +186,8 @@ export const useFinanceData = () => {
         }, {} as Record<string, string>);
       }
 
-      // Convert boosts to payment format - usar apenas boosts de jobs válidos
+      // Convert boosts to payment format
       const boostPayments: PaymentData[] = (boostsData || [])
-        .filter(boost => boostJobTitles[boost.job_id]) // Filtrar boosts de jobs válidos
         .map(boost => ({
           id: boost.id,
           amount: boost.amount,

@@ -361,7 +361,7 @@ const App = () => (
               element={
                 <ProtectedProviderRoute>
                   <KYCGate>
-                    <Finance />
+                    <Wallet />
                   </KYCGate>
                 </ProtectedProviderRoute>
               }
@@ -383,7 +383,7 @@ const App = () => (
               element={
                 <ProtectedProviderRoute>
                   <KYCGate>
-                    <Finance />
+                    <Wallet />
                   </KYCGate>
                 </ProtectedProviderRoute>
               }

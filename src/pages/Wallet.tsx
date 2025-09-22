@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { useFinanceData } from '@/hooks/useFinanceData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Wallet as WalletIcon,
   TrendingUp,
@@ -15,39 +18,20 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Banknote,
+  Eye,
+  EyeOff,
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Payment {
-  id: string;
-  amount: number;
-  platform_fee: number;
-  status: string;
-  created_at: string;
-  job_id: string;
-  jobs: {
-    title: string;
-  };
-}
-
-interface WalletStats {
-  availableBalance: number;
-  pendingBalance: number;
-  totalEarnings: number;
-  totalSpent: number;
-}
-
 export default function Wallet() {
   const { user, userRole } = useAuth();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [stats, setStats] = useState<WalletStats>({
-    availableBalance: 0,
-    pendingBalance: 0,
-    totalEarnings: 0,
-    totalSpent: 0
-  });
-  const [loading, setLoading] = useState(true);
+  const { payments, stats, loading, requestWithdrawal, refetch } = useFinanceData();
+  const [showBalance, setShowBalance] = useState(true);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -56,107 +40,28 @@ export default function Wallet() {
     }).format(value);
   };
 
-  const fetchWalletData = async () => {
-    if (!user) return;
+  const handleWithdrawal = async () => {
+    const amount = parseFloat(withdrawalAmount);
+    if (amount <= 0 || amount > stats.availableBalance) {
+      toast.error('Valor inválido. Verifique o valor e tente novamente.');
+      return;
+    }
 
     try {
-      setLoading(true);
-      
-      // Fetch escrow payments - buscar dados separadamente para evitar problemas de join
-      const { data: escrowData, error: escrowError } = await supabase
-        .from('escrow_payments')
-        .select('*')
-        .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
-
-      if (escrowError) {
-        console.error('Error fetching escrow payments:', escrowError);
-        return;
-      }
-
-      // Buscar títulos dos jobs separadamente e filtrar jobs cancelados/removidos
-      const jobIds = escrowData?.map(p => p.job_id).filter(Boolean) || [];
-      let jobTitles: Record<string, string> = {};
-      let validJobIds: string[] = [];
-      
-      if (jobIds.length > 0) {
-        const { data: jobsData } = await supabase
-          .from('jobs')
-          .select('id, title, status')
-          .in('id', jobIds)
-          .not('status', 'in', '(cancelled,removed)');
-        
-        validJobIds = (jobsData || []).map(job => job.id);
-        jobTitles = (jobsData || []).reduce((acc, job) => {
-          acc[job.id] = job.title;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      // Filtrar apenas pagamentos de jobs válidos
-      const filteredEscrowData = escrowData?.filter(payment => 
-        validJobIds.includes(payment.job_id)
-      ) || [];
-
-      // Transform escrow payments to match Payment interface
-      const transformedPayments: Payment[] = filteredEscrowData.map(payment => ({
-        id: payment.id,
-        amount: payment.amount, // Usar amount ao invés de total_amount
-        platform_fee: payment.platform_fee,
-        status: payment.status === 'released' ? 'captured' : payment.status,
-        created_at: payment.created_at,
-        job_id: payment.job_id,
-        jobs: {
-          title: jobTitles[payment.job_id] || 'Trabalho removido'
-        }
-      }));
-
-      setPayments(transformedPayments);
-      
-      // Calculate stats
-      const newStats = {
-        availableBalance: 0,
-        pendingBalance: 0,
-        totalEarnings: 0,
-        totalSpent: 0
-      };
-
-      transformedPayments.forEach(payment => {
-        if (userRole === 'client') {
-          if (payment.status === 'captured') {
-            newStats.totalSpent += payment.amount;
-          } else if (payment.status === 'pending') {
-            newStats.pendingBalance += payment.amount;
-          }
-        } else if (userRole === 'provider') {
-          const netAmount = payment.amount - payment.platform_fee;
-          if (payment.status === 'captured') {
-            newStats.totalEarnings += netAmount;
-            newStats.availableBalance += netAmount;
-          } else if (payment.status === 'pending') {
-            newStats.pendingBalance += netAmount;
-          }
-        }
-      });
-
-      setStats(newStats);
+      await requestWithdrawal(amount, { type: 'pix', key: 'user@email.com' });
+      toast.success('Saque solicitado com sucesso! Será processado em até 2 dias úteis.');
+      setShowWithdrawalDialog(false);
+      setWithdrawalAmount('');
     } catch (error) {
-      console.error('Error fetching wallet data:', error);
-      toast.error('Erro ao carregar dados da carteira');
-    } finally {
-      setLoading(false);
+      toast.error('Erro ao solicitar saque. Tente novamente mais tarde.');
     }
   };
-
-  useEffect(() => {
-    fetchWalletData();
-  }, [user, userRole]);
 
   const getStatusBadge = (status: string) => {
     const variants = {
       'pending': { color: 'bg-warning/10 text-warning border-warning/20', label: 'Pendente', icon: Clock },
       'held': { color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', label: 'Retido', icon: AlertCircle },
-      'captured': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
+      'completed': { color: 'bg-success/10 text-success border-success/20', label: 'Concluído', icon: CheckCircle2 },
       'cancelled': { color: 'bg-gray-500/10 text-gray-600 border-gray-500/20', label: 'Cancelado', icon: AlertCircle }
     };
 
@@ -222,7 +127,7 @@ export default function Wallet() {
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <WalletIcon className="h-6 w-6" />
-              Carteira
+              Carteira Digital
             </h1>
             <p className="text-muted-foreground">
               {userRole === 'client' 
@@ -231,10 +136,19 @@ export default function Wallet() {
               }
             </p>
           </div>
-          <Button onClick={fetchWalletData} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowBalance(!showBalance)}
+            >
+              {showBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button onClick={refetch} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -246,8 +160,46 @@ export default function Wallet() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-success">{formatCurrency(stats.availableBalance)}</div>
+                <div className="text-2xl font-bold text-success">
+                  {showBalance ? formatCurrency(stats.availableBalance) : '••••••'}
+                </div>
                 <p className="text-xs text-muted-foreground">Pronto para saque</p>
+                {stats.availableBalance > 0 && (
+                  <Dialog open={showWithdrawalDialog} onOpenChange={setShowWithdrawalDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="mt-2 w-full">
+                        <Banknote className="h-4 w-4 mr-2" />
+                        Sacar
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Solicitar Saque</DialogTitle>
+                        <DialogDescription>
+                          Disponível: {formatCurrency(stats.availableBalance)}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="amount">Valor do Saque</Label>
+                          <Input
+                            id="amount"
+                            type="number"
+                            value={withdrawalAmount}
+                            onChange={(e) => setWithdrawalAmount(e.target.value)}
+                            placeholder="0,00"
+                            max={stats.availableBalance}
+                            className="mt-2"
+                          />
+                        </div>
+                        <Button onClick={handleWithdrawal} className="w-full">
+                          <Banknote className="h-4 w-4 mr-2" />
+                          Confirmar Saque
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
             </Card>
           )}
@@ -258,7 +210,9 @@ export default function Wallet() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-warning">{formatCurrency(stats.pendingBalance)}</div>
+              <div className="text-2xl font-bold text-warning">
+                {showBalance ? formatCurrency(stats.pendingAmount) : '••••••'}
+              </div>
               <p className="text-xs text-muted-foreground">Em processamento</p>
             </CardContent>
           </Card>
@@ -276,7 +230,7 @@ export default function Wallet() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(userRole === 'client' ? stats.totalSpent : stats.totalEarnings)}
+                {showBalance ? formatCurrency(userRole === 'client' ? stats.totalExpenses : stats.totalEarnings) : '••••••'}
               </div>
               <p className="text-xs text-muted-foreground">Histórico total</p>
             </CardContent>
@@ -284,12 +238,14 @@ export default function Wallet() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Transações</CardTitle>
+              <CardTitle className="text-sm font-medium">Trabalhos</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{payments.length}</div>
-              <p className="text-xs text-muted-foreground">Total de pagamentos</p>
+              <div className="text-2xl font-bold">{stats.totalJobs}</div>
+              <p className="text-xs text-muted-foreground">
+                {userRole === 'client' ? 'Contratados' : 'Concluídos'}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -316,22 +272,21 @@ export default function Wallet() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
                           <div className="flex-1">
-                            <p className="font-medium">{payment.jobs.title}</p>
+                            <p className="font-medium">{payment.job_title}</p>
                             <p className="text-sm text-muted-foreground">
-                              {new Date(payment.created_at).toLocaleDateString('pt-BR')}
+                              {payment.client_name} • {new Date(payment.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {payment.payment_method}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="font-medium">
-                              {formatCurrency(
-                                userRole === 'client' 
-                                  ? payment.amount 
-                                  : payment.amount - payment.platform_fee
-                              )}
+                              {showBalance ? formatCurrency(payment.net_amount || payment.amount) : '••••••'}
                             </p>
-                            {userRole === 'provider' && (
+                            {userRole === 'provider' && payment.net_amount && (
                               <p className="text-xs text-muted-foreground">
-                                Taxa: {formatCurrency(payment.platform_fee)}
+                                Bruto: {showBalance ? formatCurrency(payment.amount) : '••••••'}
                               </p>
                             )}
                           </div>
