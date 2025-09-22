@@ -47,6 +47,12 @@ serve(async (req) => {
       throw new Error("ABACATEPAY_API_KEY não configurada");
     }
 
+    // Verificar se todos os campos obrigatórios estão presentes
+    if (!customer.name || !customer.phone || !customer.email || !customer.cpf) {
+      logStep('Missing required customer fields', { customer });
+      throw new Error("Todos os campos do cliente são obrigatórios: nome, telefone, email e CPF");
+    }
+
     // Preparar dados para a API da AbacatePay (endpoint pixQrCode/create)
     const paymentRequest = {
       amount: Math.round(amount * 100), // AbacatePay trabalha com centavos
@@ -59,10 +65,7 @@ serve(async (req) => {
         taxId: customer.cpf.replace(/\D/g, '')
       },
       metadata: {
-        externalId: `${user.id}_${paymentType}_${Date.now()}`,
-        user_id: user.id,
-        payment_type: paymentType,
-        ...paymentData
+        externalId: `${user.id}_${paymentType}_${Date.now()}`
       }
     };
 
@@ -85,7 +88,18 @@ serve(async (req) => {
     }
 
     const abacateData = await abacateResponse.json();
-    logStep('AbacatePay response received', { paymentId: abacateData.id });
+    logStep('AbacatePay response received', { 
+      success: !!abacateData.data,
+      paymentId: abacateData.data?.id,
+      status: abacateData.data?.status,
+      error: abacateData.error
+    });
+
+    // Verificar se houve erro na resposta da AbacatePay
+    if (abacateData.error || !abacateData.data) {
+      logStep('AbacatePay API error in response', { error: abacateData.error });
+      throw new Error(`Erro na API AbacatePay: ${abacateData.error || 'Resposta inválida'}`);
+    }
 
     // Salvar o pagamento no banco de dados baseado no tipo
     let recordId;
@@ -98,7 +112,7 @@ serve(async (req) => {
             user_id: user.id,
             plan: 'premium',
             status: 'pending',
-            external_payment_id: abacateData.id,
+            external_payment_id: abacateData.data.id,
             amount: amount,
             payment_method: 'pix'
           })
@@ -119,7 +133,7 @@ serve(async (req) => {
             amount: amount,
             duration_hours: paymentData.duration,
             status: 'pending',
-            external_payment_id: abacateData.id
+            external_payment_id: abacateData.data.id
           })
           .select()
           .single();
@@ -139,7 +153,7 @@ serve(async (req) => {
             platform_fee: paymentData.platformFee,
             total_amount: amount,
             status: 'pending',
-            external_payment_id: abacateData.id
+            external_payment_id: abacateData.data.id
           })
           .select()
           .single();
@@ -158,7 +172,7 @@ serve(async (req) => {
             platform_fee: paymentData.platformFee,
             total_amount: amount,
             status: 'pending',
-            external_payment_id: abacateData.id
+            external_payment_id: abacateData.data.id
           })
           .select()
           .single();
@@ -172,10 +186,10 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      qrCode: abacateData.qrCode || abacateData.qr_code || abacateData.qr_code_url,
-      paymentId: abacateData.id || abacateData.transactionId,
+      qrCode: abacateData.data.brCodeBase64,
+      paymentId: abacateData.data.id,
       recordId: recordId,
-      expiresAt: abacateData.expiresAt || abacateData.expires_at
+      expiresAt: abacateData.data.expiresAt
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
