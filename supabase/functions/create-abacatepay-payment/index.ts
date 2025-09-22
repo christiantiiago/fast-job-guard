@@ -59,7 +59,7 @@ serve(async (req) => {
       },
       payment_method: "pix",
       expires_in: 900, // 15 minutos
-      callback_url: `${req.headers.get("origin")}/payment-success`,
+      callback_url: `${req.headers.get("origin")}/abacatepay-success?payment_id=${abacateData.id}&type=${paymentType}`,
       metadata: {
         user_id: user.id,
         payment_type: paymentType,

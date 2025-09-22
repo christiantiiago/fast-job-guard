@@ -52,7 +52,6 @@ export function PaymentModal({
   jobTitle,
   onPaymentSuccess 
 }: PaymentModalProps) {
-  const { toast } = useToast();
   const { user } = useAuth();
   const { calculateFees, formatCurrency } = useFeeRules();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -64,174 +63,146 @@ export function PaymentModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5" />
-            Finalizar Contratação
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Finalizar Contratação
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-6 pb-4">
-          {/* Service Summary */}
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold">{jobTitle}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {providerProfile?.full_name}
-                    </span>
-                    {providerProfile?.rating_avg && (
-                      <Badge variant="secondary" className="text-xs">
-                        ⭐ {providerProfile.rating_avg.toFixed(1)}
-                      </Badge>
-                    )}
+          <div className="space-y-6 pb-4">
+            {/* Service Summary */}
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold">{jobTitle}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {providerProfile?.full_name}
+                      </span>
+                      {providerProfile?.rating_avg && (
+                        <Badge variant="secondary" className="text-xs">
+                          ⭐ {providerProfile.rating_avg.toFixed(1)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-primary">
+                      {formatCurrency(proposal.price)}
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">
-                    {formatCurrency(proposal.price)}
-                  </p>
-                </div>
-              </div>
 
-              {proposal.estimated_hours && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Duração estimada: {proposal.estimated_hours}h</span>
-                </div>
-              )}
+                {proposal.estimated_hours && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Duração estimada: {proposal.estimated_hours}h</span>
+                  </div>
+                )}
 
-              {proposal.delivery_date && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span>Entrega: {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                {proposal.delivery_date && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <span>Entrega: {new Date(proposal.delivery_date).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-          {/* Payment Method */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Forma de Pagamento</h3>
-            <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="credit-card" id="credit-card" />
-                  <Label htmlFor="credit-card" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <div className="font-medium">Cartão de Crédito</div>
-                        <div className="text-sm text-muted-foreground">
-                          Visa, Mastercard, American Express
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
+            {/* Payment Summary */}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Resumo do Pagamento</h3>
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                <div className="flex justify-between">
+                  <span>Valor do serviço</span>
+                  <span>{formatCurrency(proposal.price)}</span>
                 </div>
-
-                <div className="flex items-center space-x-3 p-4 border rounded-lg">
-                  <RadioGroupItem value="pix" id="pix" />
-                  <Label htmlFor="pix" className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <Smartphone className="h-5 w-5 text-green-600" />
-                      <div>
-                        <div className="font-medium">PIX</div>
-                        <div className="text-sm text-muted-foreground">
-                          Pagamento instantâneo
-                        </div>
-                      </div>
-                    </div>
-                  </Label>
+                
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Taxa da plataforma ({fees.feePercentage}%)</span>
+                  <span>{formatCurrency(fees.platformFee)}</span>
                 </div>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Payment Summary */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Resumo do Pagamento</h3>
-            <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-              <div className="flex justify-between">
-                <span>Valor do serviço</span>
-                <span>{formatCurrency(proposal.price)}</span>
-              </div>
-              
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Taxa da plataforma ({fees.feePercentage}%)</span>
-                <span>{formatCurrency(fees.platformFee)}</span>
-              </div>
-              
-              <Separator />
-              
-              <div className="flex justify-between font-semibold text-lg">
-                <span>Total a pagar</span>
-                <span className="text-primary">{formatCurrency(fees.total)}</span>
+                
+                <Separator />
+                
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total a pagar</span>
+                  <span className="text-primary">{formatCurrency(fees.total)}</span>
+                </div>
               </div>
             </div>
+
+            {/* Security Notice */}
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p><strong>Pagamento Seguro e Protegido:</strong></p>
+                  <ul className="text-sm space-y-1 ml-4 list-disc">
+                    <li>Valor fica em garantia até a conclusão do serviço</li>
+                    <li>Contrato automático entre cliente e prestador</li>
+                    <li>Chat liberado para comunicação direta</li>
+                    <li>Sistema de disputas disponível se necessário</li>
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+
+            {/* Contract Terms */}
+            <Alert className="border-amber-200 bg-amber-50">
+              <FileText className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <strong>Termos do Contrato:</strong> Ao prosseguir, um contrato será gerado automaticamente entre você e o prestador. 
+                A JobFast atua apenas como intermediadora, conectando clientes e prestadores, sem assumir responsabilidade pela execução dos serviços.
+              </AlertDescription>
+            </Alert>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handlePayment}
+                className="flex-1"
+                size="lg"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Contratar por {formatCurrency(fees.total)}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Security Notice */}
-          <Alert>
-            <Shield className="h-4 w-4" />
-            <AlertDescription>
-              <div className="space-y-2">
-                <p><strong>Pagamento Seguro e Protegido:</strong></p>
-                <ul className="text-sm space-y-1 ml-4 list-disc">
-                  <li>Valor fica em garantia até a conclusão do serviço</li>
-                  <li>Contrato automático entre cliente e prestador</li>
-                  <li>Chat liberado para comunicação direta</li>
-                  <li>Sistema de disputas disponível se necessário</li>
-                </ul>
-              </div>
-            </AlertDescription>
-          </Alert>
-
-          {/* Contract Terms */}
-          <Alert className="border-amber-200 bg-amber-50">
-            <FileText className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-800">
-              <strong>Termos do Contrato:</strong> Ao prosseguir, um contrato será gerado automaticamente entre você e o prestador. 
-              A JobFast atua apenas como intermediadora, conectando clientes e prestadores, sem assumir responsabilidade pela execução dos serviços.
-            </AlertDescription>
-          </Alert>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              onClick={handlePayment}
-              disabled={processing}
-              className="flex-1"
-              size="lg"
-            >
-              {processing ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Processando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Contratar por {formatCurrency(fees.total)}
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={processing}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <AbacatePayModal
+        isOpen={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          onPaymentSuccess();
+          onClose();
+        }}
+        amount={fees.total}
+        description={`Contratação - ${jobTitle}`}
+        paymentType="job"
+        paymentData={{
+          jobId,
+          providerId: proposal.provider_id,
+          serviceAmount: proposal.price,
+          platformFee: fees.platformFee,
+          proposalId: proposal.id
+        }}
+      />
+    </>
   );
 }

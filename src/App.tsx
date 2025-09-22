@@ -61,6 +61,7 @@ import DirectProposalCheckout from "./pages/DirectProposalCheckout";
 import CheckoutSuccess from "./pages/checkout/Success";
 import CheckoutCancel from "./pages/checkout/Cancel";
 import BoostSuccess from "./pages/checkout/BoostSuccess";
+import AbacatePaySuccess from "./pages/checkout/AbacatePaySuccess";
 
 const queryClient = new QueryClient();
 
@@ -283,6 +284,15 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CheckoutCancel />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/abacatepay-success"
+              element={
+                <ProtectedRoute>
+                  <AbacatePaySuccess />
                 </ProtectedRoute>
               }
             />
