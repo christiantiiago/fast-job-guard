@@ -33,8 +33,7 @@ import ProvidersDiscover from "./pages/ProvidersDiscover";
 import UserProfile from "./pages/UserProfile";
 import ClientWallet from "./pages/ClientWallet";
 import Chat from "./pages/Chat";
-import Chats from "./pages/Chats";
-import { JobChatPage } from "./components/chat/JobChatPage";
+import { ModernChatInterface } from './components/chat/ModernChatInterface';
 import Wallet from "./pages/Wallet";
 import Reviews from "./pages/Reviews";
 import Finance from "./pages/provider/Finance";
@@ -204,7 +203,7 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <KYCGate>
-                    <Chats />
+                    <ModernChatInterface />
                   </KYCGate>
                 </ProtectedRoute>
               }
@@ -220,11 +219,11 @@ const App = () => (
               }
             />
             <Route
-              path="/chat/:jobId"
+              path="/chats/:job_id"
               element={
                 <ProtectedRoute>
                   <ProtectedKYCRoute>
-                    <JobChatPage />
+                    <ModernChatInterface />
                   </ProtectedKYCRoute>
                 </ProtectedRoute>
               }
