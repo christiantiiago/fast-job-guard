@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,93 +38,93 @@ export function ConversationList({ onSelectConversation, selectedJobId }: Conver
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
+  const fetchConversations = useCallback(async () => {
     if (!user) return;
+    
+    try {
+      setLoading(true);
 
-    const fetchConversations = async () => {
-      try {
-        setLoading(true);
+      // Buscar jobs onde o usuário é cliente ou prestador
+      const { data: jobs, error: jobsError } = await supabase
+        .from('jobs')
+        .select(`
+          id,
+          title,
+          status,
+          client_id,
+          provider_id
+        `)
+        .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false });
 
-        // Buscar jobs onde o usuário é cliente ou prestador
-        const { data: jobs, error: jobsError } = await supabase
-          .from('jobs')
-          .select(`
-            id,
-            title,
-            status,
-            client_id,
-            provider_id
-          `)
-          .or(`client_id.eq.${user.id},provider_id.eq.${user.id}`)
-          .order('updated_at', { ascending: false });
+      if (jobsError) throw jobsError;
 
-        if (jobsError) throw jobsError;
-
-        if (!jobs || jobs.length === 0) {
-          setConversations([]);
-          return;
-        }
-
-        const conversationsData: Conversation[] = [];
-
-        for (const job of jobs) {
-          // Determinar o outro usuário
-          const otherUserId = job.client_id === user.id ? job.provider_id : job.client_id;
-          
-          // Buscar dados do outro usuário
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_id, full_name, avatar_url')
-            .eq('user_id', otherUserId)
-            .single();
-
-          // Buscar última mensagem
-          const { data: lastMessage } = await supabase
-            .from('job_messages')
-            .select('content, created_at, sender_id')
-            .eq('job_id', job.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          // Contar mensagens não lidas
-          const { count: unreadCount } = await supabase
-            .from('job_messages')
-            .select('*', { count: 'exact' })
-            .eq('job_id', job.id)
-            .eq('is_read', false)
-            .neq('sender_id', user.id);
-
-          conversationsData.push({
-            job_id: job.id,
-            job_title: job.title,
-            job_status: job.status,
-            other_user: profile || {
-              user_id: otherUserId,
-              full_name: 'Usuário Desconhecido'
-            },
-            last_message: lastMessage,
-            unread_count: unreadCount || 0
-          });
-        }
-
-        // Ordenar por última mensagem ou data de criação do job
-        conversationsData.sort((a, b) => {
-          const aTime = a.last_message?.created_at || '1970-01-01';
-          const bTime = b.last_message?.created_at || '1970-01-01';
-          return new Date(bTime).getTime() - new Date(aTime).getTime();
-        });
-
-        setConversations(conversationsData);
-      } catch (error) {
-        console.error('Error fetching conversations:', error);
-      } finally {
-        setLoading(false);
+      if (!jobs || jobs.length === 0) {
+        setConversations([]);
+        return;
       }
-    };
 
-    fetchConversations();
+      const conversationsData: Conversation[] = [];
+
+      for (const job of jobs) {
+        // Determinar o outro usuário
+        const otherUserId = job.client_id === user.id ? job.provider_id : job.client_id;
+        
+        // Buscar dados do outro usuário
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, avatar_url')
+          .eq('user_id', otherUserId)
+          .single();
+
+        // Buscar última mensagem
+        const { data: lastMessage } = await supabase
+          .from('job_messages')
+          .select('content, created_at, sender_id')
+          .eq('job_id', job.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        // Contar mensagens não lidas
+        const { count: unreadCount } = await supabase
+          .from('job_messages')
+          .select('*', { count: 'exact' })
+          .eq('job_id', job.id)
+          .eq('is_read', false)
+          .neq('sender_id', user.id);
+
+        conversationsData.push({
+          job_id: job.id,
+          job_title: job.title,
+          job_status: job.status,
+          other_user: profile || {
+            user_id: otherUserId,
+            full_name: 'Usuário Desconhecido'
+          },
+          last_message: lastMessage,
+          unread_count: unreadCount || 0
+        });
+      }
+
+      // Ordenar por última mensagem ou data de criação do job
+      conversationsData.sort((a, b) => {
+        const aTime = a.last_message?.created_at || '1970-01-01';
+        const bTime = b.last_message?.created_at || '1970-01-01';
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      });
+
+      setConversations(conversationsData);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const filteredConversations = conversations.filter(conv =>
     conv.job_title.toLowerCase().includes(searchQuery.toLowerCase()) ||

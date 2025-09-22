@@ -100,9 +100,6 @@ export function ModernChatInterface() {
 
         if (profileError) throw profileError;
         setOtherUser(profileData);
-
-        // Mark messages as read
-        markMessagesAsRead(job_id);
       } catch (error) {
         console.error('Error fetching job data:', error);
         toast.error('Erro ao carregar dados do chat');
@@ -110,7 +107,7 @@ export function ModernChatInterface() {
     };
 
     fetchJobData();
-  }, [job_id, user, markMessagesAsRead]);
+  }, [job_id, user]);
 
   // Handle send message
   const handleSendMessage = async () => {

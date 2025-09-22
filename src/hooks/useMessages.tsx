@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -9,11 +9,13 @@ export interface JobMessage {
   content: string;
   attachment_url?: string;
   attachment_type?: string;
-  has_attachments: boolean;
   is_read: boolean;
   created_at: string;
-  sender_name: string;
-  sender_avatar: string;
+  sender?: {
+    user_id: string;
+    full_name: string;
+    avatar_url?: string;
+  };
 }
 
 export const useMessages = (jobId?: string) => {
@@ -23,7 +25,7 @@ export const useMessages = (jobId?: string) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Get total unread messages count across all conversations
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -53,9 +55,10 @@ export const useMessages = (jobId?: string) => {
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  };
+  }, [user]);
 
-  const fetchMessages = async () => {
+  // Fetch messages for specific job
+  const fetchMessages = useCallback(async () => {
     if (!jobId || !user) {
       setLoading(false);
       return;
@@ -63,62 +66,58 @@ export const useMessages = (jobId?: string) => {
 
     try {
       setLoading(true);
-
+      
       const { data, error } = await supabase
         .from('job_messages')
-        .select('*')
+        .select(`
+          id,
+          job_id,
+          sender_id,
+          content,
+          attachment_url,
+          attachment_type,
+          is_read,
+          created_at,
+          sender:profiles!sender_id (
+            user_id,
+            full_name,
+            avatar_url
+          )
+        `)
         .eq('job_id', jobId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      // Get sender profiles
-      const senderIds = [...new Set(data?.map(msg => msg.sender_id) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, avatar_url')
-        .in('user_id', senderIds);
-
-      const profilesMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
-      const formattedMessages: JobMessage[] = data?.map(msg => {
-        const profile = profilesMap.get(msg.sender_id);
-        return {
-          id: msg.id,
-          job_id: msg.job_id,
-          sender_id: msg.sender_id,
-          content: msg.content || '',
-          attachment_url: msg.attachment_url,
-          attachment_type: msg.attachment_type,
-          has_attachments: msg.has_attachments || false,
-          is_read: msg.is_read,
-          created_at: msg.created_at,
-          sender_name: profile?.full_name || 'Usuário',
-          sender_avatar: profile?.avatar_url || ''
-        };
-      }) || [];
+      const formattedMessages: JobMessage[] = (data || []).map(msg => ({
+        id: msg.id,
+        job_id: msg.job_id,
+        sender_id: msg.sender_id,
+        content: msg.content,
+        attachment_url: msg.attachment_url,
+        attachment_type: msg.attachment_type,
+        is_read: msg.is_read,
+        created_at: msg.created_at,
+        sender: Array.isArray(msg.sender) ? msg.sender[0] : msg.sender
+      }));
 
       setMessages(formattedMessages);
-
-      // Mark messages as read for current user
-      if (formattedMessages.length > 0) {
-        await markMessagesAsRead(jobId);
-      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId, user]);
 
-  const markMessagesAsRead = async (jobId: string) => {
+  // Mark messages as read
+  const markMessagesAsRead = useCallback(async (targetJobId: string) => {
     if (!user) return;
 
     try {
       await supabase
         .from('job_messages')
         .update({ is_read: true })
-        .eq('job_id', jobId)
+        .eq('job_id', targetJobId)
         .neq('sender_id', user.id);
 
       // Refresh unread count
@@ -126,34 +125,40 @@ export const useMessages = (jobId?: string) => {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
-  };
+  }, [user, fetchUnreadCount]);
 
-  const sendMessage = async (jobId: string, content: string, attachmentUrl?: string, attachmentType?: string) => {
+  // Send new message
+  const sendMessage = useCallback(async (targetJobId: string, content: string, attachmentUrl?: string, attachmentType?: string) => {
     if (!user || !content.trim()) return;
 
     try {
       const { error } = await supabase
         .from('job_messages')
         .insert({
-          job_id: jobId,
+          job_id: targetJobId,
           sender_id: user.id,
           content: content.trim(),
           attachment_url: attachmentUrl,
           attachment_type: attachmentType,
-          has_attachments: !!attachmentUrl,
           is_read: false
         });
 
       if (error) throw error;
 
-      // Refresh messages
-      fetchMessages();
-      fetchUnreadCount();
+      // Refresh messages and unread count
+      await fetchMessages();
+      await fetchUnreadCount();
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
     }
-  };
+  }, [user, fetchMessages, fetchUnreadCount]);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchMessages();
+    fetchUnreadCount();
+  }, [fetchMessages, fetchUnreadCount]);
 
   // Set up real-time subscription for messages
   useEffect(() => {
@@ -178,13 +183,11 @@ export const useMessages = (jobId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [jobId, user]);
+  }, [jobId, user, fetchMessages]);
 
   // Set up real-time subscription for unread count
   useEffect(() => {
     if (!user) return;
-
-    fetchUnreadCount();
 
     const channel = supabase
       .channel('unread-messages')
@@ -204,11 +207,17 @@ export const useMessages = (jobId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchUnreadCount]);
 
+  // Auto-mark messages as read when component mounts with messages
   useEffect(() => {
-    fetchMessages();
-  }, [jobId, user]);
+    if (jobId && messages.length > 0 && user) {
+      const hasUnreadMessages = messages.some(msg => !msg.is_read && msg.sender_id !== user.id);
+      if (hasUnreadMessages) {
+        markMessagesAsRead(jobId);
+      }
+    }
+  }, [jobId, messages.length, user?.id]); // Note: removed markMessagesAsRead from deps to prevent loop
 
   return {
     messages,
