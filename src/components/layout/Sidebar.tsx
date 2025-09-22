@@ -150,8 +150,8 @@ export const Sidebar = () => {
         </div>
       )}
 
-      {/* Premium Button for non-premium users */}
-      {!premiumStatus.is_premium && userRole !== 'admin' && (
+      {/* Premium Button for non-premium providers only */}
+      {!premiumStatus.is_premium && userRole === 'provider' && (
         <div className="space-y-2">
           <Button asChild className="w-full justify-start bg-gradient-to-r from-accent to-accent/80 text-white hover:from-accent/90 hover:to-accent/70" size="sm">
             <NavLink to="/premium">

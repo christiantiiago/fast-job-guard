@@ -47,7 +47,6 @@ export function MobileHamburgerMenu() {
     { name: 'Carteira', href: '/wallet', icon: Wallet },
     { name: 'Avaliações', href: '/reviews', icon: Star },
     { name: 'Documentos', href: '/kyc/documents', icon: FileText },
-    { name: 'Premium', href: '/premium', icon: Crown },
     { name: 'Ajuda e Suporte', href: '/help', icon: Settings },
     { name: 'Perfil', href: '/profile', icon: User },
   ];
@@ -135,8 +134,8 @@ export function MobileHamburgerMenu() {
                   </div>
                 </div>
                 
-                {/* Botão Premium apenas para não-admin e não-premium */}
-                {!premiumStatus.is_premium && userRole !== 'admin' && (
+                {/* Botão Premium apenas para prestadores não-premium */}
+                {!premiumStatus.is_premium && userRole === 'provider' && (
                   <Button
                     asChild
                     className="w-full justify-start bg-gradient-to-r from-accent to-accent/80 text-white hover:from-accent/90 hover:to-accent/70"

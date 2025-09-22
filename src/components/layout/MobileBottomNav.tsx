@@ -29,8 +29,8 @@ const MobileBottomNav = ({ userRole = "client" }: MobileBottomNavProps) => {
     { id: "wallet", label: "Carteira", icon: Wallet, href: "/provider/finance" },
   ];
 
-  // Show premium tab for non-premium users
-  const shouldShowPremium = !premiumStatus.is_premium && userRole !== 'admin';
+  // Show premium tab for non-premium providers only
+  const shouldShowPremium = !premiumStatus.is_premium && userRole === 'provider';
   
   let tabs = userRole === "provider" ? providerTabs : clientTabs;
   
