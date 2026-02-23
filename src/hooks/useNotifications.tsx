@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { requestPushPermissionAndSync, syncPushSubscription } from '@/lib/webPush';
 
 export interface Notification {
   id: string;
@@ -131,6 +132,12 @@ export const useNotifications = () => {
 
     fetchNotifications();
 
+    if ('Notification' in window && Notification.permission === 'granted') {
+      syncPushSubscription(user.id).catch((err) => {
+        console.error('Erro ao sincronizar push subscription:', err);
+      });
+    }
+
     const channel = supabase
       .channel('user-notifications')
       .on(
@@ -165,11 +172,14 @@ export const useNotifications = () => {
 
   // Request notification permission
   const requestPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
+    if (!user) return false;
+
+    try {
+      return await requestPushPermissionAndSync(user.id);
+    } catch (error) {
+      console.error('Erro ao solicitar permissão de push:', error);
+      return false;
     }
-    return false;
   };
 
   return {
