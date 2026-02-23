@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { unsubscribePushNotifications } from '@/lib/webPush';
 
 interface AuthContextType {
   user: User | null;
@@ -228,6 +229,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     
     try {
+      if (user?.id) {
+        await unsubscribePushNotifications(user.id);
+      }
+
       await supabase.auth.signOut();
       // Clear sensitive data from localStorage
       localStorage.removeItem('rememberedEmail');
